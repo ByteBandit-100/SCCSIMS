@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SCCSIMS Dashboard</title>
+    <meta http-equiv="refresh" content="5">
+    <style>
+        body {
+            font-family: Arial;
+            background-color: #f4f6f9;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .high {
+            color: red;
+            font-weight: bold;
+        }
+        .normal {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Smart College Cyber Security Dashboard</h1>
+
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Hostname</th>
+        <th>IP Address</th>
+        <th>OS</th>
+        <th>CPU (%)</th>
+        <th>RAM (%)</th>
+        <th>Last Seen</th>
+    </tr>
+
+    {% for device in devices %}
+    <tr>
+        <td>{{ device.id }}</td>
+        <td>{{ device.hostname }}</td>
+        <td>{{ device.ip_address }}</td>
+        <td>{{ device.os }}</td>
+        <td class="{{ 'high' if device.cpu_usage > 80 else 'normal' }}">
+            {{ device.cpu_usage }}
+        </td>
+        <td class="{{ 'high' if device.ram_usage > 80 else 'normal' }}">
+            {{ device.ram_usage }}
+        </td>
+        <td>{{ device.last_seen }}</td>
+    </tr>
+    {% endfor %}
+
+</table>
+
+</body>
+</html>
