@@ -16,7 +16,14 @@ def dashboard():
     conn.close()
 
     devices = []
+    current_time = datetime.now()
+
     for row in rows:
+        last_seen_time = datetime.strptime(row[6], "%Y-%m-%d %H:%M:%S")
+        time_diff = (current_time - last_seen_time).total_seconds()
+
+        status = "ONLINE" if time_diff <= 60 else "OFFLINE"
+
         devices.append({
             "id": row[0],
             "hostname": row[1],
@@ -24,7 +31,8 @@ def dashboard():
             "os": row[3],
             "cpu_usage": row[4],
             "ram_usage": row[5],
-            "last_seen": row[6]
+            "last_seen": row[6],
+            "status": status
         })
 
     return render_template("dashboard.html", devices=devices)
@@ -56,7 +64,6 @@ def init_db():
 # Receive Data from Clients
 # ---------------------------
 @app.route("/api/device", methods=["POST"])
-
 def receive_device_data():
     data = request.json
 
@@ -70,17 +77,31 @@ def receive_device_data():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    cursor.execute("""
-        INSERT INTO devices 
-        (hostname, ip_address, os, cpu_usage, ram_usage, last_seen)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (hostname, ip_address, os_name, cpu_usage, ram_usage, last_seen))
+    cursor.execute(
+        "SELECT id FROM devices WHERE ip_address=?",
+        (ip_address,)
+    )
+
+    device = cursor.fetchone()
+
+    if device:
+        cursor.execute("""
+            UPDATE devices
+            SET hostname=?, os=?, cpu_usage=?, ram_usage=?, last_seen=?
+            WHERE ip_address=?
+        """, (hostname, os_name, cpu_usage, ram_usage, last_seen, ip_address))
+
+    else:
+        cursor.execute("""
+            INSERT INTO devices
+            (hostname, ip_address, os, cpu_usage, ram_usage, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (hostname, ip_address, os_name, cpu_usage, ram_usage, last_seen))
 
     conn.commit()
     conn.close()
 
-    return jsonify({"status": "Device data stored successfully"}), 200
-
+    return jsonify({"status": "Device updated"}), 200
 # ---------------------------
 # View All Devices
 # ---------------------------

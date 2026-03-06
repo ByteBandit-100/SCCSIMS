@@ -51,6 +51,7 @@
         <th>CPU (%)</th>
         <th>RAM (%)</th>
         <th>Last Seen</th>
+        <th>Status</th>
     </tr>
 
     {% for device in devices %}
@@ -66,6 +67,10 @@
             {{ device.ram_usage }}
         </td>
         <td>{{ device.last_seen }}</td>
+        <td style="color: {{ 'green' if device.status == 'ONLINE' else 'red' }};">
+    {{ device.status }}
+</td>
+
     </tr>
     {% endfor %}
 
