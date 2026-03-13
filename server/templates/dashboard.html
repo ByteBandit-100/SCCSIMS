@@ -50,6 +50,7 @@
         <th>OS</th>
         <th>CPU (%)</th>
         <th>RAM (%)</th>
+        <th>Location</th>
         <th>Last Seen</th>
         <th>Status</th>
     </tr>
@@ -66,6 +67,7 @@
         <td class="{{ 'high' if device.ram_usage > 80 else 'normal' }}">
             {{ device.ram_usage }}
         </td>
+        <td>{{ device.location }}</td>
         <td>{{ device.last_seen }}</td>
         <td style="color: {{ 'green' if device.status == 'ONLINE' else 'red' }};">
     {{ device.status }}
