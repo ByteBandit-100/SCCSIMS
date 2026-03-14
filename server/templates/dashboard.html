@@ -83,12 +83,13 @@
 <table>
 <tr>
 <th>IP Address</th>
+<th>MAC Address</th>
 <th>Status</th>
-</tr>
 
-{% for ip in rogue_devices %}
+{% for device in rogue_devices %}
 <tr>
-<td>{{ ip }}</td>
+<td>{{ device.ip }}</td>
+<td>{{ device.mac }}</td>
 <td style="color:red;">Unknown Device</td>
 </tr>
 {% endfor %}

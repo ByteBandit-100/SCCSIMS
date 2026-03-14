@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import sqlite3
 from flask import render_template
+from arp_scanner import scan_network_arp
 from network_scanner import scan_network
 from datetime import datetime
 
@@ -44,12 +45,22 @@ def dashboard():
     # after building device list
     known_ips = set([d["ip_address"] for d in devices])
 
-    scanned_devices = set(scan_network())
+    arp_results = scan_network_arp()
 
-    # ignore router and server
     ignored_ips = {"192.168.1.1", "192.168.1.33"}
 
-    rogue_devices = list(scanned_devices - known_ips - ignored_ips)
+    rogue_devices = []
+
+    for device in arp_results:
+        ip = device["ip"]
+        mac = device["mac"]
+
+        if ip not in known_ips and ip not in ignored_ips:
+            rogue_devices.append({
+                "ip": ip,
+                "mac": mac
+            })
+
 
     return render_template(
         "dashboard.html",
@@ -165,29 +176,42 @@ def scan_network_route():
     devices = scan_network()
     return jsonify(devices)
 
+@app.route("/scan-arp")
+def scan_arp():
+
+    devices = scan_network_arp()
+
+    return jsonify(devices)
+
 @app.route("/detect-rogue")
 def detect_rogue_devices():
 
-    scanned_devices = scan_network()
+    arp_results = scan_network_arp()
 
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
     cursor.execute("SELECT ip_address FROM devices")
     db_devices = cursor.fetchall()
-
     conn.close()
 
     known_ips = [d[0] for d in db_devices]
 
+    ignored_ips = {"192.168.1.1", "192.168.1.33"}
+
     rogue_devices = []
 
-    for ip in scanned_devices:
-        if ip not in known_ips:
-            rogue_devices.append(ip)
+    for device in arp_results:
+        ip = device["ip"]
+        mac = device["mac"]
+
+        if ip not in known_ips and ip not in ignored_ips:
+            rogue_devices.append({
+                "ip": ip,
+                "mac": mac
+            })
 
     return jsonify({
-        "known_devices": known_ips,
         "rogue_devices": rogue_devices
     })
 
