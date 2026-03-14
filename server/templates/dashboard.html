@@ -85,12 +85,12 @@
 <th>IP Address</th>
 <th>MAC Address</th>
 <th>Status</th>
-
+</tr>
 {% for device in rogue_devices %}
 <tr>
 <td>{{ device.ip }}</td>
 <td>{{ device.mac }}</td>
-<td style="color:red;">Unknown Device</td>
+<td style="color:red;">Rogue - {{ device.status }}</td>
 </tr>
 {% endfor %}
 

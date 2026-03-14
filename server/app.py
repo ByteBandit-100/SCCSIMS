@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
+import subprocess
 from flask import render_template
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
@@ -7,6 +8,21 @@ from datetime import datetime
 
 app = Flask(__name__)
 DATABASE = "sccsims.db"
+
+def get_mac_from_arp_cache(ip):
+
+    try:
+        output = subprocess.check_output("arp -a", shell=True).decode()
+
+        for line in output.split("\n"):
+            if ip in line:
+                parts = line.split()
+                return parts[1]
+
+    except:
+        pass
+
+    return "Unknown"
 
 @app.route("/")
 def dashboard():
@@ -44,23 +60,36 @@ def dashboard():
 
     # after building device list
     known_ips = set([d["ip_address"] for d in devices])
+    # Scan devices using ping
+    ping_devices = set(scan_network())
 
+    # Scan devices using ARP
     arp_results = scan_network_arp()
+    arp_devices = set([d["ip"] for d in arp_results])
+
+    # Merge both scans
+    all_devices = ping_devices.union(arp_devices)
 
     ignored_ips = {"192.168.1.1", "192.168.1.33"}
 
     rogue_devices = []
 
-    for device in arp_results:
-        ip = device["ip"]
-        mac = device["mac"]
+    # create arp lookup table
+    arp_table = {d["ip"]: d["mac"] for d in arp_results}
+
+    for ip in all_devices:
 
         if ip not in known_ips and ip not in ignored_ips:
+            mac = arp_table.get(ip)
+
+            if not mac:
+                mac = get_mac_from_arp_cache(ip)
+
             rogue_devices.append({
                 "ip": ip,
-                "mac": mac
+                "mac": mac,
+                "status": "ACTIVE"
             })
-
 
     return render_template(
         "dashboard.html",
@@ -185,8 +214,11 @@ def scan_arp():
 
 @app.route("/detect-rogue")
 def detect_rogue_devices():
-
+    ping_devices = set(scan_network())
     arp_results = scan_network_arp()
+    arp_devices = set([d["ip"] for d in arp_results])
+
+    all_devices = ping_devices.union(arp_devices)
 
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
@@ -205,7 +237,7 @@ def detect_rogue_devices():
         ip = device["ip"]
         mac = device["mac"]
 
-        if ip not in known_ips and ip not in ignored_ips:
+        if ip in all_devices and ip not in known_ips and ip not in ignored_ips:
             rogue_devices.append({
                 "ip": ip,
                 "mac": mac
