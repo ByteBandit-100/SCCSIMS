@@ -19,6 +19,7 @@ def dashboard():
     devices = []
     current_time = datetime.now()
 
+    # build device list
     for row in rows:
         try:
             last_seen_time = datetime.strptime(row[7], "%Y-%m-%d %H:%M:%S")
@@ -26,7 +27,6 @@ def dashboard():
             last_seen_time = current_time
 
         time_diff = (current_time - last_seen_time).total_seconds()
-
         status = "ONLINE" if time_diff <= 60 else "OFFLINE"
 
         devices.append({
@@ -41,7 +41,21 @@ def dashboard():
             "status": status
         })
 
-    return render_template("dashboard.html", devices=devices)
+    # after building device list
+    known_ips = set([d["ip_address"] for d in devices])
+
+    scanned_devices = set(scan_network())
+
+    # ignore router and server
+    ignored_ips = {"192.168.1.1", "192.168.1.33"}
+
+    rogue_devices = list(scanned_devices - known_ips - ignored_ips)
+
+    return render_template(
+        "dashboard.html",
+        devices=devices,
+        rogue_devices=rogue_devices
+    )
 # ---------------------------
 # Database Initialization
 # ---------------------------
@@ -151,9 +165,32 @@ def scan_network_route():
     devices = scan_network()
     return jsonify(devices)
 
-# ---------------------------
-# Run Server
-# ---------------------------
+@app.route("/detect-rogue")
+def detect_rogue_devices():
+
+    scanned_devices = scan_network()
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT ip_address FROM devices")
+    db_devices = cursor.fetchall()
+
+    conn.close()
+
+    known_ips = [d[0] for d in db_devices]
+
+    rogue_devices = []
+
+    for ip in scanned_devices:
+        if ip not in known_ips:
+            rogue_devices.append(ip)
+
+    return jsonify({
+        "known_devices": known_ips,
+        "rogue_devices": rogue_devices
+    })
+
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000, debug=True)

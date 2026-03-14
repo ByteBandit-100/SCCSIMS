@@ -5,17 +5,18 @@ from concurrent.futures import ThreadPoolExecutor
 network_prefix = "192.168.1."
 
 def ping(ip):
-    if platform.system().lower() == "windows":
-        command = f"ping -n 1 -w 100 {ip}"
-    else:
-        command = f"ping -c 1 -W 1 {ip}"
+    for _ in range(2):
+        if platform.system().lower() == "windows":
+            command = f"ping -n 1 -w 500 {ip}"
+        else:
+            command = f"ping -c 1 -W 1 {ip}"
 
-    result = subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    if result == 0:
-        return ip
+        if result == 0:
+            return ip
+
     return None
-
 
 def scan_network():
     ips = [network_prefix + str(i) for i in range(1,255)]
