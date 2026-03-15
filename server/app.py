@@ -36,6 +36,17 @@ def dashboard():
     devices = []
     current_time = datetime.now()
 
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+    trusted_rows = cursor.fetchall()
+
+    trusted_ips = set([r[0] for r in trusted_rows])
+    trusted_macs = set([r[1] for r in trusted_rows])
+
+    conn.close()
+
     # build device list
     for row in rows:
         try:
@@ -77,14 +88,21 @@ def dashboard():
     # create arp lookup table
     arp_table = {d["ip"]: d["mac"] for d in arp_results}
 
+    trusted_macs = set(m for m in trusted_macs if m)
+
     for ip in all_devices:
 
-        if ip not in known_ips and ip not in ignored_ips:
-            mac = arp_table.get(ip)
+        mac = arp_table.get(ip)
 
-            if not mac:
-                mac = get_mac_from_arp_cache(ip)
+        if not mac:
+            mac = get_mac_from_arp_cache(ip)
 
+        if (
+                ip not in known_ips and
+                ip not in trusted_ips and
+                mac not in trusted_macs and
+                ip not in ignored_ips
+        ):
             rogue_devices.append({
                 "ip": ip,
                 "mac": mac,
@@ -127,6 +145,17 @@ def init_db():
                        TEXT
                    )
                    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS trusted_devices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT,
+        mac_address TEXT,
+        device_name TEXT,
+        location TEXT
+    )
+    """)
+
     conn.commit()
     conn.close()
 # ---------------------------
