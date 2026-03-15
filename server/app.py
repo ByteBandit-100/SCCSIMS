@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 import sqlite3
 import subprocess
 from flask import render_template
@@ -44,6 +44,15 @@ def dashboard():
 
     trusted_ips = set([r[0] for r in trusted_rows])
     trusted_macs = set([r[1] for r in trusted_rows])
+
+    trusted_devices = []
+
+    for row in trusted_rows:
+        trusted_devices.append({
+            "ip": row[0],
+            "mac": row[1]
+        })
+
 
     conn.close()
 
@@ -119,6 +128,7 @@ def dashboard():
         "dashboard.html",
         devices=devices,
         rogue_devices=rogue_devices,
+        trusted_devices=trusted_devices,
         total_devices=total_devices,
         online_devices=online_devices,
         offline_devices=offline_devices,
@@ -304,7 +314,25 @@ def approve_device():
     conn.commit()
     conn.close()
 
-    return "Device Approved"
+    return jsonify({"status": "success"})
+
+@app.route("/disapprove-device", methods=["POST"])
+def disapprove_device():
+
+    ip = request.form.get("ip")
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "DELETE FROM trusted_devices WHERE ip_address=?",
+        (ip,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status": "success"})
 
 if __name__ == "__main__":
     init_db()

@@ -29,12 +29,43 @@
         tr:nth-child(even) {
             background-color: #f2f2f2;
         }
+        button{
+            cursor:pointer;
+        }
+
+        button:hover{
+            opacity:0.85;
+        }
         .high {
             color: red;
             font-weight: bold;
         }
         .normal {
             color: green;
+        }
+        .modal{
+            display:none;
+            position:fixed;
+            z-index:1;
+            left:0;
+            top:0;
+            width:100%;
+            height:100%;
+            background-color:rgba(0,0,0,0.5);
+        }
+
+        .modal-content{
+            background:white;
+            margin:10% auto;
+            padding:20px;
+            width:60%;
+            border-radius:8px;
+        }
+
+        .close{
+            float:right;
+            font-size:28px;
+            cursor:pointer;
         }
     </style>
 </head>
@@ -62,7 +93,7 @@ Offline Devices<br><b>{{ offline_devices }}</b>
 Rogue Devices<br><b>{{ rogue_count }}</b>
 </div>
 
-<div style="background:#2c3e50;color:white;padding:15px;border-radius:8px;">
+<div id="trustedBtn" style="background:#2c3e50;color:white;padding:15px;border-radius:8px;cursor:pointer;">
 Trusted Devices<br><b>{{ trusted_count }}</b>
 </div>
 
@@ -123,22 +154,131 @@ Trusted Devices<br><b>{{ trusted_count }}</b>
 <td style="color:red;">Rogue - {{ device.status }}</td>
 
 <td>
-<form method="POST" action="/approve-device">
 
-<input type="hidden" name="ip" value="{{ device.ip }}">
-<input type="hidden" name="mac" value="{{ device.mac }}">
-
-<button type="submit" style="background:green;color:white;padding:5px 10px;border:none;border-radius:4px;">
+<button
+style="background:green;color:white;padding:5px 10px;border:none;border-radius:4px;"
+onclick="approveDevice('{{ device.ip }}','{{ device.mac }}',this)">
 Approve
 </button>
 
-</form>
 </td>
 
 </tr>
 {% endfor %}
 
 </table>
+
+<div id="trustedModal" class="modal">
+
+<div class="modal-content">
+
+<span id="closeModal" class="close">&times;</span>
+
+<h2>Trusted Devices</h2>
+
+<table>
+
+<tr>
+<th>IP Address</th>
+<th>MAC Address</th>
+<th>Action</th>
+</tr>
+
+{% for device in trusted_devices %}
+<tr>
+
+<td>{{ device.ip }}</td>
+<td>{{ device.mac }}</td>
+
+<td>
+
+<button style="background:green;" class="disapprove-btn"
+onclick="disapproveDevice('{{ device.ip }}', this)">
+Disapprove
+</button>
+
+</td>
+
+</tr>
+{% endfor %}
+
+</table>
+
+</div>
+</div>
+
+<script>
+
+    var modal = document.getElementById("trustedModal");
+
+    var btn = document.getElementById("trustedBtn");
+
+    var close = document.getElementById("closeModal");
+
+    btn.onclick = function(){
+    modal.style.display="block";
+    }
+
+    close.onclick = function(){
+    modal.style.display="none";
+    }
+
+    window.onclick = function(event){
+    if(event.target == modal){
+    modal.style.display="none";
+    }
+    }
+
+    function disapproveDevice(ip, btn){
+
+    fetch("/disapprove-device", {
+    method: "POST",
+    headers: {
+    "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: "ip=" + ip
+    })
+    .then(response => response.json())
+    .then(data => {
+
+    if(data.status === "success"){
+
+    // remove row from table
+    var row = btn.parentElement.parentElement;
+    row.remove();
+
+    }
+
+    });
+
+    }
+
+    function approveDevice(ip, mac, btn){
+
+    fetch("/approve-device", {
+    method: "POST",
+    headers: {
+    "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: "ip=" + ip + "&mac=" + mac
+    })
+    .then(response => response.json())
+    .then(data => {
+
+    if(data.status === "success"){
+
+    // remove row instantly
+    var row = btn.parentElement.parentElement;
+    row.remove();
+
+    }
+
+    });
+
+    }
+
+
+</script>
 
 </body>
 </html>
