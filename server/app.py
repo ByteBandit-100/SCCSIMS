@@ -239,7 +239,6 @@ def get_devices():
 
     return jsonify(devices)
 
-
 @app.route("/scan-network")
 def scan_network_route():
     devices = scan_network()
@@ -286,6 +285,26 @@ def detect_rogue_devices():
     return jsonify({
         "rogue_devices": rogue_devices
     })
+
+@app.route("/approve-device", methods=["POST"])
+def approve_device():
+
+    ip = request.form.get("ip")
+    mac = request.form.get("mac")
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO trusted_devices
+        (ip_address, mac_address, device_name, location)
+        VALUES (?, ?, ?, ?)
+    """, (ip, mac, "Approved Device", "Network"))
+
+    conn.commit()
+    conn.close()
+
+    return "Device Approved"
 
 if __name__ == "__main__":
     init_db()
