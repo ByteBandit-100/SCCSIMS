@@ -109,10 +109,21 @@ def dashboard():
                 "status": "ACTIVE"
             })
 
+    total_devices = len(devices)
+    online_devices = len([d for d in devices if d["status"] == "ONLINE"])
+    offline_devices = len([d for d in devices if d["status"] == "OFFLINE"])
+    rogue_count = len(rogue_devices)
+    trusted_count = len(trusted_ips)
+
     return render_template(
         "dashboard.html",
         devices=devices,
-        rogue_devices=rogue_devices
+        rogue_devices=rogue_devices,
+        total_devices=total_devices,
+        online_devices=online_devices,
+        offline_devices=offline_devices,
+        rogue_count=rogue_count,
+        trusted_count=trusted_count
     )
 # ---------------------------
 # Database Initialization

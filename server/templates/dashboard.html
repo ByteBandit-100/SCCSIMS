@@ -42,6 +42,32 @@
 
 <h1>Smart College Cyber Security Dashboard</h1>
 
+<h2>Network Overview</h2>
+
+<div style="display:flex;gap:20px;margin-bottom:25px;">
+
+<div style="background:#3498db;color:white;padding:15px;border-radius:8px;">
+Total Devices<br><b>{{ total_devices }}</b>
+</div>
+
+<div style="background:#27ae60;color:white;padding:15px;border-radius:8px;">
+Online Devices<br><b>{{ online_devices }}</b>
+</div>
+
+<div style="background:#c0392b;color:white;padding:15px;border-radius:8px;">
+Offline Devices<br><b>{{ offline_devices }}</b>
+</div>
+
+<div style="background:#f39c12;color:white;padding:15px;border-radius:8px;">
+Rogue Devices<br><b>{{ rogue_count }}</b>
+</div>
+
+<div style="background:#2c3e50;color:white;padding:15px;border-radius:8px;">
+Trusted Devices<br><b>{{ trusted_count }}</b>
+</div>
+
+</div>
+
 <table>
     <tr>
         <th>ID</th>
