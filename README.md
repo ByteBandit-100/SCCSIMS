@@ -18,18 +18,18 @@ Built using **Python, Flask, Scapy, and SQLite**, SCCSIMS demonstrates practical
 ---
 
 ## System Architecture
-Agent (Client Devices)
-│
-│ Sends system data every 10 seconds
-▼
-Flask Server (app.py)
-│
-├── Device Monitoring API
-├── Network Scanner
-├── Rogue Device Detection
-└── Trusted Device Management
-│
-▼
+Agent (Client Devices)<br>
+│<br>
+│ Sends system data every 10 seconds<br>
+▼<br>
+Flask Server (app.py)<br>
+│<br>
+├── Device Monitoring API<br>
+├── Network Scanner<br>
+├── Rogue Device Detection<br>
+└── Trusted Device Management<br>
+│<br>
+▼<br>
 SQLite Database (sccsims.db)
 
 
@@ -48,8 +48,6 @@ Frontend | HTML, CSS, JavaScript |
 
 ---
 
-
----
 
 ## Installation
 
@@ -84,9 +82,9 @@ On each client device:
 SERVER_URL = "http://SERVER_IP:5000/api/device"
 
 
-2. Run the agent 
-<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    python agent.py
-3. 
+2. Run the agent <br>
+python agent.py
+
 The device will start sending system data every **10 seconds**.
 
 ---
@@ -148,7 +146,4 @@ Possible extensions for the system include:
 
 ## Author
 
-Mohit Gautam  
-Bachelor of Computer Applications (BCA)
-
-Final Year Project
+Mohit  
