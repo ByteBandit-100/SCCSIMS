@@ -93,8 +93,8 @@ Offline Devices<br><b>{{ offline_devices }}</b>
 Rogue Devices<br><b>{{ rogue_count }}</b>
 </div>
 
-<div id="trustedBtn" style="background:#2c3e50;color:white;padding:15px;border-radius:8px;cursor:pointer;">
-Trusted Devices<br><b>{{ trusted_count }}</b>
+    <div id="trustedBtn" style="background:#2c3e50;color:white;padding:15px;border-radius:8px;cursor:pointer;">
+Trusted Devices<br><b id="trustedCount">{{ trusted_count }}</b>
 </div>
 
 </div>
@@ -176,7 +176,7 @@ Approve
 
 <h2>Trusted Devices</h2>
 
-<table>
+<table id="trustedTable">
 
 <tr>
 <th>IP Address</th>
@@ -245,31 +245,14 @@ Disapprove
 
     // remove row from table
     var row = btn.parentElement.parentElement;
-    row.remove();
+   row.remove();
 
-    }
+var counter = document.getElementById("trustedCount");
+var value = parseInt(counter.innerText);
 
-    });
-
-    }
-
-    function approveDevice(ip, mac, btn){
-
-    fetch("/approve-device", {
-    method: "POST",
-    headers: {
-    "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: "ip=" + ip + "&mac=" + mac
-    })
-    .then(response => response.json())
-    .then(data => {
-
-    if(data.status === "success"){
-
-    // remove row instantly
-    var row = btn.parentElement.parentElement;
-    row.remove();
+if(value > 0){
+    counter.innerText = value - 1;
+}
 
     }
 
@@ -278,6 +261,53 @@ Disapprove
     }
 
 
+function approveDevice(ip, mac, btn){
+
+btn.disabled = true;
+
+fetch("/approve-device", {
+method: "POST",
+headers: {
+"Content-Type": "application/x-www-form-urlencoded"
+},
+body: "ip=" + ip + "&mac=" + mac
+})
+.then(response => response.json())
+.then(data => {
+
+if(data.status === "success"){
+
+var row = btn.parentElement.parentElement;
+row.remove();
+
+var counter = document.getElementById("trustedCount");
+counter.innerText = parseInt(counter.innerText) + 1;
+
+var table = document.getElementById("trustedTable");
+
+var rows = table.rows;
+for (var i = 1; i < rows.length; i++) {
+    if (rows[i].cells[0].innerText === ip) {
+        return;
+    }
+}
+
+var newRow = table.insertRow(-1);
+
+var ipCell = newRow.insertCell(0);
+var macCell = newRow.insertCell(1);
+var actionCell = newRow.insertCell(2);
+
+ipCell.innerText = ip;
+macCell.innerText = mac;
+
+actionCell.innerHTML =
+'<button style="background:green;color:white;" onclick="disapproveDevice(\''+ip+'\', this)">Disapprove</button>';
+
+}
+
+});
+}
 </script>
 
 </body>

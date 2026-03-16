@@ -170,7 +170,7 @@ def init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS trusted_devices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ip_address TEXT,
+        ip_address TEXT UNIQUE,
         mac_address TEXT,
         device_name TEXT,
         location TEXT
@@ -305,11 +305,15 @@ def approve_device():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute("SELECT ip_address FROM trusted_devices WHERE ip_address=?", (ip,))
+    exists = cursor.fetchone()
+
+    if not exists:
+        cursor.execute("""
         INSERT INTO trusted_devices
         (ip_address, mac_address, device_name, location)
         VALUES (?, ?, ?, ?)
-    """, (ip, mac, "Approved Device", "Network"))
+        """, (ip, mac, "Approved Device", "Network"))
 
     conn.commit()
     conn.close()
