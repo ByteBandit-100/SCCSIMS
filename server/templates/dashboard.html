@@ -135,9 +135,9 @@ Trusted Devices<br><b id="trustedCount">{{ trusted_count }}</b>
 
 </table>
 
-<h2 style="margin-top:40px;color:red;">⚠ Unknown / Rogue Devices</h2>
+<h2 style="margin-top:40px;color:red;">⚠ Unauthorized Network Devices</h2>
 
-<table>
+<table id="rogueTable">
 <tr>
 <th>IP Address</th>
 <th>MAC Address</th>
@@ -151,7 +151,7 @@ Trusted Devices<br><b id="trustedCount">{{ trusted_count }}</b>
 
 <td>{{ device.mac }}</td>
 
-<td style="color:red;">Rogue - {{ device.status }}</td>
+<td style="color:red;">{{ device.status }}</td>
 
 <td>
 
@@ -231,22 +231,25 @@ Disapprove
 
     function disapproveDevice(ip, btn){
 
-    fetch("/disapprove-device", {
-    method: "POST",
-    headers: {
-    "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: "ip=" + ip
-    })
-    .then(response => response.json())
-    .then(data => {
+var row = btn.parentElement.parentElement;
+var mac = row.cells[1].innerText;   // capture MAC before deleting
 
-    if(data.status === "success"){
+fetch("/disapprove-device", {
+method: "POST",
+headers: {
+"Content-Type": "application/x-www-form-urlencoded"
+},
+body: "ip=" + ip
+})
+.then(response => response.json())
+.then(data => {
 
-    // remove row from table
-    var row = btn.parentElement.parentElement;
-   row.remove();
+if(data.status === "success"){
 
+// remove row from trusted table
+row.remove();
+
+// decrease counter
 var counter = document.getElementById("trustedCount");
 var value = parseInt(counter.innerText);
 
@@ -254,12 +257,29 @@ if(value > 0){
     counter.innerText = value - 1;
 }
 
-    }
+// add device back to rogue table
+var rogueTable = document.getElementById("rogueTable");
 
-    });
+var newRow = rogueTable.insertRow(-1);
 
-    }
+var ipCell = newRow.insertCell(0);
+var macCell = newRow.insertCell(1);
+var statusCell = newRow.insertCell(2);
+var actionCell = newRow.insertCell(3);
 
+ipCell.innerText = ip;
+macCell.innerText = mac;
+statusCell.innerText = "Unauthorized Device";
+statusCell.style.color = "red";
+
+actionCell.innerHTML =
+'<button style="background:green;color:white;padding:5px 10px;border:none;border-radius:4px;" onclick="approveDevice(\''+ip+'\',\''+mac+'\',this)">Approve</button>';
+
+}
+
+});
+
+}
 
 function approveDevice(ip, mac, btn){
 

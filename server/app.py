@@ -115,7 +115,7 @@ def dashboard():
             rogue_devices.append({
                 "ip": ip,
                 "mac": mac,
-                "status": "ACTIVE"
+                "status": "Unauthorized Device"
             })
 
     total_devices = len(devices)
