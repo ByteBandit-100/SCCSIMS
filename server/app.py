@@ -59,22 +59,37 @@ def dashboard():
     # build device list
     for row in rows:
         try:
-            last_seen_time = datetime.strptime(row[7], "%Y-%m-%d %H:%M:%S")
+            if row[8]:
+                last_seen_time = datetime.strptime(str(row[7]), "%Y-%m-%d %H:%M:%S")
+            else:
+                last_seen_time = current_time
+            print(type(row[7]), row[7])
         except:
             last_seen_time = current_time
 
         time_diff = (current_time - last_seen_time).total_seconds()
+
+        # ✅ FORCE numeric safety
+        time_diff = float(time_diff)
+
         status = "ONLINE" if time_diff <= 60 else "OFFLINE"
+
+        def safe_float(val):
+            try:
+                return float(val)
+            except:
+                return 0
 
         devices.append({
             "id": row[0],
             "hostname": row[1],
             "ip_address": row[2],
-            "os": row[3],
-            "cpu_usage": row[4],
-            "ram_usage": row[5],
-            "location": row[6],
-            "last_seen": row[7],
+            "mac_address": row[3],
+            "os": row[4],
+            "cpu_usage": safe_float(row[5]),
+            "ram_usage": safe_float(row[6]),
+            "location": row[7],
+            "last_seen": row[8],
             "status": status
         })
 
@@ -145,25 +160,15 @@ def init_db():
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS devices
                    (
-                       id
-                       INTEGER
-                       PRIMARY
-                       KEY
-                       AUTOINCREMENT,
-                       hostname
-                       TEXT,
-                       ip_address
-                       TEXT,
-                       os
-                       TEXT,
-                       cpu_usage
-                       REAL,
-                       ram_usage
-                       REAL,
-                       location
-                       TEXT,
-                       last_seen
-                       TEXT
+                       id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        hostname TEXT,
+                        ip_address TEXT,
+                        mac_address TEXT UNIQUE,
+                        os TEXT,
+                        cpu_usage REAL,
+                        ram_usage REAL,
+                        location TEXT,
+                        last_seen TEXT
                    )
                    """)
 
@@ -184,45 +189,56 @@ def init_db():
 # ---------------------------
 @app.route("/api/device", methods=["POST"])
 def receive_device_data():
-    data = request.json
+    try:
+        data = request.json
 
-    hostname = data.get("hostname")
-    ip_address = data.get("ip_address")
-    os_name = data.get("os")
-    cpu_usage = data.get("cpu_usage")
-    ram_usage = data.get("ram_usage")
-    location = data.get("location", "Unknown")
+        hostname = data.get("hostname")
+        ip_address = data.get("ip_address")
+        mac_address = data.get("mac_address")
+        os_name = data.get("os")
+        cpu_usage = data.get("cpu_usage")
+        ram_usage = data.get("ram_usage")
+        location = data.get("location", "Unknown")
 
-    last_seen = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        last_seen = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
 
-    cursor.execute("SELECT id FROM devices WHERE ip_address = ?", (ip_address,))
-    device = cursor.fetchone()
+        # check by MAC (unique device)
+        cursor.execute("SELECT id FROM devices WHERE mac_address = ?", (mac_address,))
+        device = cursor.fetchone()
 
-    if device:
-        cursor.execute("""
-                       UPDATE devices
-                       SET hostname=?,
-                           os=?,
-                           cpu_usage=?,
-                           ram_usage=?,
-                           location=?,
-                           last_seen=?
-                       WHERE ip_address = ?
-                       """, (hostname, os_name, cpu_usage, ram_usage, location, last_seen, ip_address))
-    else:
-        cursor.execute("""
-                       INSERT INTO devices
-                           (hostname, ip_address, os, cpu_usage, ram_usage, location, last_seen)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)
-                       """, (hostname, ip_address, os_name, cpu_usage, ram_usage, location, last_seen))
+        if device:
+            # ✅ UPDATE existing device
+            cursor.execute("""
+                UPDATE devices
+                SET hostname=?,
+                    ip_address=?,
+                    os=?,
+                    cpu_usage=?,
+                    ram_usage=?,
+                    location=?,
+                    last_seen=?
+                WHERE mac_address=?
+            """, (hostname, ip_address, os_name, cpu_usage, ram_usage, location, last_seen, mac_address))
 
-    conn.commit()
-    conn.close()
+        else:
+            # ✅ INSERT new device
+            cursor.execute("""
+                INSERT INTO devices
+                (hostname, ip_address, mac_address, os, cpu_usage, ram_usage, location, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (hostname, ip_address, mac_address, os_name, cpu_usage, ram_usage, location, last_seen))
 
-    return jsonify({"status": "Device data stored successfully"}), 200# ---------------------------
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success"})
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"status": "error", "message": str(e)})
 # View All Devices
 # ---------------------------
 @app.route("/api/devices", methods=["GET"])
@@ -240,11 +256,12 @@ def get_devices():
             "id": row[0],
             "hostname": row[1],
             "ip_address": row[2],
-            "os": row[3],
-            "cpu_usage": row[4],
-            "ram_usage": row[5],
-            "location" : row[6],
-            "last_seen": row[7]
+            "mac_address": row[3],
+            "os": row[4],
+            "cpu_usage": row[5],
+            "ram_usage": row[6],
+            "location": row[7],
+            "last_seen": row[8]
         })
 
     return jsonify(devices)

@@ -3,12 +3,18 @@ import socket
 import platform
 import psutil
 import time
+import uuid
+
 
 # 🔴 CHANGE THIS to your host machine IP
 SERVER_URL = "http://192.168.1.33:5000/api/device"  #here the ip 192.168.1.33 is fixed ip by router for testing it is server ip where app.py executes
 
 LOCATION = "Library"  #location must be lab,library,hostel or admin staff client sections
 
+def get_mac():
+    mac = ':'.join(['{:02x}'.format((uuid.getnode() >> ele) & 0xff)
+                    for ele in range(0,8*6,8)][::-1])
+    return mac
 def get_system_data():
     hostname = socket.gethostname()
 
@@ -24,6 +30,7 @@ def get_system_data():
     return{
         "hostname": hostname,
         "ip_address": ip_address,
+        "mac_address": get_mac(),
         "os": os_name,
         "cpu_usage": cpu_usage,
         "ram_usage": ram_usage,

@@ -118,11 +118,11 @@ Trusted Devices<br><b id="trustedCount">{{ trusted_count }}</b>
         <td>{{ device.hostname }}</td>
         <td>{{ device.ip_address }}</td>
         <td>{{ device.os }}</td>
-        <td class="{{ 'high' if device.cpu_usage > 80 else 'normal' }}">
-            {{ device.cpu_usage }}
+        <td class="{{ 'high' if device.cpu_usage|float > 80 else 'normal' }}">
+    {{ device.cpu_usage }}
         </td>
-        <td class="{{ 'high' if device.ram_usage > 80 else 'normal' }}">
-            {{ device.ram_usage }}
+<td class="{{ 'high' if device.ram_usage|float > 80 else 'normal' }}">
+    {{ device.ram_usage }}
         </td>
         <td>{{ device.location }}</td>
         <td>{{ device.last_seen }}</td>
