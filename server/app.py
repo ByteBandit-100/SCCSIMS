@@ -122,7 +122,6 @@ def dashboard():
             mac = get_mac_from_arp_cache(ip)
 
         if (
-                ip not in known_ips and
                 ip not in trusted_ips and
                 mac not in trusted_macs and
                 ip not in ignored_ips

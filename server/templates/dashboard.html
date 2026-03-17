@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>SCCSIMS Dashboard</title>
-    <meta http-equiv="refresh" content="11">
+    <meta http-equiv="refresh" content="5">
     <style>
         body {
             font-family: Arial;
@@ -90,7 +90,7 @@ Offline Devices<br><b>{{ offline_devices }}</b>
 </div>
 
 <div style="background:#f39c12;color:white;padding:15px;border-radius:8px;">
-Rogue Devices<br><b>{{ rogue_count }}</b>
+Rogue Devices<br><b id="rogueCount">{{ rogue_count }}</b>
 </div>
 
     <div id="trustedBtn" style="background:#2c3e50;color:white;padding:15px;border-radius:8px;cursor:pointer;">
@@ -229,10 +229,11 @@ Disapprove
     }
     }
 
-    function disapproveDevice(ip, btn){
+
+function disapproveDevice(ip, btn){
 
 var row = btn.parentElement.parentElement;
-var mac = row.cells[1].innerText;   // capture MAC before deleting
+var mac = row.cells[1].innerText;
 
 fetch("/disapprove-device", {
 method: "POST",
@@ -246,40 +247,38 @@ body: "ip=" + ip
 
 if(data.status === "success"){
 
-// remove row from trusted table
 row.remove();
 
-// decrease counter
+// decrease trusted counter
 var counter = document.getElementById("trustedCount");
 var value = parseInt(counter.innerText);
-
 if(value > 0){
     counter.innerText = value - 1;
 }
 
-// add device back to rogue table
+// 🔥 increase rogue counter instantly
+var rogueCounter = document.getElementById("rogueCount");
+rogueCounter.innerText = parseInt(rogueCounter.innerText) + 1;
+
+// add back to rogue table
 var rogueTable = document.getElementById("rogueTable");
 
 var newRow = rogueTable.insertRow(-1);
 
-var ipCell = newRow.insertCell(0);
-var macCell = newRow.insertCell(1);
-var statusCell = newRow.insertCell(2);
-var actionCell = newRow.insertCell(3);
+newRow.insertCell(0).innerText = ip;
+newRow.insertCell(1).innerText = mac;
 
-ipCell.innerText = ip;
-macCell.innerText = mac;
+var statusCell = newRow.insertCell(2);
 statusCell.innerText = "Unauthorized Device";
 statusCell.style.color = "red";
 
-actionCell.innerHTML =
+newRow.insertCell(3).innerHTML =
 '<button style="background:green;color:white;padding:5px 10px;border:none;border-radius:4px;" onclick="approveDevice(\''+ip+'\',\''+mac+'\',this)">Approve</button>';
 
 }
-
 });
-
 }
+
 
 function approveDevice(ip, mac, btn){
 
@@ -300,34 +299,34 @@ if(data.status === "success"){
 var row = btn.parentElement.parentElement;
 row.remove();
 
+// 🔥 decrease rogue counter instantly
+var rogueCounter = document.getElementById("rogueCount");
+var rvalue = parseInt(rogueCounter.innerText);
+if(rvalue > 0){
+    rogueCounter.innerText = rvalue - 1;
+}
+
+// increase trusted counter
 var counter = document.getElementById("trustedCount");
 counter.innerText = parseInt(counter.innerText) + 1;
 
+// add to trusted table
 var table = document.getElementById("trustedTable");
-
-var rows = table.rows;
-for (var i = 1; i < rows.length; i++) {
-    if (rows[i].cells[0].innerText === ip) {
-        return;
-    }
-}
 
 var newRow = table.insertRow(-1);
 
-var ipCell = newRow.insertCell(0);
-var macCell = newRow.insertCell(1);
-var actionCell = newRow.insertCell(2);
+newRow.insertCell(0).innerText = ip;
+newRow.insertCell(1).innerText = mac;
 
-ipCell.innerText = ip;
-macCell.innerText = mac;
-
-actionCell.innerHTML =
+newRow.insertCell(2).innerHTML =
 '<button style="background:green;color:white;" onclick="disapproveDevice(\''+ip+'\', this)">Disapprove</button>';
 
 }
-
 });
 }
+    setTimeout(function(){
+    location.reload();
+}, 2000);
 </script>
 
 </body>
