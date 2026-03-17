@@ -60,10 +60,9 @@ def dashboard():
     for row in rows:
         try:
             if row[8]:
-                last_seen_time = datetime.strptime(str(row[7]), "%Y-%m-%d %H:%M:%S")
+                last_seen_time = datetime.strptime(str(row[8]), "%Y-%m-%d %H:%M:%S")
             else:
                 last_seen_time = current_time
-            print(type(row[7]), row[7])
         except:
             last_seen_time = current_time
 
@@ -115,6 +114,12 @@ def dashboard():
     trusted_macs = set(m for m in trusted_macs if m)
 
     for ip in all_devices:
+
+        # 🔥 check if device is actually alive
+        response = subprocess.call(f"ping -n 1 -w 300 {ip}", shell=True)
+
+        if response != 0:
+            continue  # ❌ skip offline/ghost devices
 
         mac = arp_table.get(ip)
 
