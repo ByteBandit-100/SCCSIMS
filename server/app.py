@@ -17,7 +17,8 @@ def get_mac_from_arp_cache(ip):
         for line in output.split("\n"):
             if ip in line:
                 parts = line.split()
-                return parts[1]
+                if len(parts) >= 2:
+                    return parts[1]
 
     except:
         pass
@@ -71,7 +72,7 @@ def dashboard():
         # ✅ FORCE numeric safety
         time_diff = float(time_diff)
 
-        status = "ONLINE" if time_diff <= 60 else "OFFLINE"
+        status = "ONLINE" if time_diff <= 30 else "OFFLINE"
 
         def safe_float(val):
             try:
