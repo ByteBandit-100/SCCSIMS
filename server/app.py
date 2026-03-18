@@ -95,8 +95,6 @@ def dashboard():
             "status": status
         })
 
-    # after building device list
-    known_ips = set([d["ip_address"] for d in devices])
     # Scan devices using ping
     ping_devices = set(scan_network())
 
@@ -118,34 +116,17 @@ def dashboard():
 
     for ip in all_devices:
 
-        # 🔥 check if device is actually alive
-        import platform
-
-        if platform.system().lower() == "windows":
-            cmd = f"ping -n 1 -w 300 {ip}"
-        else:
-            cmd = f"ping -c 1 -W 1 {ip}"
-
-        response = subprocess.call(cmd, shell=True)
-
-        if response != 0:
-            continue  # ❌ skip offline/ghost devices
-
         mac = arp_table.get(ip)
-
-        if not mac:
+        if not mac or mac == "Unknown":
             mac = get_mac_from_arp_cache(ip)
 
-        if (
-                ip not in trusted_ips and
-                mac not in trusted_macs and
-                ip not in ignored_ips
-        ):
+        if mac not in trusted_macs and ip not in ignored_ips:
             rogue_devices.append({
                 "ip": ip,
                 "mac": mac,
                 "status": "Unauthorized Device"
             })
+
 
     total_devices = len(devices)
     online_devices = len([d for d in devices if d["status"] == "ONLINE"])
