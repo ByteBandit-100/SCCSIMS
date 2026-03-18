@@ -1,13 +1,12 @@
-from flask import Flask, request, jsonify, session, redirect
-import sqlite3
-import subprocess
-from flask import render_template
+from flask import Flask, request, jsonify, session, redirect, render_template
+from werkzeug.security import generate_password_hash, check_password_hash
+import sqlite3, os, subprocess
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # required for session
+app.secret_key = os.urandom(24)# required for session
 
 DATABASE = "sccsims.db"
 
@@ -36,7 +35,6 @@ def dashboard():
 
     cursor.execute("SELECT * FROM devices")
     rows = cursor.fetchall()
-    conn.close()
 
     devices = []
     current_time = datetime.now()
@@ -121,7 +119,14 @@ def dashboard():
     for ip in all_devices:
 
         # 🔥 check if device is actually alive
-        response = subprocess.call(f"ping -n 1 -w 300 {ip}", shell=True)
+        import platform
+
+        if platform.system().lower() == "windows":
+            cmd = f"ping -n 1 -w 300 {ip}"
+        else:
+            cmd = f"ping -c 1 -W 1 {ip}"
+
+        response = subprocess.call(cmd, shell=True)
 
         if response != 0:
             continue  # ❌ skip offline/ghost devices
@@ -201,7 +206,7 @@ def init_db():
     if not cursor.fetchone():
         cursor.execute(
             "INSERT INTO users (username, password) VALUES (?, ?)",
-            ("admin", "admin123")
+            ("admin", generate_password_hash("admin123"))
         )
     conn.commit()
     conn.close()
@@ -385,16 +390,14 @@ def login():
         conn = sqlite3.connect(DATABASE)
         cursor = conn.cursor()
 
-        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        cursor.execute("SELECT * FROM users WHERE username=?", (username,))
         user = cursor.fetchone()
 
-        conn.close()
-
-        if user:
-            session["user"] = username   # ✅ login success
+        if user and check_password_hash(user[2], password):
+            session["user"] = username
             return redirect("/")
         else:
-            return "Invalid Credentials"
+            return render_template("login.html", error="Invalid Credentials")
 
     return render_template("login.html")
 
