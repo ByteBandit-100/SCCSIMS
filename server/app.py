@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify, session, redirect
 import sqlite3
 import subprocess
 from flask import render_template
@@ -7,6 +7,8 @@ from network_scanner import scan_network
 from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"  # required for session
+
 DATABASE = "sccsims.db"
 
 def get_mac_from_arp_cache(ip):
@@ -27,6 +29,8 @@ def get_mac_from_arp_cache(ip):
 
 @app.route("/")
 def dashboard():
+    if "user" not in session:
+        return redirect("/login")
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
@@ -186,7 +190,19 @@ def init_db():
         location TEXT
     )
     """)
-
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+    )
+    """)
+    cursor.execute("SELECT * FROM users WHERE username=?", ("admin",))
+    if not cursor.fetchone():
+        cursor.execute(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            ("admin", "admin123")
+        )
     conn.commit()
     conn.close()
 # ---------------------------
@@ -242,7 +258,7 @@ def receive_device_data():
         return jsonify({"status": "success"})
 
     except Exception as e:
-        print("ERROR:", e)
+        # print("ERROR:", e)
         return jsonify({"status": "error", "message": str(e)})
 # View All Devices
 # ---------------------------
@@ -359,6 +375,33 @@ def disapprove_device():
     conn.close()
 
     return jsonify({"status": "success"})
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        user = cursor.fetchone()
+
+        conn.close()
+
+        if user:
+            session["user"] = username   # ✅ login success
+            return redirect("/")
+        else:
+            return "Invalid Credentials"
+
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
 
 if __name__ == "__main__":
     init_db()
