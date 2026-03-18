@@ -30,20 +30,22 @@ def get_mac_from_arp_cache(ip):
 def dashboard():
     if "user" not in session:
         return redirect("/login")
+
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
+    # Get all devices
     cursor.execute("SELECT * FROM devices")
     rows = cursor.fetchall()
 
-    devices = []
-    current_time = datetime.now()
-
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-
+    # Get trusted devices
     cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
     trusted_rows = cursor.fetchall()
+
+    conn.close()
+
+    devices = []
+    current_time = datetime.now()
 
     trusted_ips = set([r[0] for r in trusted_rows])
     trusted_macs = set([r[1] for r in trusted_rows])
@@ -55,9 +57,6 @@ def dashboard():
             "ip": row[0],
             "mac": row[1]
         })
-
-
-    conn.close()
 
     # build device list
     for row in rows:
