@@ -2,8 +2,6 @@
 <html>
 <head>
     <title>SCCSIMS Dashboard</title>
-    <meta http-equiv="refresh" content="5">
-
     <style>
         * {
             box-sizing: border-box;
@@ -305,7 +303,8 @@ Disapprove
 var modal = document.getElementById("trustedModal");
 var btn = document.getElementById("trustedBtn");
 var close = document.getElementById("closeModal");
-
+let lastRogueCount = 0;
+var alertSound = new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
 btn.onclick = () => modal.style.display = "block";
 close.onclick = () => modal.style.display = "none";
 window.onclick = e => { if(e.target == modal) modal.style.display="none"; }
@@ -405,9 +404,70 @@ newRow.insertCell(2).innerHTML =
 }
 });
 }
-    setTimeout(function(){
-    location.reload();
-}, 2000);
+
+function updateLiveData(){
+
+fetch("/api/live-data")
+.then(res => res.json())
+.then(data => {
+
+    // 🔢 Update cards
+    document.querySelector(".blue b").innerText = data.total;
+    document.querySelector(".green b").innerText = data.online;
+    document.querySelector(".red b").innerText = data.offline;
+    document.getElementById("rogueCount").innerText = data.rogue_count;
+
+    // 🔥 Update device table
+    let table = document.querySelector("table");
+    let rows = table.getElementsByTagName("tr");
+
+    // skip header
+    for(let i=1; i<rows.length; i++){
+        let ip = rows[i].cells[2].innerText;
+
+        let device = data.devices.find(d => d.ip === ip);
+
+        if(device){
+            rows[i].cells[4].innerText = device.cpu;
+            rows[i].cells[5].innerText = device.ram;
+
+            let statusCell = rows[i].cells[8];
+            statusCell.innerText = device.status;
+
+            if(device.status === "ONLINE"){
+                statusCell.style.color = "lime";
+            } else {
+                statusCell.style.color = "red";
+            }
+        }
+    }
+
+    // 🚨 WOW ALERT
+    if(data.rogue_count > lastRogueCount){
+    let msg = document.createElement("div");
+    msg.innerText = "⚠ New Rogue Device Detected!";
+    msg.style.position = "fixed";
+    msg.style.top = "10px";
+    msg.style.right = "10px";
+    msg.style.background = "red";
+    msg.style.color = "white";
+    msg.style.padding = "10px";
+    msg.style.borderRadius = "5px";
+    alertSound.play();
+    document.body.appendChild(msg);
+
+    setTimeout(()=>msg.remove(), 3000);
+}
+
+// update last value
+lastRogueCount = data.rogue_count;
+
+});
+}
+
+// 🔁 Run every 2 seconds
+setInterval(updateLiveData, 2000);
+
 </script>
 
 </body>

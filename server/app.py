@@ -386,6 +386,61 @@ def logout():
     session.clear()
     return redirect("/login")
 
+@app.route("/api/live-data")
+def live_data():
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM devices")
+    rows = cursor.fetchall()
+
+    cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+    trusted_rows = cursor.fetchall()
+
+    conn.close()
+
+    devices = []
+    current_time = datetime.now()
+
+    for row in rows:
+        try:
+            last_seen_time = datetime.strptime(str(row[8]), "%Y-%m-%d %H:%M:%S")
+        except:
+            last_seen_time = current_time
+
+        status = "ONLINE" if (current_time - last_seen_time).total_seconds() <= 30 else "OFFLINE"
+
+        devices.append({
+            "hostname": row[1],
+            "ip": row[2],
+            "cpu": row[5],
+            "ram": row[6],
+            "status": status
+        })
+
+    # 🔥 Rogue detection (reuse your logic)
+    ping_devices = set(scan_network())
+    arp_results = scan_network_arp()
+    arp_devices = set([d["ip"] for d in arp_results])
+
+    all_devices = ping_devices.union(arp_devices)
+    trusted_ips = set([r[0] for r in trusted_rows])
+
+    rogue = []
+    for ip in all_devices:
+        if ip not in trusted_ips:
+            rogue.append(ip)
+
+    return jsonify({
+        "devices": devices,
+        "rogue": rogue,
+        "total": len(devices),
+        "online": len([d for d in devices if d["status"]=="ONLINE"]),
+        "offline": len([d for d in devices if d["status"]=="OFFLINE"]),
+        "rogue_count": len(rogue)
+    })
+
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000, debug=True)
