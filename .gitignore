@@ -32,3 +32,5 @@ dist/
 # Temporary files
 *.tmp
 *.bak
+
+.idea/

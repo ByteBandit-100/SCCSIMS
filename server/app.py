@@ -106,26 +106,7 @@ def dashboard():
 
     ignored_ips = {"192.168.1.1", "192.168.1.33"}
 
-    rogue_devices = []
-
-    # create arp lookup table
-    arp_table = {d["ip"]: d["mac"] for d in arp_results}
-
-    trusted_macs = set(m for m in trusted_macs if m)
-
-    for ip in all_devices:
-
-        mac = arp_table.get(ip)
-        if not mac or mac == "Unknown":
-            mac = get_mac_from_arp_cache(ip)
-
-        if mac not in trusted_macs and ip not in ignored_ips:
-            rogue_devices.append({
-                "ip": ip,
-                "mac": mac,
-                "status": "Unauthorized Device"
-            })
-
+    rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
     total_devices = len(devices)
     online_devices = len([d for d in devices if d["status"] == "ONLINE"])
@@ -286,38 +267,20 @@ def scan_arp():
 
 @app.route("/detect-rogue")
 def detect_rogue_devices():
-    ping_devices = set(scan_network())
-    arp_results = scan_network_arp()
-    arp_devices = set([d["ip"] for d in arp_results])
-
-    all_devices = ping_devices.union(arp_devices)
 
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT ip_address FROM devices")
-    db_devices = cursor.fetchall()
+    cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+    trusted_rows = cursor.fetchall()
     conn.close()
 
-    known_ips = [d[0] for d in db_devices]
+    trusted_ips = set([r[0] for r in trusted_rows])
+    trusted_macs = set([r[1] for r in trusted_rows])
 
-    ignored_ips = {"192.168.1.1", "192.168.1.33"}
+    rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
-    rogue_devices = []
-
-    for device in arp_results:
-        ip = device["ip"]
-        mac = device["mac"]
-
-        if ip in all_devices and ip not in known_ips and ip not in ignored_ips:
-            rogue_devices.append({
-                "ip": ip,
-                "mac": mac
-            })
-
-    return jsonify({
-        "rogue_devices": rogue_devices
-    })
+    return jsonify({"rogue_devices": rogue_devices})
 
 @app.route("/approve-device", methods=["POST"])
 def approve_device():
@@ -419,18 +382,12 @@ def live_data():
             "status": status
         })
 
-    # 🔥 Rogue detection (reuse your logic)
-    ping_devices = set(scan_network())
-    arp_results = scan_network_arp()
-    arp_devices = set([d["ip"] for d in arp_results])
-
-    all_devices = ping_devices.union(arp_devices)
     trusted_ips = set([r[0] for r in trusted_rows])
+    trusted_macs = set([r[1] for r in trusted_rows])
 
-    rogue = []
-    for ip in all_devices:
-        if ip not in trusted_ips:
-            rogue.append(ip)
+    rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
+
+    rogue = [d["ip"] for d in rogue_devices]
 
     return jsonify({
         "devices": devices,
@@ -440,6 +397,36 @@ def live_data():
         "offline": len([d for d in devices if d["status"]=="OFFLINE"]),
         "rogue_count": len(rogue)
     })
+
+def detect_rogue_logic(trusted_macs, trusted_ips):
+
+    ping_devices = set(scan_network())
+    arp_results = scan_network_arp()
+
+    arp_table = {d["ip"]: d["mac"] for d in arp_results}
+    arp_devices = set(arp_table.keys())
+
+    all_devices = ping_devices.union(arp_devices)
+
+    ignored_ips = {"192.168.1.1", "192.168.1.33"}
+
+    rogue_devices = []
+
+    for ip in all_devices:
+
+        mac = arp_table.get(ip)
+
+        if not mac or mac == "Unknown":
+            mac = get_mac_from_arp_cache(ip)
+
+        if mac not in trusted_macs and ip not in trusted_ips and ip not in ignored_ips:
+            rogue_devices.append({
+                "ip": ip,
+                "mac": mac,
+                "status": "Unauthorized Device"
+            })
+
+    return rogue_devices
 
 if __name__ == "__main__":
     init_db()
