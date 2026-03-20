@@ -22,7 +22,7 @@ def scan_network():
     ips = [network_prefix + str(i) for i in range(1,255)]
     active_devices = []
 
-    with ThreadPoolExecutor(max_workers=50) as executor:
+    with ThreadPoolExecutor(max_workers=30) as executor:
         results = executor.map(ping, ips)
 
     for r in results:

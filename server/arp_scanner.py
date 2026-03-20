@@ -10,8 +10,8 @@ def scan_network_arp(network="192.168.1.0/24"):
 
     result = scapy.srp(
         packet,
-        timeout=4,
-        retry=2,
+        timeout=2,
+        retry=1,
         verbose=0,
         iface=INTERFACE
     )[0]

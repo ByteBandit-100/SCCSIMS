@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, session, redirect, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3, os, subprocess
+import sqlite3, os, subprocess, threading, time
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
 from datetime import datetime
@@ -27,12 +27,41 @@ def get_mac_from_arp_cache(ip):
 
     return "Unknown"
 
+
+
+network_cache = {
+    "devices": [],
+    "arp": []
+}
+
+def background_scanner():
+    global network_cache
+
+    while True:
+        try:
+            print("🔍 Scanning network...")
+
+            ping_devices = set(scan_network())
+            arp_results = scan_network_arp()
+
+            network_cache["devices"] = ping_devices
+            network_cache["arp"] = arp_results
+            network_cache["last_scan"] = datetime.now()
+
+            print("✅ Scan complete")
+
+        except Exception as e:
+            print("Scan error:", e)
+
+        time.sleep(10)  # scan every 10 sec
+
+
 @app.route("/")
 def dashboard():
     if "user" not in session:
         return redirect("/login")
 
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
     # Get all devices
@@ -95,18 +124,6 @@ def dashboard():
             "status": status
         })
 
-    # Scan devices using ping
-    ping_devices = set(scan_network())
-
-    # Scan devices using ARP
-    arp_results = scan_network_arp()
-    arp_devices = set([d["ip"] for d in arp_results])
-
-    # Merge both scans
-    all_devices = ping_devices.union(arp_devices)
-
-    ignored_ips = {"192.168.1.1", "192.168.1.33"}
-
     rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
     total_devices = len(devices)
@@ -130,7 +147,7 @@ def dashboard():
 # Database Initialization
 # ---------------------------
 def init_db():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -190,7 +207,7 @@ def receive_device_data():
 
         last_seen = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        conn = sqlite3.connect(DATABASE)
+        conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
         cursor = conn.cursor()
 
         # check by MAC (unique device)
@@ -231,7 +248,7 @@ def receive_device_data():
 # ---------------------------
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM devices")
@@ -269,7 +286,7 @@ def scan_arp():
 @app.route("/detect-rogue")
 def detect_rogue_devices():
 
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
     cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
@@ -301,7 +318,7 @@ def approve_device():
     if not mac or mac == "Unknown":
         return jsonify({"status": "error", "message": "Invalid MAC"})
 
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
     # 🔥 CHECK BY MAC (not IP)
@@ -327,7 +344,7 @@ def approve_device():
 def disapprove_device():
     mac = request.form.get("mac")
 
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -346,7 +363,7 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect(DATABASE)
+        conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
         cursor = conn.cursor()
 
         cursor.execute("SELECT * FROM users WHERE username=?", (username,))
@@ -368,7 +385,7 @@ def logout():
 @app.route("/api/live-data")
 def live_data():
 
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM devices")
@@ -428,35 +445,43 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     trusted_macs = set(normalize_mac(m) for m in trusted_macs)
 
-    ping_devices = set(scan_network())
-    arp_results = scan_network_arp()
-
+    # ✅ USE ONLY ARP (REAL DEVICES)
+    arp_results = network_cache["arp"]
     arp_table = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
 
-    all_devices = ping_devices.union(set(arp_table.keys()))
+    all_devices = set(arp_table.keys())
 
-    ignored_ips = {"192.168.1.1", "192.168.1.33"}
+    ignored_ips = {"192.168.1.1"}
 
-    # 🔥 UPDATE CACHE
+    # ✅ UPDATE CACHE
     for ip in all_devices:
         last_seen_devices[ip] = current_time
 
-    # 🔥 STABILIZE DEVICES (avoid flicker)
-    stable_devices = []
+    # ✅ REMOVE OLD DEVICES (ANTI-GHOST)
+    to_delete = []
     for ip, seen_time in last_seen_devices.items():
-        if (current_time - seen_time).total_seconds() <= 60:
-            stable_devices.append(ip)
+        if (current_time - seen_time).total_seconds() > 30:
+            to_delete.append(ip)
+
+    for ip in to_delete:
+        del last_seen_devices[ip]
+
+    stable_devices = list(last_seen_devices.keys())
 
     rogue_devices = {}
 
     for ip in stable_devices:
 
+        if ip in ignored_ips:
+            continue
+
         mac = arp_table.get(ip)
 
+        # ❌ SKIP UNKNOWN MAC
         if not mac or mac == "unknown":
-            mac = normalize_mac(get_mac_from_arp_cache(ip))
+            continue
 
-        if mac not in trusted_macs and ip not in trusted_ips and ip not in ignored_ips:
+        if mac not in trusted_macs and ip not in trusted_ips:
             rogue_devices[ip] = {
                 "ip": ip,
                 "mac": mac,
@@ -467,5 +492,9 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
 if __name__ == "__main__":
     init_db()
+
+    scanner_thread = threading.Thread(target=background_scanner, daemon=True)
+    scanner_thread.start()
+
     app.run(host="0.0.0.0", port=5000, debug=True)
 
