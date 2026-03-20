@@ -306,8 +306,6 @@ def detect_rogue_devices():
 @app.route("/approve-device", methods=["POST"])
 def approve_device():
 
-    ip = request.form.get("ip")
-
     def normalize_mac(mac):
         if not mac:
             return "unknown"

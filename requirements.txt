@@ -2,3 +2,4 @@ Flask
 scapy
 psutil
 requests
+werkzeug

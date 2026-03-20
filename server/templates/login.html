@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login - SCCSIMS</title>
+    <title>SCCSIMS Secure Login</title>
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
         }
 
         body {
@@ -15,94 +16,162 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: linear-gradient(135deg, #2c3e50, #34495e);
+            background: radial-gradient(circle at top, #0f172a, #020617);
+            overflow: hidden;
         }
 
+        /* 🔥 Animated background */
+        body::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, #00f5ff, #00ff9d, #3b82f6);
+            animation: rotate 15s linear infinite;
+            opacity: 0.05;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 🔐 Glass card */
         .login-box {
-            background: #ffffff;
-            padding: 35px 30px;
-            border-radius: 12px;
-            width: 320px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 15px;
+            width: 350px;
             text-align: center;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 30px rgba(0,255,200,0.1);
+            animation: fadeIn 0.8s ease;
         }
 
         .login-box h2 {
-            margin-bottom: 20px;
-            color: #2c3e50;
+            color: #e2e8f0;
+            margin-bottom: 25px;
         }
 
-        .login-box input {
+        .input-group {
+            position: relative;
+        }
+
+        input {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
-            border-radius: 6px;
-            border: 1px solid #ccc;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.3);
+            color: white;
             outline: none;
             transition: 0.3s;
-            font-size: 14px;
         }
 
-        .login-box input:focus {
-            border-color: #27ae60;
-            box-shadow: 0 0 5px rgba(39, 174, 96, 0.3);
+        input:focus {
+            border-color: #00ff9d;
+            box-shadow: 0 0 10px rgba(0,255,157,0.4);
         }
 
+        /* 👁 Toggle password */
+        .toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #94a3b8;
+        }
+
+        /* 🚀 Button */
         button {
             width: 100%;
             padding: 12px;
-            margin-top: 10px;
-            background: #27ae60;
-            color: white;
+            margin-top: 15px;
+            background: linear-gradient(90deg, #00ff9d, #00f5ff);
             border: none;
-            border-radius: 6px;
-            font-size: 15px;
+            border-radius: 8px;
+            color: black;
+            font-weight: bold;
             cursor: pointer;
             transition: 0.3s;
         }
 
         button:hover {
-            background: #219150;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(0,255,200,0.6);
+        }
+
+        /* ⏳ Loading state */
+        button.loading {
+            opacity: 0.7;
+            pointer-events: none;
         }
 
         .error {
-            color: #e74c3c;
-            font-size: 14px;
+            color: #ef4444;
             margin-bottom: 10px;
         }
 
-        /* Optional subtle animation */
-        .login-box {
-            animation: fadeIn 0.6s ease-in-out;
+        /* Fade animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px);}
+            to { opacity: 1; transform: translateY(0);}
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* 🛡 Title effect */
+        .logo {
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: #00ff9d;
+            font-weight: bold;
+            letter-spacing: 1px;
         }
+
     </style>
 </head>
+
 <body>
 
 <div class="login-box">
-    <h2>Admin Login</h2>
+
+    <div class="logo">🛡 SCCSIMS</div>
+    <h2>Secure Admin Login</h2>
 
     {% if error %}
         <p class="error">{{ error }}</p>
     {% endif %}
 
-    <form method="POST">
+    <form method="POST" onsubmit="handleLogin(event)">
+
         <input type="text" name="username" placeholder="Username" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">Login</button>
+
+        <div class="input-group">
+            <input type="password" id="password" name="password" placeholder="Password" required>
+            <span class="toggle" onclick="togglePassword()">👁</span>
+        </div>
+
+        <button id="loginBtn">Login</button>
+
     </form>
+
 </div>
+
+<script>
+function togglePassword() {
+    let pass = document.getElementById("password");
+    pass.type = (pass.type === "password") ? "text" : "password";
+}
+
+function handleLogin(e){
+    let btn = document.getElementById("loginBtn");
+    btn.classList.add("loading");
+    btn.innerText = "Authenticating...";
+}
+</script>
 
 </body>
 </html>
