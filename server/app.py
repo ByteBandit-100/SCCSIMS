@@ -9,6 +9,7 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)# required for session
 
 DATABASE = "sccsims.db"
+last_seen_devices = {}
 
 def get_mac_from_arp_cache(ip):
 
@@ -286,12 +287,25 @@ def detect_rogue_devices():
 def approve_device():
 
     ip = request.form.get("ip")
-    mac = request.form.get("mac")
+
+    def normalize_mac(mac):
+        if not mac:
+            return "unknown"
+        return mac.lower().replace("-", ":")
+
+    ip = request.form.get("ip")
+    mac = normalize_mac(request.form.get("mac"))
+
+    print("APPROVE REQUEST:", ip, mac)
+
+    if not mac or mac == "Unknown":
+        return jsonify({"status": "error", "message": "Invalid MAC"})
 
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT ip_address FROM trusted_devices WHERE ip_address=?", (ip,))
+    # 🔥 CHECK BY MAC (not IP)
+    cursor.execute("SELECT mac_address FROM trusted_devices WHERE mac_address=?", (mac,))
     exists = cursor.fetchone()
 
     if not exists:
@@ -299,7 +313,10 @@ def approve_device():
         INSERT INTO trusted_devices
         (ip_address, mac_address, device_name, location)
         VALUES (?, ?, ?, ?)
-        """, (ip, mac, "Approved Device", "Network"))
+        """, (ip, mac.lower(), "Approved Device", "Network"))
+
+        cursor.execute("SELECT * FROM trusted_devices")
+        print("TRUSTED DEVICES:", cursor.fetchall())
 
     conn.commit()
     conn.close()
@@ -308,15 +325,14 @@ def approve_device():
 
 @app.route("/disapprove-device", methods=["POST"])
 def disapprove_device():
-
-    ip = request.form.get("ip")
+    mac = request.form.get("mac")
 
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
     cursor.execute(
-        "DELETE FROM trusted_devices WHERE ip_address=?",
-        (ip,)
+        "DELETE FROM trusted_devices WHERE mac_address=?",
+        (mac,)
     )
 
     conn.commit()
@@ -387,46 +403,67 @@ def live_data():
 
     rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
-    rogue = [d["ip"] for d in rogue_devices]
+    rogue = rogue_devices  # send full objects
+
+    trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
 
     return jsonify({
         "devices": devices,
         "rogue": rogue,
         "total": len(devices),
-        "online": len([d for d in devices if d["status"]=="ONLINE"]),
-        "offline": len([d for d in devices if d["status"]=="OFFLINE"]),
-        "rogue_count": len(rogue)
+        "online": len([d for d in devices if d["status"] == "ONLINE"]),
+        "offline": len([d for d in devices if d["status"] == "OFFLINE"]),
+        "rogue_count": len(rogue),
+        "trusted": trusted_list  # ✅ FIXED
     })
 
 def detect_rogue_logic(trusted_macs, trusted_ips):
 
+    current_time = datetime.now()
+
+    def normalize_mac(mac):
+        if not mac:
+            return "unknown"
+        return mac.lower().replace("-", ":")
+
+    trusted_macs = set(normalize_mac(m) for m in trusted_macs)
+
     ping_devices = set(scan_network())
     arp_results = scan_network_arp()
 
-    arp_table = {d["ip"]: d["mac"] for d in arp_results}
-    arp_devices = set(arp_table.keys())
+    arp_table = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
 
-    all_devices = ping_devices.union(arp_devices)
+    all_devices = ping_devices.union(set(arp_table.keys()))
 
     ignored_ips = {"192.168.1.1", "192.168.1.33"}
 
-    rogue_devices = []
-
+    # 🔥 UPDATE CACHE
     for ip in all_devices:
+        last_seen_devices[ip] = current_time
+
+    # 🔥 STABILIZE DEVICES (avoid flicker)
+    stable_devices = []
+    for ip, seen_time in last_seen_devices.items():
+        if (current_time - seen_time).total_seconds() <= 60:
+            stable_devices.append(ip)
+
+    rogue_devices = {}
+
+    for ip in stable_devices:
 
         mac = arp_table.get(ip)
 
-        if not mac or mac == "Unknown":
-            mac = get_mac_from_arp_cache(ip)
+        if not mac or mac == "unknown":
+            mac = normalize_mac(get_mac_from_arp_cache(ip))
 
         if mac not in trusted_macs and ip not in trusted_ips and ip not in ignored_ips:
-            rogue_devices.append({
+            rogue_devices[ip] = {
                 "ip": ip,
                 "mac": mac,
                 "status": "Unauthorized Device"
-            })
+            }
 
-    return rogue_devices
+    return list(rogue_devices.values())
 
 if __name__ == "__main__":
     init_db()
