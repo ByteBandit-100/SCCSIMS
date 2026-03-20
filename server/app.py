@@ -44,17 +44,20 @@ def background_scanner():
             ping_devices = set(scan_network())
             arp_results = scan_network_arp()
 
-            network_cache["devices"] = ping_devices
+            # ✅ Merge but prioritize ARP
+            arp_ips = set([d["ip"] for d in arp_results])
+            all_devices = arp_ips.union(ping_devices)
+
+            network_cache["devices"] = all_devices
             network_cache["arp"] = arp_results
             network_cache["last_scan"] = datetime.now()
 
-            print("✅ Scan complete")
+            print(f"✅ Found {len(all_devices)} devices")
 
         except Exception as e:
             print("Scan error:", e)
 
-        time.sleep(10)  # scan every 10 sec
-
+        time.sleep(5)
 
 @app.route("/")
 def dashboard():
@@ -423,7 +426,16 @@ def live_data():
     rogue = rogue_devices  # send full objects
 
     trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
-
+    if not devices and last_seen_devices:
+        # fallback to cached devices
+        for ip in last_seen_devices:
+            devices.append({
+                "hostname": "Unknown",
+                "ip": ip,
+                "cpu": 0,
+                "ram": 0,
+                "status": "ONLINE"
+            })
     return jsonify({
         "devices": devices,
         "rogue": rogue,
@@ -460,7 +472,7 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
     # ✅ REMOVE OLD DEVICES (ANTI-GHOST)
     to_delete = []
     for ip, seen_time in last_seen_devices.items():
-        if (current_time - seen_time).total_seconds() > 30:
+        if (current_time - seen_time).total_seconds() > 120:
             to_delete.append(ip)
 
     for ip in to_delete:
@@ -477,7 +489,11 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
         mac = arp_table.get(ip)
 
-        # ❌ SKIP UNKNOWN MAC
+        # ✅ fallback to ARP cache
+        if not mac or mac == "unknown":
+            mac = normalize_mac(get_mac_from_arp_cache(ip))
+
+        # ❌ still unknown → skip
         if not mac or mac == "unknown":
             continue
 
