@@ -6,6 +6,7 @@
         * {
             box-sizing: border-box;
             font-family: 'Segoe UI', Arial, sans-serif;
+            outline: none;
         }
 
         body {
@@ -13,6 +14,8 @@
             background: #0f172a;
             color: #e2e8f0;
             padding: 20px;
+            user-select: none;
+            caret-color: transparent;
         }
 
         h1 {
@@ -258,8 +261,8 @@
 
 <td>
 <button class="approve-btn"
-onclick="approveDevice('{{ device.ip }}','{{ device.mac }}')"
-       > Approve
+onclick="approveDevice('{{ device.ip }}','{{ device.mac }}', this)"
+> Approve
 </button>
 </td>
 
@@ -287,9 +290,12 @@ onclick="approveDevice('{{ device.ip }}','{{ device.mac }}')"
 <td>{{ device.ip }}</td>
 <td>{{ device.mac }}</td>
 <td>
+
 <button class="disapprove-btn"
 onclick="disapproveDevice('{{ device.ip }}','{{ device.mac }}')">
-Disapprove</button>
+Disapprove
+</button>
+
 </td>
 </tr>
 {% endfor %}
@@ -322,15 +328,32 @@ body: "ip=" + ip + "&mac=" + mac
 .then(res => res.json())
 .then(data => {
 
-console.log("DISAPPROVE RESPONSE:", data);
-
 if(data.status === "success"){
+
+    // 🔥 REMOVE ROW instantly
+    let rows = document.querySelectorAll("#trustedTable tr");
+
+    rows.forEach((row, index) => {
+        if(index === 0) return; // skip header
+
+        let rowIp = row.cells[0].innerText;
+        let rowMac = row.cells[1].innerText;
+
+        if(rowIp === ip && rowMac === mac){
+            row.remove();
+        }
+    });
+
+    // 🔥 UPDATE COUNT
+    let count = document.getElementById("trustedCount");
+    count.innerText = parseInt(count.innerText) - 1;
+
     setTimeout(updateLiveData, 500);
 }
 });
 }
 
-function approveDevice(ip, mac){
+function approveDevice(ip, mac, btn){
 
 fetch("/approve-device", {
 method: "POST",
@@ -342,10 +365,18 @@ body: "ip=" + ip + "&mac=" + mac
 .then(res => res.json())
 .then(data => {
 
-console.log("APPROVE RESPONSE:", data);
-
 if(data.status === "success"){
-    setTimeout(updateLiveData, 500); // slight delay for DB commit
+
+    // 🔥 REMOVE ROW instantly
+    let row = btn.closest("tr");
+    row.remove();
+
+    // 🔥 UPDATE COUNT instantly
+    let count = document.getElementById("rogueCount");
+    count.innerText = parseInt(count.innerText) - 1;
+
+    // 🔄 also sync backend
+    setTimeout(updateLiveData, 500);
 }
 });
 }
