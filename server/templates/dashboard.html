@@ -225,6 +225,7 @@
 }
 #analyticsSection {
     transition: all 0.4s ease;
+    overflow: hidden;
 }
     </style>
 </head>
@@ -725,11 +726,16 @@ alertBox.innerText = "🚨 ALERT: Unauthorized device detected → " + newRogues
 knownRogueIPs = currentRogueIPs;
 localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
 });
-fetch("/api/analytics")
-.then(res => res.json())
-.then(data => {
-    drawAnalytics(data);
-});
+
+let analyticsVisible = document.getElementById("analyticsSection").style.display === "flex";
+
+if(analyticsVisible){
+    fetch("/api/analytics")
+    .then(res => res.json())
+    .then(data => {
+        drawAnalytics(data);
+    });
+}
 
 }
 
