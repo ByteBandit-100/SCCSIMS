@@ -11,6 +11,13 @@ app.secret_key = os.urandom(24)# required for session
 DATABASE = "sccsims.db"
 last_seen_devices = {}
 
+analytics_history = {
+    "timestamps": [],
+    "cpu_avg": [],
+    "total_devices": [],
+    "rogue_count": []
+}
+
 def get_mac_from_arp_cache(ip):
 
     try:
@@ -51,6 +58,30 @@ def background_scanner():
             network_cache["devices"] = all_devices
             network_cache["arp"] = arp_results
             network_cache["last_scan"] = datetime.now()
+
+            # 📊 STORE ANALYTICS (last 20 points)
+            try:
+                conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+                cursor = conn.cursor()
+                cursor.execute("SELECT cpu_usage FROM devices")
+                cpu_vals = [float(r[0]) for r in cursor.fetchall() if r[0] is not None]
+                conn.close()
+
+                avg_cpu = sum(cpu_vals) / len(cpu_vals) if cpu_vals else 0
+
+                rogue_now = len(detect_rogue_logic(set(), set()))
+
+                analytics_history["timestamps"].append(datetime.now().strftime("%H:%M:%S"))
+                analytics_history["cpu_avg"].append(avg_cpu)
+                analytics_history["total_devices"].append(len(all_devices))
+                analytics_history["rogue_count"].append(rogue_now)
+
+                # keep last 20
+                for key in analytics_history:
+                    analytics_history[key] = analytics_history[key][-20:]
+
+            except:
+                pass
 
             print(f"✅ Found {len(all_devices)} devices")
 
@@ -515,6 +546,10 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
             }
 
     return list(rogue_devices.values())
+
+@app.route("/api/analytics")
+def analytics():
+    return jsonify(analytics_history)
 
 if __name__ == "__main__":
     init_db()

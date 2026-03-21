@@ -223,7 +223,9 @@
     width: 100% !important;
     height: 220px !important;
 }
-
+#analyticsSection {
+    transition: all 0.4s ease;
+}
     </style>
 </head>
 
@@ -270,6 +272,26 @@
     </div>
 
 </div>
+<h2 id="analyticsToggle" style="cursor:pointer;" onclick="toggleAnalytics()">
+📊 Advanced Analytics ⬇️
+</h2>
+
+<div id="analyticsSection" style="display:none;" class="overview-container">
+
+    <div class="chart-box">
+        <h3>CPU Usage Trend</h3>
+        <canvas id="cpuChart"></canvas>
+    </div>
+
+    <div class="chart-box">
+        <h3>Device Growth</h3>
+        <canvas id="deviceGrowthChart"></canvas>
+    </div>
+
+    <div class="chart-box">
+        <h3>Rogue Activity</h3>
+        <canvas id="rogueChart"></canvas>
+    </div>
 
 </div>
 
@@ -388,7 +410,6 @@ Disapprove
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
 function drawChart(data){
     let ctx = document.getElementById('deviceChart').getContext('2d');
@@ -429,7 +450,75 @@ function drawChart(data){
     });
 }
 </script>
+<script>
+let cpuChart, deviceChart2, rogueChart;
 
+function drawAnalytics(data){
+
+    // CPU Chart
+    let ctx1 = document.getElementById("cpuChart").getContext("2d");
+    if(!cpuChart){
+        cpuChart = new Chart(ctx1, {
+            type: "line",
+            data: {
+                labels: data.timestamps,
+                datasets: [{
+                    label: "Avg CPU %",
+                    data: data.cpu_avg,
+                    borderColor: "#38bdf8",
+                    fill: false,
+                    tension: 0.3
+                }]
+            }
+        });
+    } else {
+        cpuChart.data.labels = data.timestamps;
+        cpuChart.data.datasets[0].data = data.cpu_avg;
+        cpuChart.update();
+    }
+
+    // Device Growth
+    let ctx2 = document.getElementById("deviceGrowthChart").getContext("2d");
+    if(!deviceChart2){
+        deviceChart2 = new Chart(ctx2, {
+            type: "line",
+            data: {
+                labels: data.timestamps,
+                datasets: [{
+                    label: "Devices",
+                    data: data.total_devices,
+                    borderColor: "#22c55e",
+                    fill: false
+                }]
+            }
+        });
+    } else {
+        deviceChart2.data.labels = data.timestamps;
+        deviceChart2.data.datasets[0].data = data.total_devices;
+        deviceChart2.update();
+    }
+
+    // Rogue Chart
+    let ctx3 = document.getElementById("rogueChart").getContext("2d");
+    if(!rogueChart){
+        rogueChart = new Chart(ctx3, {
+            type: "bar",
+            data: {
+                labels: data.timestamps,
+                datasets: [{
+                    label: "Rogue Devices",
+                    data: data.rogue_count,
+                    backgroundColor: "#ef4444"
+                }]
+            }
+        });
+    } else {
+        rogueChart.data.labels = data.timestamps;
+        rogueChart.data.datasets[0].data = data.rogue_count;
+        rogueChart.update();
+    }
+}
+</script>
 <script>
 var modal = document.getElementById("trustedModal");
 var btn = document.getElementById("trustedBtn");
@@ -437,10 +526,30 @@ var close = document.getElementById("closeModal");
 let knownRogueIPs = new Set(
     JSON.parse(localStorage.getItem("rogueIPs") || "[]")
 );
+
 var alertSound = new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
 btn.onclick = () => modal.style.display = "block";
 close.onclick = () => modal.style.display = "none";
 window.onclick = e => { if(e.target == modal) modal.style.display="none"; }
+document.addEventListener("click", () => {
+    alertSound.play().then(() => {
+        alertSound.pause();
+        alertSound.currentTime = 0;
+    }).catch(() => {});
+}, { once: true });
+
+function toggleAnalytics(){
+    let section = document.getElementById("analyticsSection");
+    let toggle = document.getElementById("analyticsToggle");
+
+    if(section.style.display === "none"){
+        section.style.display = "flex";
+        toggle.innerHTML = "📊 Advanced Analytics ⬆️";
+    } else {
+        section.style.display = "none";
+        toggle.innerHTML = "📊 Advanced Analytics ⬇️";
+    }
+}
 
 function disapproveDevice(ip, mac){
 
@@ -508,7 +617,6 @@ if(data.status === "success"){
 }
 
 function updateLiveData(){
-
 fetch("/api/live-data")
 .then(res => res.json())
 .then(data => {
@@ -616,6 +724,11 @@ alertBox.innerText = "🚨 ALERT: Unauthorized device detected → " + newRogues
 // 🔄 ALWAYS SYNC (remove old rogues automatically)
 knownRogueIPs = currentRogueIPs;
 localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
+});
+fetch("/api/analytics")
+.then(res => res.json())
+.then(data => {
+    drawAnalytics(data);
 });
 
 }
