@@ -380,7 +380,11 @@ Disapprove
 function drawChart(data){
     let ctx = document.getElementById('deviceChart').getContext('2d');
 
-    if(window.chart) window.chart.destroy();
+    if(window.chart){
+    window.chart.data.datasets[0].data = [data.online, data.offline, data.rogue_count];
+    window.chart.update();
+    return;
+    }
 
     window.chart = new Chart(ctx, {
         type: 'doughnut',
@@ -565,6 +569,7 @@ document.getElementById("trustedCount").innerText = data.trusted.length;
             onclick="approveDevice('${device.ip}','${device.mac}')">
             Approve</button>`;
     });
+
     drawChart(data);
 });
 
