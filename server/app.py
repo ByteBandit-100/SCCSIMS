@@ -129,9 +129,30 @@ def dashboard():
 
     rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
-    total_devices = len(devices)
-    online_devices = len([d for d in devices if d["status"] == "ONLINE"])
-    offline_devices = len([d for d in devices if d["status"] == "OFFLINE"])
+    arp_results = network_cache["arp"]
+    arp_map = {d["ip"]: d["mac"] for d in arp_results}
+
+    device_map = {}
+
+    # DB devices
+    for d in devices:
+        device_map[d["ip_address"]] = {
+            "status": d["status"]
+        }
+
+    # ARP devices (REAL NETWORK)
+    for ip in arp_map:
+        if ip not in device_map:
+            device_map[ip] = {
+                "status": "ONLINE"
+            }
+
+    final_devices = list(device_map.values())
+
+    total_devices = len(final_devices)
+    online_devices = len([d for d in final_devices if d["status"] == "ONLINE"])
+    offline_devices = total_devices - online_devices
+
     rogue_count = len(rogue_devices)
     trusted_count = len(trusted_ips)
 
@@ -424,16 +445,7 @@ def live_data():
     rogue = rogue_devices  # send full objects
 
     trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
-    if not devices and last_seen_devices:
-        # fallback to cached devices
-        for ip in last_seen_devices:
-            devices.append({
-                "hostname": "Unknown",
-                "ip": ip,
-                "cpu": 0,
-                "ram": 0,
-                "status": "ONLINE"
-            })
+
     return jsonify({
         "devices": devices,
         "rogue": rogue,
