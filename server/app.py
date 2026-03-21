@@ -44,7 +44,7 @@ def background_scanner():
             ping_devices = set(scan_network())
             arp_results = scan_network_arp()
 
-            # ✅ Merge but prioritize ARP
+            #  Merge but prioritize ARP
             arp_ips = set([d["ip"] for d in arp_results])
             all_devices = arp_ips.union(ping_devices)
 
@@ -103,7 +103,7 @@ def dashboard():
 
         time_diff = (current_time - last_seen_time).total_seconds()
 
-        # ✅ FORCE numeric safety
+        #  FORCE numeric safety
         time_diff = float(time_diff)
 
         status = "ONLINE" if time_diff <= 30 else "OFFLINE"
@@ -218,7 +218,7 @@ def receive_device_data():
         device = cursor.fetchone()
 
         if device:
-            # ✅ UPDATE existing device
+            #  UPDATE existing device
             cursor.execute("""
                 UPDATE devices
                 SET hostname=?,
@@ -232,7 +232,7 @@ def receive_device_data():
             """, (hostname, ip_address, os_name, cpu_usage, ram_usage, location, last_seen, mac_address))
 
         else:
-            # ✅ INSERT new device
+            #  INSERT new device
             cursor.execute("""
                 INSERT INTO devices
                 (hostname, ip_address, mac_address, os, cpu_usage, ram_usage, location, last_seen)
@@ -322,7 +322,7 @@ def approve_device():
     conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     cursor = conn.cursor()
 
-    # 🔥 CHECK BY MAC (not IP)
+    #  CHECK BY MAC (not IP)
     cursor.execute("SELECT mac_address FROM trusted_devices WHERE mac_address=?", (mac,))
     exists = cursor.fetchone()
 
@@ -441,7 +441,7 @@ def live_data():
         "online": len([d for d in devices if d["status"] == "ONLINE"]),
         "offline": len([d for d in devices if d["status"] == "OFFLINE"]),
         "rogue_count": len(rogue),
-        "trusted": trusted_list  # ✅ FIXED
+        "trusted": trusted_list  #  FIXED
     })
 
 def detect_rogue_logic(trusted_macs, trusted_ips):
@@ -455,7 +455,7 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     trusted_macs = set(normalize_mac(m) for m in trusted_macs)
 
-    # ✅ USE ONLY ARP (REAL DEVICES)
+    #  USE ONLY ARP (REAL DEVICES)
     arp_results = network_cache["arp"]
     arp_table = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
 
@@ -463,11 +463,11 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     ignored_ips = {"192.168.1.1"}
 
-    # ✅ UPDATE CACHE
+    #  UPDATE CACHE
     for ip in all_devices:
         last_seen_devices[ip] = current_time
 
-    # ✅ REMOVE OLD DEVICES (ANTI-GHOST)
+    #  REMOVE OLD DEVICES (ANTI-GHOST)
     to_delete = []
     for ip, seen_time in last_seen_devices.items():
         if (current_time - seen_time).total_seconds() > 120:
@@ -487,11 +487,11 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
         mac = arp_table.get(ip)
 
-        # ✅ fallback to ARP cache
+        #  fallback to ARP cache
         if not mac or mac == "unknown":
             mac = normalize_mac(get_mac_from_arp_cache(ip))
 
-        # ❌ still unknown → skip
+        #  still unknown → skip
         if not mac or mac == "unknown":
             continue
 
