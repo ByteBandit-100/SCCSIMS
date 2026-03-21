@@ -373,6 +373,19 @@ Disapprove
 
 </div>
 </div>
+<div id="rogueAlert" style="
+    display:none;
+    position:fixed;
+    top:20px;
+    right:20px;
+    background:#ef4444;
+    color:white;
+    padding:15px 20px;
+    border-radius:8px;
+    z-index:9999;
+    font-weight:bold;
+">
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -571,6 +584,30 @@ document.getElementById("trustedCount").innerText = data.trusted.length;
     });
 
     drawChart(data);
+    // 🔐 SAFE REAL-TIME ALERT SYSTEM
+let currentRogueIPs = new Set(data.rogue.map(d => d.ip));
+
+// find NEW rogues (difference)
+let newRogues = [...currentRogueIPs].filter(ip => !knownRogueIPs.has(ip));
+
+if(newRogues.length > 0){
+
+    // 🔊 sound
+    alertSound.play();
+
+    // 💬 popup
+    let alertBox = document.getElementById("rogueAlert");
+    alertBox.innerText = "🚨 New Rogue Device: " + newRogues.join(", ");
+    alertBox.style.display = "block";
+
+    setTimeout(() => {
+        alertBox.style.display = "none";
+    }, 3000);
+
+    // 💾 update storage
+    newRogues.forEach(ip => knownRogueIPs.add(ip));
+    localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
+}
 });
 
 }
