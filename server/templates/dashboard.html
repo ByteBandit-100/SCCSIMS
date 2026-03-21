@@ -585,29 +585,37 @@ document.getElementById("trustedCount").innerText = data.trusted.length;
 
     drawChart(data);
     // 🔐 SAFE REAL-TIME ALERT SYSTEM
-let currentRogueIPs = new Set(data.rogue.map(d => d.ip));
+    let currentRogueIPs = new Set(data.rogue.map(d => d.ip));
 
-// find NEW rogues (difference)
+// 🧠 FIRST LOAD FIX (no alert spam)
+if(!window.initialized){
+    knownRogueIPs = new Set(currentRogueIPs);
+    localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
+    window.initialized = true;
+    return;
+}
+
+// 🔍 detect NEW rogues only
 let newRogues = [...currentRogueIPs].filter(ip => !knownRogueIPs.has(ip));
 
 if(newRogues.length > 0){
 
-    // 🔊 sound
-    alertSound.play();
+    // 🔊 sound alert (safe play)
+    alertSound.currentTime = 0;
+    alertSound.play().catch(() => {});
 
-    // 💬 popup
+    // 💬 popup alert
     let alertBox = document.getElementById("rogueAlert");
-    alertBox.innerText = "🚨 New Rogue Device: " + newRogues.join(", ");
-    alertBox.style.display = "block";
+alertBox.innerText = "🚨 ALERT: Unauthorized device detected → " + newRogues.join(", ");    alertBox.style.display = "block";
 
     setTimeout(() => {
         alertBox.style.display = "none";
     }, 3000);
-
-    // 💾 update storage
-    newRogues.forEach(ip => knownRogueIPs.add(ip));
-    localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
 }
+
+// 🔄 ALWAYS SYNC (remove old rogues automatically)
+knownRogueIPs = currentRogueIPs;
+localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
 });
 
 }
