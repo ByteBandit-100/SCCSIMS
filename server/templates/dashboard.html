@@ -17,6 +17,14 @@
             user-select: none;
             caret-color: transparent;
         }
+        .chart-container {
+    width: 350px;
+    margin: 30px auto;
+    background: #1e293b;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,255,200,0.1);
+}
 
         h1 {
             margin-bottom: 10px;
@@ -173,7 +181,7 @@
 <body class="fade-in">
 
 <div class="top-bar">
-    <h1>🛡 SCCSIMS Dashboard</h1>
+   <h1>🛡️ SCCSIMS • Cyber Security Panel</h1>
     <a href="/logout" class="logout">Logout</a>
 </div>
 
@@ -303,6 +311,42 @@ Disapprove
 
 </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="chart-container">
+    <canvas id="deviceChart"></canvas>
+</div>
+
+<script>
+function drawChart(data){
+    let ctx = document.getElementById('deviceChart').getContext('2d');
+
+    if(window.chart) window.chart.destroy();
+
+    window.chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Online', 'Offline', 'Rogue'],
+        datasets: [{
+            data: [data.online, data.offline, data.rogue_count],
+            backgroundColor: ['#22c55e','#ef4444','#f59e0b']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                labels: {
+                    color: "white"
+                }
+            }
+        }
+    }
+});
+}
+</script>
 
 <script>
 var modal = document.getElementById("trustedModal");
@@ -456,7 +500,9 @@ document.getElementById("trustedCount").innerText = data.trusted.length;
             onclick="approveDevice('${device.ip}','${device.mac}')">
             Approve</button>`;
     });
+    drawChart(data);
 });
+
 }
 
 // 🔁 Run every 2 seconds
