@@ -297,7 +297,7 @@
 
 <h2>Device Monitoring</h2>
 
-<table>
+<table id="deviceTable">
 <tr>
     <th>ID</th>
     <th>Hostname</th>
@@ -651,7 +651,7 @@ data.trusted.forEach(device => {
 // update count
 document.getElementById("trustedCount").innerText = data.trusted.length;
     //  Update device table
-    let table = document.querySelector("table");
+    let table = document.getElementById("deviceTable");
     let rows = table.getElementsByTagName("tr");
 
     for(let i=1; i<rows.length; i++){
