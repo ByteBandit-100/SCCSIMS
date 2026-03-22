@@ -129,6 +129,12 @@ def dashboard():
             "mac": row[1]
         })
 
+    def safe_float(val):
+        try:
+            return float(val)
+        except:
+            return 0
+
     # build device list
     for row in rows:
         try:
@@ -145,12 +151,6 @@ def dashboard():
         time_diff = float(time_diff)
 
         status = "ONLINE" if time_diff <= 30 else "OFFLINE"
-
-        def safe_float(val):
-            try:
-                return float(val)
-            except:
-                return 0
 
         devices.append({
             "id": row[0],
@@ -267,8 +267,10 @@ def receive_device_data():
         cpu_usage = data.get("cpu_usage")
         ram_usage = data.get("ram_usage")
         location = data.get("location", "Unknown")
-
         last_seen = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if not mac_address:
+            return jsonify({"status": "error", "message": "Missing MAC"})
 
         conn = get_db()
         cursor = conn.cursor()
@@ -363,13 +365,13 @@ def detect_rogue_devices():
 
     return jsonify({"rogue_devices": rogue_devices})
 
+def normalize_mac(mac):
+    if not mac:
+        return "unknown"
+    return mac.lower().replace("-", ":")
+
 @app.route("/approve-device", methods=["POST"])
 def approve_device():
-
-    def normalize_mac(mac):
-        if not mac:
-            return "unknown"
-        return mac.lower().replace("-", ":")
 
     ip = request.form.get("ip")
     mac = normalize_mac(request.form.get("mac"))
@@ -499,11 +501,6 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     current_time = datetime.now()
 
-    def normalize_mac(mac):
-        if not mac:
-            return "unknown"
-        return mac.lower().replace("-", ":")
-
     trusted_macs = set(normalize_mac(m) for m in trusted_macs)
 
     #  USE ONLY ARP (REAL DEVICES)
@@ -516,8 +513,8 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
     ignored_ips = {"192.168.1.1"}
 
     #  UPDATE CACHE
-    for ip in all_devices:
-        with lock:
+    with lock:
+        for ip in all_devices:
             last_seen_devices[ip] = current_time
 
     #  REMOVE OLD DEVICES (ANTI-GHOST)
@@ -533,7 +530,8 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
         for ip in to_delete:
             del last_seen_devices[ip]
 
-    stable_devices = list(last_seen_devices.keys())
+    with lock:
+        stable_devices = list(last_seen_devices.keys())
 
     rogue_devices = {}
 
