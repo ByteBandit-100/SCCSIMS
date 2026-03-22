@@ -12,7 +12,9 @@ app.secret_key = os.urandom(24)# required for session
 DATABASE = "sccsims.db"
 last_seen_devices = {}
 lock = threading.Lock()
-
+API_KEY = "secret123"
+def verify_api():
+    return request.headers.get("API-KEY") == API_KEY
 def get_db():
     conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
@@ -40,8 +42,6 @@ def get_mac_from_arp_cache(ip):
         print("ARP Error:", e)
 
     return "Unknown"
-
-
 
 network_cache = {
     "devices": [],
@@ -151,7 +151,7 @@ def dashboard():
         #  FORCE numeric safety
         time_diff = float(time_diff)
 
-        status = "ONLINE" if time_diff <= 30 else "OFFLINE"
+        status = "ONLINE" if time_diff <= 15 else "OFFLINE"
 
         devices.append({
             "id": row[0],
@@ -258,6 +258,8 @@ def init_db():
 # ---------------------------
 @app.route("/api/device", methods=["POST"])
 def receive_device_data():
+    if not verify_api():
+        return jsonify({"error": "Unauthorized"}), 403
     try:
         data = request.json or {}
 
