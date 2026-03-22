@@ -6,8 +6,9 @@ from network_scanner import scan_network
 from datetime import datetime
 
 app = Flask(__name__)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.secret_key = os.urandom(24)# required for session
-
 DATABASE = "sccsims.db"
 last_seen_devices = {}
 lock = threading.Lock()
@@ -27,16 +28,16 @@ analytics_history = {
 def get_mac_from_arp_cache(ip):
 
     try:
-        output = subprocess.check_output("arp -a", shell=True).decode()
-
+        output = subprocess.check_output("arp -a", shell=True, timeout=2).decode()
         for line in output.split("\n"):
             if ip in line:
                 parts = line.split()
                 if len(parts) >= 2:
                     return parts[1]
 
-    except:
-        pass
+
+    except Exception as e:
+        print("ARP Error:", e)
 
     return "Unknown"
 
@@ -97,6 +98,12 @@ def background_scanner():
 
         time.sleep(5)
 
+def safe_float(val):
+    try:
+        return float(val)
+    except:
+        return 0
+
 @app.route("/")
 def dashboard():
     if "user" not in session:
@@ -128,12 +135,6 @@ def dashboard():
             "ip": row[0],
             "mac": row[1]
         })
-
-    def safe_float(val):
-        try:
-            return float(val)
-        except:
-            return 0
 
     # build device list
     for row in rows:
@@ -258,7 +259,7 @@ def init_db():
 @app.route("/api/device", methods=["POST"])
 def receive_device_data():
     try:
-        data = request.json
+        data = request.json or {}
 
         hostname = data.get("hostname")
         ip_address = data.get("ip_address")
@@ -378,7 +379,7 @@ def approve_device():
 
     print("APPROVE REQUEST:", ip, mac)
 
-    if not mac or mac == "Unknown":
+    if not mac or mac == "unknown":
         return jsonify({"status": "error", "message": "Invalid MAC"})
 
     conn = get_db()
