@@ -1,8 +1,15 @@
-import subprocess
-import platform
+import subprocess, socket, platform
 from concurrent.futures import ThreadPoolExecutor
 
-network_prefix = "192.168.1."
+def get_network_prefix():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    ip = s.getsockname()[0]
+    s.close()
+
+    return ".".join(ip.split(".")[:3]) + "."
+
+network_prefix = get_network_prefix()
 
 def ping(ip):
     for _ in range(2):
@@ -21,7 +28,6 @@ def ping(ip):
 def scan_network():
     ips = [network_prefix + str(i) for i in range(1,255)]
     active_devices = []
-
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = executor.map(ping, ips)
 
@@ -30,3 +36,4 @@ def scan_network():
             active_devices.append(r)
 
     return active_devices
+

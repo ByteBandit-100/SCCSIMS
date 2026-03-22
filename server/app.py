@@ -10,6 +10,12 @@ app.secret_key = os.urandom(24)# required for session
 
 DATABASE = "sccsims.db"
 last_seen_devices = {}
+lock = threading.Lock()
+
+def get_db():
+    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
 
 analytics_history = {
     "timestamps": [],
@@ -55,13 +61,14 @@ def background_scanner():
             arp_ips = set([d["ip"] for d in arp_results])
             all_devices = arp_ips.union(ping_devices)
 
-            network_cache["devices"] = all_devices
-            network_cache["arp"] = arp_results
-            network_cache["last_scan"] = datetime.now()
+            with lock:
+                network_cache["devices"] = all_devices
+                network_cache["arp"] = arp_results
+                network_cache["last_scan"] = datetime.now()
 
             # 📊 STORE ANALYTICS (last 20 points)
             try:
-                conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+                conn = get_db()
                 cursor = conn.cursor()
                 cursor.execute("SELECT cpu_usage FROM devices")
                 cpu_vals = [float(r[0]) for r in cursor.fetchall() if r[0] is not None]
@@ -95,7 +102,7 @@ def dashboard():
     if "user" not in session:
         return redirect("/login")
 
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn = get_db()
     cursor = conn.cursor()
 
     # Get all devices
@@ -160,7 +167,8 @@ def dashboard():
 
     rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
-    arp_results = network_cache["arp"]
+    with lock:
+        arp_results = list(network_cache["arp"])
     arp_map = {d["ip"]: d["mac"] for d in arp_results}
 
     device_map = {}
@@ -202,7 +210,7 @@ def dashboard():
 # Database Initialization
 # ---------------------------
 def init_db():
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -262,7 +270,7 @@ def receive_device_data():
 
         last_seen = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+        conn = get_db()
         cursor = conn.cursor()
 
         # check by MAC (unique device)
@@ -303,7 +311,7 @@ def receive_device_data():
 # ---------------------------
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM devices")
@@ -341,7 +349,7 @@ def scan_arp():
 @app.route("/detect-rogue")
 def detect_rogue_devices():
 
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
@@ -371,7 +379,7 @@ def approve_device():
     if not mac or mac == "Unknown":
         return jsonify({"status": "error", "message": "Invalid MAC"})
 
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn = get_db()
     cursor = conn.cursor()
 
     #  CHECK BY MAC (not IP)
@@ -397,7 +405,7 @@ def approve_device():
 def disapprove_device():
     mac = request.form.get("mac")
 
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute(
@@ -416,7 +424,7 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+        conn = get_db()
         cursor = conn.cursor()
 
         cursor.execute("SELECT * FROM users WHERE username=?", (username,))
@@ -438,7 +446,7 @@ def logout():
 @app.route("/api/live-data")
 def live_data():
 
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
+    conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM devices")
@@ -499,7 +507,8 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
     trusted_macs = set(normalize_mac(m) for m in trusted_macs)
 
     #  USE ONLY ARP (REAL DEVICES)
-    arp_results = network_cache["arp"]
+    with lock:
+        arp_results = list(network_cache["arp"])
     arp_table = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
 
     all_devices = set(arp_table.keys())
@@ -508,16 +517,21 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     #  UPDATE CACHE
     for ip in all_devices:
-        last_seen_devices[ip] = current_time
+        with lock:
+            last_seen_devices[ip] = current_time
 
     #  REMOVE OLD DEVICES (ANTI-GHOST)
     to_delete = []
-    for ip, seen_time in last_seen_devices.items():
+    with lock:
+        items = list(last_seen_devices.items())
+
+    for ip, seen_time in items:
         if (current_time - seen_time).total_seconds() > 120:
             to_delete.append(ip)
 
-    for ip in to_delete:
-        del last_seen_devices[ip]
+    with lock:
+        for ip in to_delete:
+            del last_seen_devices[ip]
 
     stable_devices = list(last_seen_devices.keys())
 
