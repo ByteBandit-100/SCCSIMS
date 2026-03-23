@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify, session, redirect, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3, os, subprocess, threading, time, socket
@@ -47,15 +48,12 @@ def scan_ports(ip, ports=None):
 
     return open_ports
 
-from concurrent.futures import ThreadPoolExecutor
-
 @app.route("/scan-ports-advanced", methods=["POST"])
 def scan_ports_advanced():
     try:
         data = request.json
 
         ip = data.get("ip")
-        protocol = data.get("protocol", "tcp")
         speed = data.get("speed", "normal")
         port_range = data.get("port_range", "1-1024")
         threads = int(data.get("threads", 50))
@@ -71,23 +69,27 @@ def scan_ports_advanced():
         else:
             timeout = 0.8
 
-        open_ports = []
-
         def scan_tcp(port):
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.settimeout(timeout)
 
-                if sock.connect_ex((ip, port)) == 0:
-                    open_ports.append(port)
-
+                result = sock.connect_ex((ip, port))
                 sock.close()
-            except:
-                pass
 
-        # 🚀 FAST THREAD POOL
+                if result == 0:
+                    return port  # ✅ return instead of append
+
+            except:
+                return None
+
+        # 🚀 THREAD POOL (SAFE + FAST)
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            executor.map(scan_tcp, ports)
+            results = executor.map(scan_tcp, ports)
+
+        # ✅ collect results safely
+        open_ports = [p for p in results if p is not None]
 
         return jsonify({
             "ip": ip,

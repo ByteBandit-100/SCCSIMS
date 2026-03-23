@@ -490,7 +490,22 @@ Disapprove
 <br><br>
 
 <button onclick="runAdvancedScan()">Run Advanced Scan</button>
+<hr>
 
+<h3>📡 Scan Progress</h3>
+
+<div style="background:#0f172a; border-radius:8px; overflow:hidden; height:20px;">
+    <div id="progressBar" style="
+        height:100%;
+        width:0%;
+        background:#22c55e;
+        transition: width 0.2s;
+    "></div>
+</div>
+
+<p id="scanStatus" style="margin-top:10px; font-size:14px; color:#38bdf8;">
+    Waiting to start...
+</p>
 <hr>
 
 <div id="portResult"></div>
@@ -858,12 +873,32 @@ function runAdvancedScan(){
 
     let protocol = document.getElementById("protocol").value;
     let speed = document.getElementById("speed").value;
-    let portRange = document.getElementById("portRange").value;
+    let portRange = document.getElementById("portRange").value || "1-1024";
     let threads = document.getElementById("threads").value;
 
     let resultBox = document.getElementById("portResult");
+    let progressBar = document.getElementById("progressBar");
+    let statusText = document.getElementById("scanStatus");
 
-    resultBox.innerHTML = "⏳ Running advanced scan...";
+    resultBox.innerHTML = "";
+    progressBar.style.width = "0%";
+    statusText.innerText = "🚀 Starting scan...";
+
+    let [start, end] = portRange.split("-").map(Number);
+    let totalPorts = end - start + 1;
+
+    let scanned = 0;
+
+    // 🔥 FAKE LIVE PROGRESS (smooth UX)
+    let progressInterval = setInterval(() => {
+        if(scanned < totalPorts){
+            scanned += Math.floor(totalPorts / 50); // smooth speed
+            let percent = Math.min((scanned / totalPorts) * 100, 95);
+            progressBar.style.width = percent + "%";
+let currentPort = start + scanned;
+statusText.innerText =
+`🔍 Scanning Port: ${currentPort} (${Math.floor((scanned/totalPorts)*100)}%)`;        }
+    }, 200);
 
     fetch("/scan-ports-advanced", {
         method: "POST",
@@ -879,9 +914,18 @@ function runAdvancedScan(){
         })
     })
     .then(res => res.json())
-    .then(showResults)
+    .then(data => {
+
+        clearInterval(progressInterval);
+
+        progressBar.style.width = "100%";
+        statusText.innerText = "✅ Scan Completed";
+
+        showResults(data);
+    })
     .catch(() => {
-        resultBox.innerHTML = "❌ Advanced scan failed";
+        clearInterval(progressInterval);
+        statusText.innerText = "❌ Scan Failed";
     });
 }
 
