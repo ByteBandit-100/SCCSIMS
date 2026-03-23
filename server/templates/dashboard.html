@@ -240,6 +240,15 @@
 .port-safe {
     color: #22c55e;
 }
+.modal-content {
+    background: #1e293b;
+    margin: 5% auto;
+    padding: 20px;
+    width: 60%;
+    max-height: 80vh;   /*  LIMIT HEIGHT */
+    overflow-y: auto;   /*  SCROLL ENABLE */
+    border-radius: 10px;
+}
     </style>
 </head>
 
@@ -441,11 +450,50 @@ Disapprove
 
 <span id="closePortModal" class="close">&times;</span>
 
-<h2>🔍 Port Scan Result</h2>
+<h2>🔍 Port Scanner</h2>
 
 <p id="scanIP"></p>
 
-<div id="portResult" style="margin-top:15px;"></div>
+<hr>
+
+<h3>⚡ Quick Scan</h3>
+<button onclick="runQuickScan()">Run Default Scan</button>
+
+<hr>
+
+<h3>⚙ Advanced Scan</h3>
+
+<label>Protocol:</label>
+<select id="protocol">
+    <option value="tcp">TCP</option>
+</select>
+
+<br><br>
+
+<label>Speed:</label>
+<select id="speed">
+    <option value="normal">Normal</option>
+    <option value="aggressive">Aggressive</option>
+    <option value="stealth">Stealth</option>
+</select>
+
+<br><br>
+
+<label>Port Range:</label>
+<input type="text" id="portRange" placeholder="e.g. 1-1024">
+
+<br><br>
+
+<label>Threads:</label>
+<input type="number" id="threads" value="10" min="1" max="100">
+
+<br><br>
+
+<button onclick="runAdvancedScan()">Run Advanced Scan</button>
+
+<hr>
+
+<div id="portResult"></div>
 
 </div>
 </div>
@@ -564,6 +612,7 @@ function drawAnalytics(data){
 var modal = document.getElementById("trustedModal");
 var btn = document.getElementById("trustedBtn");
 var close = document.getElementById("closeModal");
+let currentScanIP = "";
 let knownRogueIPs = new Set(
     JSON.parse(localStorage.getItem("rogueIPs") || "[]")
 );
@@ -791,63 +840,64 @@ if(analyticsVisible){
 }
 
 }
-
-function scanPorts(ip){
-
-let modal = document.getElementById("portModal");
-let resultBox = document.getElementById("portResult");
-let ipText = document.getElementById("scanIP");
-
-modal.style.display = "block";
-ipText.innerText = "Scanning IP: " + ip;
-
-// 🔄 Loading UI
-resultBox.innerHTML = "⏳ Scanning ports...";
-
-fetch("/scan-ports?ip=" + ip)
-.then(res => res.json())
-.then(data => {
-
-    if(!data.open_ports){
-        resultBox.innerHTML = "<span class='port-safe'>No response from server</span>";
-        return;
-    }
-
-    if(data.open_ports.length === 0){
-        resultBox.innerHTML = "<span class='port-safe'>✅ No open ports found</span>";
-    } else {
-
-        let portsHTML = "<span class='port-open'>⚠ Open Ports:</span><br><br>";
-
-data.open_ports.forEach(p => {
-
-    let service = getServiceName(p);
-    let risk = getRiskLevel(p);
-
-    let color = "#22c55e"; // LOW
-    if(risk === "MEDIUM") color = "#f59e0b";
-    if(risk === "HIGH") color = "#ef4444";
-
-    portsHTML += `
-    <div style="margin-bottom:8px;">
-        • Port ${p} (${service})
-        → <span style="color:${color}; font-weight:bold;">${risk}</span>
-    </div>
-    `;
-});
-
-resultBox.innerHTML = portsHTML;
-    }
-
-})
-.catch(() => {
-    resultBox.innerHTML = "<span class='port-open'>Error scanning ports</span>";
-});
-}
-
 //  Run every 5 seconds
 setInterval(updateLiveData, 5000);
 
+function scanPorts(ip){
+    currentScanIP = ip;
+
+    let modal = document.getElementById("portModal");
+    document.getElementById("scanIP").innerText = "Target: " + ip;
+
+    document.getElementById("portResult").innerHTML = "";
+
+    modal.style.display = "block";
+}
+
+function runAdvancedScan(){
+
+    let protocol = document.getElementById("protocol").value;
+    let speed = document.getElementById("speed").value;
+    let portRange = document.getElementById("portRange").value;
+    let threads = document.getElementById("threads").value;
+
+    let resultBox = document.getElementById("portResult");
+
+    resultBox.innerHTML = "⏳ Running advanced scan...";
+
+    fetch("/scan-ports-advanced", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            ip: currentScanIP,
+            protocol: protocol,
+            speed: speed,
+            port_range: portRange,
+            threads: threads
+        })
+    })
+    .then(res => res.json())
+    .then(showResults)
+    .catch(() => {
+        resultBox.innerHTML = "❌ Advanced scan failed";
+    });
+}
+
+function runQuickScan(){
+
+let resultBox = document.getElementById("portResult");
+
+resultBox.innerHTML = "⏳ Running quick scan...";
+
+fetch(`/scan-ports?ip=${currentScanIP}`)
+.then(res => res.json())
+.then(showResults)
+.catch(() => {
+    resultBox.innerHTML = "❌ Scan failed";
+});
+}
     function getServiceName(port){
     const services = {
         21: "FTP",
@@ -877,6 +927,43 @@ function getRiskLevel(port){
     return "LOW";
 }
 
+    function showResults(data){
+
+    let resultBox = document.getElementById("portResult");
+
+    if(!data.open_ports){
+        resultBox.innerHTML = "❌ No response from server";
+        return;
+    }
+
+    if(data.open_ports.length === 0){
+        resultBox.innerHTML = "✅ No open ports found";
+        return;
+    }
+
+    let html = "<b>Open Ports:</b><br><br>";
+
+    data.open_ports.forEach(p => {
+
+        let service = getServiceName(p);
+        let risk = getRiskLevel(p);
+
+        let color = "lime";
+        if(risk === "HIGH") color = "#ef4444";
+        else if(risk === "MEDIUM") color = "#f59e0b";
+
+        html += `
+        <div style="margin-bottom:5px;">
+            🔓 Port ${p} (${service})
+            <span style="color:${color}; font-weight:bold;">
+                [${risk}]
+            </span>
+        </div>
+        `;
+    });
+
+    resultBox.innerHTML = html;
+}
 </script>
 
 </body>

@@ -47,6 +47,57 @@ def scan_ports(ip, ports=None):
 
     return open_ports
 
+from concurrent.futures import ThreadPoolExecutor
+
+@app.route("/scan-ports-advanced", methods=["POST"])
+def scan_ports_advanced():
+    try:
+        data = request.json
+
+        ip = data.get("ip")
+        protocol = data.get("protocol", "tcp")
+        speed = data.get("speed", "normal")
+        port_range = data.get("port_range", "1-1024")
+        threads = int(data.get("threads", 50))
+
+        start, end = map(int, port_range.split("-"))
+        ports = list(range(start, end + 1))
+
+        # ⚡ speed control
+        if speed == "aggressive":
+            timeout = 0.3
+        elif speed == "stealth":
+            timeout = 2
+        else:
+            timeout = 0.8
+
+        open_ports = []
+
+        def scan_tcp(port):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(timeout)
+
+                if sock.connect_ex((ip, port)) == 0:
+                    open_ports.append(port)
+
+                sock.close()
+            except:
+                pass
+
+        # 🚀 FAST THREAD POOL
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            executor.map(scan_tcp, ports)
+
+        return jsonify({
+            "ip": ip,
+            "open_ports": sorted(open_ports)
+        })
+
+    except Exception as e:
+        print("ADV SCAN ERROR:", e)
+        return jsonify({"error": "scan failed", "open_ports": []})
+
 def get_mac_from_arp_cache(ip):
 
     try:
@@ -589,15 +640,30 @@ def analytics():
 @app.route("/scan-ports")
 def scan_ports_route():
     ip = request.args.get("ip")
+    protocol = request.args.get("protocol", "tcp")
+    speed = request.args.get("speed", "normal")
+    port_range = request.args.get("range", "")
+    threads = int(request.args.get("threads", 10))
 
     if not ip:
         return jsonify({"error": "IP required"}), 400
 
-    ports = scan_ports(ip)
+    # default ports
+    ports = None
+
+    # custom range
+    if port_range and "-" in port_range:
+        start, end = port_range.split("-")
+        ports = list(range(int(start), int(end)+1))
+
+    open_ports = scan_ports(ip, ports)
 
     return jsonify({
         "ip": ip,
-        "open_ports": ports
+        "protocol": protocol,
+        "speed": speed,
+        "threads": threads,
+        "open_ports": open_ports
     })
 
 if __name__ == "__main__":
