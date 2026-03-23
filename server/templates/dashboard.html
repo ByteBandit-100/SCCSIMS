@@ -574,15 +574,13 @@ var closePort = document.getElementById("closePortModal");
 closePort.onclick = () => portModal.style.display = "none";
 
 window.onclick = function(e){
-    if(e.target == portModal){
-        portModal.style.display = "none";
-    }
+    if(e.target == modal) modal.style.display = "none";
+    if(e.target == portModal) portModal.style.display = "none";
 };
 
 var alertSound = new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
 btn.onclick = () => modal.style.display = "block";
 close.onclick = () => modal.style.display = "none";
-window.onclick = e => { if(e.target == modal) modal.style.display="none"; }
 document.addEventListener("click", () => {
     alertSound.play().then(() => {
         alertSound.pause();
@@ -821,11 +819,24 @@ fetch("/scan-ports?ip=" + ip)
 
         let portsHTML = "<span class='port-open'>⚠ Open Ports:</span><br><br>";
 
-        data.open_ports.forEach(p => {
-            portsHTML += "• Port " + p + "<br>";
-        });
+data.open_ports.forEach(p => {
 
-        resultBox.innerHTML = portsHTML;
+    let service = getServiceName(p);
+    let risk = getRiskLevel(p);
+
+    let color = "#22c55e"; // LOW
+    if(risk === "MEDIUM") color = "#f59e0b";
+    if(risk === "HIGH") color = "#ef4444";
+
+    portsHTML += `
+    <div style="margin-bottom:8px;">
+        • Port ${p} (${service})
+        → <span style="color:${color}; font-weight:bold;">${risk}</span>
+    </div>
+    `;
+});
+
+resultBox.innerHTML = portsHTML;
     }
 
 })
@@ -836,6 +847,35 @@ fetch("/scan-ports?ip=" + ip)
 
 //  Run every 5 seconds
 setInterval(updateLiveData, 5000);
+
+    function getServiceName(port){
+    const services = {
+        21: "FTP",
+        22: "SSH",
+        23: "Telnet",
+        25: "SMTP",
+        53: "DNS",
+        80: "HTTP",
+        110: "POP3",
+        135: "RPC",
+        139: "NetBIOS",
+        143: "IMAP",
+        443: "HTTPS",
+        445: "SMB",
+        3389: "RDP"
+    };
+
+    return services[port] || "Unknown";
+}
+
+function getRiskLevel(port){
+    const high = [21, 23, 445, 3389];
+    const medium = [22, 25, 110, 139];
+
+    if(high.includes(port)) return "HIGH";
+    if(medium.includes(port)) return "MEDIUM";
+    return "LOW";
+}
 
 </script>
 

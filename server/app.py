@@ -27,7 +27,9 @@ analytics_history = {
     "rogue_count": []
 }
 
-def scan_ports(ip, ports=[21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 3389]):
+def scan_ports(ip, ports=None):
+    if ports is None:
+        ports = [21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 3389]
     open_ports = []
 
     for port in ports:
