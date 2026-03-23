@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, session, redirect, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3, os, subprocess, threading, time
+import sqlite3, os, subprocess, threading, time, socket
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
 from datetime import datetime
@@ -26,6 +26,24 @@ analytics_history = {
     "total_devices": [],
     "rogue_count": []
 }
+
+def scan_ports(ip, ports=[21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 3389]):
+    open_ports = []
+
+    for port in ports:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.5)
+
+            result = sock.connect_ex((ip, port))
+            if result == 0:
+                open_ports.append(port)
+
+            sock.close()
+        except:
+            pass
+
+    return open_ports
 
 def get_mac_from_arp_cache(ip):
 
@@ -565,6 +583,20 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 @app.route("/api/analytics")
 def analytics():
     return jsonify(analytics_history)
+
+@app.route("/scan-ports")
+def scan_ports_route():
+    ip = request.args.get("ip")
+
+    if not ip:
+        return jsonify({"error": "IP required"}), 400
+
+    ports = scan_ports(ip)
+
+    return jsonify({
+        "ip": ip,
+        "open_ports": ports
+    })
 
 if __name__ == "__main__":
     init_db()

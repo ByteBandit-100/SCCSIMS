@@ -227,6 +227,19 @@
     transition: all 0.4s ease;
     overflow: hidden;
 }
+        #portResult {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.port-open {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+.port-safe {
+    color: #22c55e;
+}
     </style>
 </head>
 
@@ -309,6 +322,7 @@
     <th>Location</th>
     <th>Last Seen</th>
     <th>Status</th>
+    <th>Scan</th>
 </tr>
 
 {% for device in devices %}
@@ -332,6 +346,11 @@
     <td style="color: {{ 'lime' if device.status == 'ONLINE' else 'red' }};">
         {{ device.status }}
     </td>
+    <td>
+    <button onclick="scanPorts('{{ device.ip_address }}')">
+    Scan Ports
+    </button>
+    </td>
 </tr>
 {% endfor %}
 </table>
@@ -344,6 +363,7 @@
 <th>MAC</th>
 <th>Status</th>
 <th>Action</th>
+<th>Scan</th>
 </tr>
 
 {% for device in rogue_devices %}
@@ -354,8 +374,14 @@
 
 <td>
 <button class="approve-btn"
-onclick="approveDevice('{{ device.ip }}','{{ device.mac }}', this)"
-> Approve
+onclick="approveDevice('{{ device.ip }}','{{ device.mac }}', this)">
+Approve
+</button>
+</td>
+
+<td>
+<button onclick="scanPorts('{{ device.ip }}')">
+Scan Ports
 </button>
 </td>
 
@@ -408,6 +434,20 @@ Disapprove
     z-index:9999;
     font-weight:bold;
 ">
+</div>
+<!-- PORT SCAN MODAL -->
+<div id="portModal" class="modal">
+<div class="modal-content">
+
+<span id="closePortModal" class="close">&times;</span>
+
+<h2>🔍 Port Scan Result</h2>
+
+<p id="scanIP"></p>
+
+<div id="portResult" style="margin-top:15px;"></div>
+
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -527,6 +567,17 @@ var close = document.getElementById("closeModal");
 let knownRogueIPs = new Set(
     JSON.parse(localStorage.getItem("rogueIPs") || "[]")
 );
+
+var portModal = document.getElementById("portModal");
+var closePort = document.getElementById("closePortModal");
+
+closePort.onclick = () => portModal.style.display = "none";
+
+window.onclick = function(e){
+    if(e.target == portModal){
+        portModal.style.display = "none";
+    }
+};
 
 var alertSound = new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
 btn.onclick = () => modal.style.display = "block";
@@ -687,9 +738,13 @@ document.getElementById("trustedCount").innerText = data.trusted.length;
         statusCell.style.color = "red";
 
         row.insertCell(3).innerHTML =
-            `<button class="approve-btn"
-            onclick="approveDevice('${device.ip}','${device.mac}')">
-            Approve</button>`;
+    `<button class="approve-btn"
+    onclick="approveDevice('${device.ip}','${device.mac}')">
+    Approve</button>`;
+
+row.insertCell(4).innerHTML =
+    `<button onclick="scanPorts('${device.ip}')">
+    Scan Ports</button>`;
     });
 
     drawChart(data);
@@ -737,6 +792,46 @@ if(analyticsVisible){
     });
 }
 
+}
+
+function scanPorts(ip){
+
+let modal = document.getElementById("portModal");
+let resultBox = document.getElementById("portResult");
+let ipText = document.getElementById("scanIP");
+
+modal.style.display = "block";
+ipText.innerText = "Scanning IP: " + ip;
+
+// 🔄 Loading UI
+resultBox.innerHTML = "⏳ Scanning ports...";
+
+fetch("/scan-ports?ip=" + ip)
+.then(res => res.json())
+.then(data => {
+
+    if(!data.open_ports){
+        resultBox.innerHTML = "<span class='port-safe'>No response from server</span>";
+        return;
+    }
+
+    if(data.open_ports.length === 0){
+        resultBox.innerHTML = "<span class='port-safe'>✅ No open ports found</span>";
+    } else {
+
+        let portsHTML = "<span class='port-open'>⚠ Open Ports:</span><br><br>";
+
+        data.open_ports.forEach(p => {
+            portsHTML += "• Port " + p + "<br>";
+        });
+
+        resultBox.innerHTML = portsHTML;
+    }
+
+})
+.catch(() => {
+    resultBox.innerHTML = "<span class='port-open'>Error scanning ports</span>";
+});
 }
 
 //  Run every 5 seconds
