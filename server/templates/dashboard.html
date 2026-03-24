@@ -941,7 +941,7 @@ function runAdvancedScan(){
 
         if(event.data === "done"){
             resultBox.innerHTML += "<br>✅ Scan Complete";
-            stopScan();
+            stopScan(true);
             return;
         }
 
@@ -970,7 +970,7 @@ function runAdvancedScan(){
     };
 }
 
-function stopScan(){
+function stopScan(isCompleted=false){
 
     // STOP fetch scan
     if(scanController){
@@ -983,8 +983,9 @@ function stopScan(){
         eventSource = null;
     }
 
-    document.getElementById("portResult").innerHTML += "<br>⛔ Scan Stopped";
-
+    if(!isCompleted){
+        document.getElementById("portResult").innerHTML += "<br>⛔ Scan Stopped";
+    }
     resetScanButtons();
 }
 

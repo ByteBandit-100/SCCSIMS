@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from flask import Flask, request, jsonify, session, redirect, render_template
+from flask import Flask, request, jsonify, session, redirect, render_template, Response, stream_with_context
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3, os, subprocess, threading, time, socket
 from arp_scanner import scan_network_arp
@@ -14,7 +14,6 @@ DATABASE = "sccsims.db"
 last_seen_devices = {}
 lock = threading.Lock()
 API_KEY = "secret123"
-API_KEY = os.environ.get("API_KEY", "fallback_key")
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
 def get_db():
@@ -102,9 +101,12 @@ def scan_ports_advanced():
         return jsonify({"error": "scan failed", "open_ports": []})
 
 def get_mac_from_arp_cache(ip):
-
+    if os.name == "nt":
+        cmd = "arp -a"
+    else:
+        cmd = "arp -n"
     try:
-        output = subprocess.check_output("arp -a", shell=True, timeout=2).decode()
+        output = subprocess.check_output(cmd, shell=True, timeout=2).decode()
         for line in output.split("\n"):
             if ip in line:
                 parts = line.split()
@@ -153,10 +155,11 @@ def background_scanner():
 
                 rogue_now = len(detect_rogue_logic(set(), set()))
 
-                analytics_history["timestamps"].append(datetime.now().strftime("%H:%M:%S"))
-                analytics_history["cpu_avg"].append(avg_cpu)
-                analytics_history["total_devices"].append(len(all_devices))
-                analytics_history["rogue_count"].append(rogue_now)
+                with lock:
+                    analytics_history["timestamps"].append(datetime.now().strftime("%H:%M:%S"))
+                    analytics_history["cpu_avg"].append(avg_cpu)
+                    analytics_history["total_devices"].append(len(all_devices))
+                    analytics_history["rogue_count"].append(rogue_now)
 
                 # keep last 20
                 for key in analytics_history:
@@ -390,8 +393,6 @@ def receive_device_data():
 # ---------------------------
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
-    if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 403
     conn = get_db()
     cursor = conn.cursor()
 
@@ -526,8 +527,6 @@ def logout():
 
 @app.route("/api/live-data")
 def live_data():
-    if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 403
     conn = get_db()
     cursor = conn.cursor()
 
@@ -645,8 +644,6 @@ def analytics():
 
 @app.route("/scan-ports")
 def scan_ports_route():
-    if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 403
     ip = request.args.get("ip")
     protocol = request.args.get("protocol", "tcp")
     speed = request.args.get("speed", "normal")
@@ -688,8 +685,6 @@ def scan_single_port(ip, port, timeout):
     except:
         return None
 
-from flask import Response, stream_with_context
-
 @app.route("/scan-ports-live")
 def scan_ports_live():
 
@@ -706,9 +701,11 @@ def scan_ports_live():
     except:
         return "data: error\n\n"
 
-    # 🚫 limit huge scans
     if end - start > 5000:
         return "data: Range too large\n\n"
+
+    if end < 1 or end > 65535:
+        return "data: Invalid port range\n\n"
 
     ports = list(range(start, end + 1))
 
