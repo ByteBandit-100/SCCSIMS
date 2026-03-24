@@ -134,8 +134,8 @@ def background_scanner():
             ping_devices = set(scan_network())
             arp_results = scan_network_arp()
 
-            #  Merge but prioritize ARP
-            arp_ips = set([d["ip"] for d in arp_results])
+            # Merge devices
+            arp_ips = set(d["ip"] for d in arp_results)
             all_devices = arp_ips.union(ping_devices)
 
             with lock:
@@ -143,17 +143,26 @@ def background_scanner():
                 network_cache["arp"] = arp_results
                 network_cache["last_scan"] = datetime.now()
 
-            # 📊 STORE ANALYTICS (last 20 points)
+            # 📊 STORE ANALYTICS
             try:
                 conn = get_db()
                 cursor = conn.cursor()
+
+                # CPU avg
                 cursor.execute("SELECT cpu_usage FROM devices")
                 cpu_vals = [float(r[0]) for r in cursor.fetchall() if r[0] is not None]
-                conn.close()
-
                 avg_cpu = sum(cpu_vals) / len(cpu_vals) if cpu_vals else 0
 
-                rogue_now = len(detect_rogue_logic(set(), set()))
+                # Trusted devices
+                cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+                trusted_rows = cursor.fetchall()
+
+                conn.close()
+
+                trusted_ips = set(r[0] for r in trusted_rows)
+                trusted_macs = set(r[1] for r in trusted_rows)
+
+                rogue_now = len(detect_rogue_logic(trusted_macs, trusted_ips))
 
                 with lock:
                     analytics_history["timestamps"].append(datetime.now().strftime("%H:%M:%S"))
@@ -161,12 +170,12 @@ def background_scanner():
                     analytics_history["total_devices"].append(len(all_devices))
                     analytics_history["rogue_count"].append(rogue_now)
 
-                # keep last 20
-                for key in analytics_history:
-                    analytics_history[key] = analytics_history[key][-20:]
+                    # keep last 20
+                    for key in analytics_history:
+                        analytics_history[key] = analytics_history[key][-20:]
 
-            except:
-                pass
+            except Exception as e:
+                print("Analytics error:", e)
 
             print(f"✅ Found {len(all_devices)} devices")
 
