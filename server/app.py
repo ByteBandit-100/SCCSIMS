@@ -56,7 +56,7 @@ def scan_ports_advanced():
         ip = data.get("ip")
         speed = data.get("speed", "normal")
         port_range = data.get("port_range", "1-1024")
-        threads = int(data.get("threads", 50))
+        threads = min(int(data.get("threads", 50)), 100)
 
         start, end = map(int, port_range.split("-"))
         ports = list(range(start, end + 1))
@@ -667,6 +667,71 @@ def scan_ports_route():
         "threads": threads,
         "open_ports": open_ports
     })
+
+def scan_single_port(ip, port, timeout):
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+
+        result = sock.connect_ex((ip, port))
+        sock.close()
+
+        if result == 0:
+            return port
+
+    except:
+        return None
+
+from flask import Response, stream_with_context
+
+@app.route("/scan-ports-live")
+def scan_ports_live():
+
+    ip = request.args.get("ip")
+    port_range = request.args.get("range", "1-1024")
+    speed = request.args.get("speed", "normal")
+    threads = int(request.args.get("threads", 50))
+
+    # 🔒 Safety limits
+    threads = min(threads, 100)
+
+    try:
+        start, end = map(int, port_range.split("-"))
+    except:
+        return "data: error\n\n"
+
+    # 🚫 limit huge scans
+    if end - start > 5000:
+        return "data: Range too large\n\n"
+
+    ports = list(range(start, end + 1))
+
+    # ⚡ speed control
+    if speed == "aggressive":
+        timeout = 0.3
+    elif speed == "stealth":
+        timeout = 2
+    else:
+        timeout = 0.8
+
+    def generate():
+
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+
+            futures = []
+
+            for port in ports:
+                futures.append(executor.submit(scan_single_port, ip, port, timeout))
+
+            for future in futures:
+                result = future.result()
+
+                if result:
+                    yield f"data: {result}\n\n"
+
+        yield "data: done\n\n"
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
 if __name__ == "__main__":
     init_db()

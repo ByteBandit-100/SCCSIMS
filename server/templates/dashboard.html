@@ -258,6 +258,10 @@
    <h1>🛡️ SCCSIMS • Cyber Security Panel</h1>
     <a href="/logout" class="logout">Logout</a>
 </div>
+<div style="display:flex; justify-content:space-between; margin-top:10px;">
+    <div id="liveClock">🕒 --:--:--</div>
+    <div id="systemStatus" style="color:#22c55e;">🟢 System Secure</div>
+</div>
 
 <h2>Network Overview</h2>
 
@@ -457,8 +461,7 @@ Disapprove
 <hr>
 
 <h3>⚡ Quick Scan</h3>
-<button onclick="runQuickScan()">Run Default Scan</button>
-
+<button id="quickScanBtn" onclick="runQuickScan()">Run Default Scan</button>
 <hr>
 
 <h3>⚙ Advanced Scan</h3>
@@ -488,25 +491,8 @@ Disapprove
 <input type="number" id="threads" value="10" min="1" max="100">
 
 <br><br>
-
-<button onclick="runAdvancedScan()">Run Advanced Scan</button>
-<hr>
-
-<h3>📡 Scan Progress</h3>
-
-<div style="background:#0f172a; border-radius:8px; overflow:hidden; height:20px;">
-    <div id="progressBar" style="
-        height:100%;
-        width:0%;
-        background:#22c55e;
-        transition: width 0.2s;
-    "></div>
-</div>
-
-<p id="scanStatus" style="margin-top:10px; font-size:14px; color:#38bdf8;">
-    Waiting to start...
-</p>
-<hr>
+    <button id="advancedScanBtn" onclick="runAdvancedScan()">Run Advanced Scan</button>
+    <hr>
 
 <div id="portResult"></div>
 
@@ -553,6 +539,13 @@ function drawChart(data){
         }
     });
 }
+
+    setInterval(() => {
+    let now = new Date();
+    document.getElementById("liveClock").innerText =
+        "🕒 " + now.toLocaleTimeString();
+}, 1000);
+
 </script>
 <script>
 let cpuChart, deviceChart2, rogueChart;
@@ -627,6 +620,9 @@ function drawAnalytics(data){
 var modal = document.getElementById("trustedModal");
 var btn = document.getElementById("trustedBtn");
 var close = document.getElementById("closeModal");
+let scanController = null;
+let eventSource = null;
+let isScanning = false;
 let currentScanIP = "";
 let knownRogueIPs = new Set(
     JSON.parse(localStorage.getItem("rogueIPs") || "[]")
@@ -734,7 +730,15 @@ function updateLiveData(){
 fetch("/api/live-data")
 .then(res => res.json())
 .then(data => {
+    let statusBox = document.getElementById("systemStatus");
 
+if(data.rogue_count > 0){
+    statusBox.innerHTML = "🔴 Threat Detected";
+    statusBox.style.color = "#ef4444";
+}else{
+    statusBox.innerHTML = "🟢 System Secure";
+    statusBox.style.color = "#22c55e";
+}
     //  Update cards
     document.querySelector(".blue b").innerText = data.total;
     document.querySelector(".green b").innerText = data.online;
@@ -869,7 +873,57 @@ function scanPorts(ip){
     modal.style.display = "block";
 }
 
+function runQuickScan(){
+
+    if(isScanning){
+        stopScan();
+        return;
+    }
+
+    isScanning = true;
+
+    let btn = document.getElementById("quickScanBtn");
+    let advBtn = document.getElementById("advancedScanBtn");
+
+    btn.innerText = "Stop Scan";
+    advBtn.disabled = true;
+
+    let resultBox = document.getElementById("portResult");
+    resultBox.innerHTML = "⏳ Running quick scan...";
+
+    scanController = new AbortController();
+
+    fetch(`/scan-ports?ip=${currentScanIP}`, {
+        signal: scanController.signal
+    })
+    .then(res => res.json())
+    .then(data => {
+        showResults(data);
+        resetScanButtons();
+    })
+    .catch(err => {
+        if(err.name === "AbortError"){
+            resultBox.innerHTML = "Scan Stopped";
+        } else {
+            resultBox.innerHTML = "❌ Scan failed";
+        }
+        resetScanButtons();
+    });
+}
 function runAdvancedScan(){
+
+    if(isScanning){
+        stopScan();
+        return;
+    }
+
+    isScanning = true;
+
+    let quickBtn = document.getElementById("quickScanBtn");
+    let advBtn = document.getElementById("advancedScanBtn");
+
+    quickBtn.disabled = true;
+    advBtn.innerText = "Stop Scan";
 
     let protocol = document.getElementById("protocol").value;
     let speed = document.getElementById("speed").value;
@@ -877,71 +931,79 @@ function runAdvancedScan(){
     let threads = document.getElementById("threads").value;
 
     let resultBox = document.getElementById("portResult");
-    let progressBar = document.getElementById("progressBar");
-    let statusText = document.getElementById("scanStatus");
+    resultBox.innerHTML = "🚀 Live scanning...<br><br>";
 
-    resultBox.innerHTML = "";
-    progressBar.style.width = "0%";
-    statusText.innerText = "🚀 Starting scan...";
+    eventSource = new EventSource(
+        `/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`
+    );
 
-    let [start, end] = portRange.split("-").map(Number);
-    let totalPorts = end - start + 1;
+    eventSource.onmessage = function(event){
 
-    let scanned = 0;
+        if(event.data === "done"){
+            resultBox.innerHTML += "<br>✅ Scan Complete";
+            stopScan();
+            return;
+        }
 
-    // 🔥 FAKE LIVE PROGRESS (smooth UX)
-    let progressInterval = setInterval(() => {
-        if(scanned < totalPorts){
-            scanned += Math.floor(totalPorts / 50); // smooth speed
-            let percent = Math.min((scanned / totalPorts) * 100, 95);
-            progressBar.style.width = percent + "%";
-let currentPort = start + scanned;
-statusText.innerText =
-`🔍 Scanning Port: ${currentPort} (${Math.floor((scanned/totalPorts)*100)}%)`;        }
-    }, 200);
+        let port = parseInt(event.data);
 
-    fetch("/scan-ports-advanced", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            ip: currentScanIP,
-            protocol: protocol,
-            speed: speed,
-            port_range: portRange,
-            threads: threads
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
+        let service = getServiceName(port);
+        let risk = getRiskLevel(port);
 
-        clearInterval(progressInterval);
+        let color = "lime";
+        if(risk === "HIGH") color = "#ef4444";
+        else if(risk === "MEDIUM") color = "#f59e0b";
 
-        progressBar.style.width = "100%";
-        statusText.innerText = "✅ Scan Completed";
+        resultBox.innerHTML += `
+            <div>
+                🔓 Port ${port} (${service})
+                <span style="color:${color}; font-weight:bold;">
+                    [${risk}]
+                </span>
+            </div>
+        `;
+    };
 
-        showResults(data);
-    })
-    .catch(() => {
-        clearInterval(progressInterval);
-        statusText.innerText = "❌ Scan Failed";
-    });
+    eventSource.onerror = function(){
+        resultBox.innerHTML += "<br>❌ Scan Error";
+        stopScan();
+    };
 }
 
-function runQuickScan(){
+function stopScan(){
 
-let resultBox = document.getElementById("portResult");
+    // STOP fetch scan
+    if(scanController){
+        scanController.abort();
+    }
 
-resultBox.innerHTML = "⏳ Running quick scan...";
+    // STOP SSE scan
+    if(eventSource){
+        eventSource.close();
+        eventSource = null;
+    }
 
-fetch(`/scan-ports?ip=${currentScanIP}`)
-.then(res => res.json())
-.then(showResults)
-.catch(() => {
-    resultBox.innerHTML = "❌ Scan failed";
-});
+    document.getElementById("portResult").innerHTML += "<br>⛔ Scan Stopped";
+
+    resetScanButtons();
 }
+
+function resetScanButtons(){
+
+    isScanning = false;
+
+    let quickBtn = document.getElementById("quickScanBtn");
+    let advBtn = document.getElementById("advancedScanBtn");
+
+    quickBtn.innerText = "Run Default Scan";
+    advBtn.innerText = "Run Advanced Scan";
+
+    quickBtn.disabled = false;
+    advBtn.disabled = false;
+
+    scanController = null;
+}
+
     function getServiceName(port){
     const services = {
         21: "FTP",
