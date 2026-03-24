@@ -14,6 +14,7 @@ DATABASE = "sccsims.db"
 last_seen_devices = {}
 lock = threading.Lock()
 API_KEY = "secret123"
+API_KEY = os.environ.get("API_KEY", "fallback_key")
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
 def get_db():
@@ -389,6 +390,8 @@ def receive_device_data():
 # ---------------------------
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
     conn = get_db()
     cursor = conn.cursor()
 
@@ -523,7 +526,8 @@ def logout():
 
 @app.route("/api/live-data")
 def live_data():
-
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
     conn = get_db()
     cursor = conn.cursor()
 
@@ -641,6 +645,8 @@ def analytics():
 
 @app.route("/scan-ports")
 def scan_ports_route():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
     ip = request.args.get("ip")
     protocol = request.args.get("protocol", "tcp")
     speed = request.args.get("speed", "normal")
