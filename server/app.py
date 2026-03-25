@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify, session, redirect, render_template, Response, stream_with_context
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3, os, subprocess, threading, time, socket
@@ -13,7 +13,8 @@ app.secret_key = os.urandom(24)# required for session
 DATABASE = "sccsims.db"
 last_seen_devices = {}
 lock = threading.Lock()
-API_KEY = "secret123"
+os.environ["SCCSIMS_API_KEY"] = "secret123"
+API_KEY = os.getenv("SCCSIMS_API_KEY", "fallback_dev_key")
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
 def get_db():
@@ -188,9 +189,11 @@ def background_scanner():
                     analytics_history["total_devices"].append(len(all_devices))
                     analytics_history["rogue_count"].append(rogue_now)
 
-                    # keep last 20
-                    for key in analytics_history:
-                        analytics_history[key] = analytics_history[key][-20:]
+                MAX_POINTS = 20
+
+                for key in analytics_history:
+                    if len(analytics_history[key]) > MAX_POINTS:
+                        analytics_history[key].pop(0)
 
             except Exception as e:
                 print("Analytics error:", e)
@@ -200,7 +203,7 @@ def background_scanner():
         except Exception as e:
             print("Scan error:", e)
 
-        time.sleep(5)
+        time.sleep(10)
 
 def safe_float(val):
     try:
@@ -753,8 +756,10 @@ def scan_ports_live():
             for port in ports:
                 futures.append(executor.submit(scan_single_port, ip, port, timeout))
 
-            for future in futures:
+            for future in as_completed(futures):
                 result = future.result()
+                if result:
+                    yield f"data: {result}\n\n"
 
                 if result:
                     yield f"data: {result}\n\n"
