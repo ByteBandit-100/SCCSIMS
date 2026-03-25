@@ -872,7 +872,6 @@ function scanPorts(ip){
 
     modal.style.display = "block";
 }
-
 function runQuickScan(){
 
     if(isScanning){
@@ -889,27 +888,45 @@ function runQuickScan(){
     advBtn.disabled = true;
 
     let resultBox = document.getElementById("portResult");
-    resultBox.innerHTML = "⏳ Running quick scan...";
+    resultBox.innerHTML = "⚡ Quick scanning (live)...<br><br>";
 
-    scanController = new AbortController();
+    eventSource = new EventSource(
+        `/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`
+    );
 
-    fetch(`/scan-ports?ip=${currentScanIP}`, {
-        signal: scanController.signal
-    })
-    .then(res => res.json())
-    .then(data => {
-        showResults(data);
-        resetScanButtons();
-    })
-    .catch(err => {
-        if(err.name === "AbortError"){
-            resultBox.innerHTML = "Scan Stopped";
-        } else {
-            resultBox.innerHTML = "❌ Scan failed";
+    eventSource.onmessage = function(event){
+
+        if(event.data === "done"){
+            resultBox.innerHTML += "<br>✅ Scan Complete";
+            stopScan(true);
+            return;
         }
-        resetScanButtons();
-    });
+
+        let port = parseInt(event.data);
+
+        let service = getServiceName(port);
+        let risk = getRiskLevel(port);
+
+        let color = "lime";
+        if(risk === "HIGH") color = "#ef4444";
+        else if(risk === "MEDIUM") color = "#f59e0b";
+
+        resultBox.innerHTML += `
+            <div>
+                🔓 Port ${port} (${service})
+                <span style="color:${color}; font-weight:bold;">
+                    [${risk}]
+                </span>
+            </div>
+        `;
+    };
+
+    eventSource.onerror = function(){
+        resultBox.innerHTML += "<br>❌ Scan Error";
+        stopScan();
+    };
 }
+
 function runAdvancedScan(){
 
     if(isScanning){
