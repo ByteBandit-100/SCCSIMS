@@ -761,9 +761,6 @@ def scan_ports_live():
                 if result:
                     yield f"data: {result}\n\n"
 
-                if result:
-                    yield f"data: {result}\n\n"
-
         yield "data: done\n\n"
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
