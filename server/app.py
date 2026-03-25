@@ -174,7 +174,13 @@ def background_scanner():
                 trusted_ips = set(r[0] for r in trusted_rows)
                 trusted_macs = set(r[1] for r in trusted_rows)
 
-                rogue_now = len(detect_rogue_logic(trusted_macs, trusted_ips))
+                rogue_now = 0
+                for d in arp_results:
+                    mac = normalize_mac(d["mac"])
+                    ip = d["ip"]
+
+                    if mac not in trusted_macs and ip not in trusted_ips:
+                        rogue_now += 1
 
                 with lock:
                     analytics_history["timestamps"].append(datetime.now().strftime("%H:%M:%S"))
