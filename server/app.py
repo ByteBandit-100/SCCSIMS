@@ -149,9 +149,21 @@ def background_scanner():
                 cursor = conn.cursor()
 
                 # CPU avg
-                cursor.execute("SELECT cpu_usage FROM devices")
-                cpu_vals = [float(r[0]) for r in cursor.fetchall() if r[0] is not None]
-                avg_cpu = sum(cpu_vals) / len(cpu_vals) if cpu_vals else 0
+                cursor.execute("SELECT cpu_usage, last_seen FROM devices")
+                rows = cursor.fetchall()
+
+                valid_cpu = []
+                now = datetime.now()
+
+                for cpu, last_seen in rows:
+                    try:
+                        last_seen_time = datetime.strptime(str(last_seen), "%Y-%m-%d %H:%M:%S")
+                        if (now - last_seen_time).total_seconds() <= 30:
+                            valid_cpu.append(float(cpu))
+                    except:
+                        continue
+
+                avg_cpu = sum(valid_cpu) / len(valid_cpu) if valid_cpu else 0
 
                 # Trusted devices
                 cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
