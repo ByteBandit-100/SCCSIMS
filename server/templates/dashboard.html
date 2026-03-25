@@ -888,8 +888,12 @@ function runQuickScan(){
     advBtn.disabled = true;
 
     let resultBox = document.getElementById("portResult");
-    resultBox.innerHTML = "⚡ Quick scanning (live)...<br><br>";
-
+    resultBox.innerHTML = `
+<div id="scanStatus" style="color:#38bdf8; font-weight:bold; margin-bottom:10px;">
+⚡ Initializing scan...
+</div>
+<div id="scanResults"></div>
+`;
     eventSource = new EventSource(
         `/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`
     );
@@ -921,10 +925,10 @@ function runQuickScan(){
         `;
     };
 
-    eventSource.onerror = function(){
-        resultBox.innerHTML += "<br>❌ Scan Error";
-        stopScan();
-    };
+   eventSource.onerror = function(){
+    document.getElementById("scanStatus").innerHTML = "❌ Scan Error";
+    stopScan();
+};
 }
 
 function runAdvancedScan(){
@@ -948,38 +952,46 @@ function runAdvancedScan(){
     let threads = document.getElementById("threads").value;
 
     let resultBox = document.getElementById("portResult");
-    resultBox.innerHTML = "🚀 Live scanning...<br><br>";
-
+    resultBox.innerHTML = `
+<div id="scanStatus" style="color:#38bdf8; font-weight:bold; margin-bottom:10px;">
+⚡ Initializing scan...
+</div>
+<div id="scanResults"></div>
+`;
     eventSource = new EventSource(
         `/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`
     );
 
-    eventSource.onmessage = function(event){
+  eventSource.onmessage = function(event){
 
-        if(event.data === "done"){
-            resultBox.innerHTML += "<br>✅ Scan Complete";
-            stopScan(true);
-            return;
-        }
+    if(event.data === "done"){
+        document.getElementById("scanStatus").innerHTML = "✅ Scan Complete";
+        stopScan(true);
+        return;
+    }
 
-        let port = parseInt(event.data);
+    let port = parseInt(event.data);
 
-        let service = getServiceName(port);
-        let risk = getRiskLevel(port);
+    // ✅ UPDATE LIVE STATUS
+    document.getElementById("scanStatus").innerHTML =
+        `⚡ Scanning... Found open port: ${port}`;
 
-        let color = "lime";
-        if(risk === "HIGH") color = "#ef4444";
-        else if(risk === "MEDIUM") color = "#f59e0b";
+    let service = getServiceName(port);
+    let risk = getRiskLevel(port);
 
-        resultBox.innerHTML += `
-            <div>
-                🔓 Port ${port} (${service})
-                <span style="color:${color}; font-weight:bold;">
-                    [${risk}]
-                </span>
-            </div>
-        `;
-    };
+    let color = "lime";
+    if(risk === "HIGH") color = "#ef4444";
+    else if(risk === "MEDIUM") color = "#f59e0b";
+
+    document.getElementById("scanResults").innerHTML += `
+        <div>
+            🔓 Port ${port} (${service})
+            <span style="color:${color}; font-weight:bold;">
+                [${risk}]
+            </span>
+        </div>
+    `;
+};
 
     eventSource.onerror = function(){
         resultBox.innerHTML += "<br>❌ Scan Error";
@@ -1000,9 +1012,9 @@ function stopScan(isCompleted=false){
         eventSource = null;
     }
 
-    if(!isCompleted){
-        document.getElementById("portResult").innerHTML += "<br>⛔ Scan Stopped";
-    }
+   if(!isCompleted){
+    document.getElementById("scanStatus").innerHTML = "⛔ Scan Stopped";
+}
     resetScanButtons();
 }
 
