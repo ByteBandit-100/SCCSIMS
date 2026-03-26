@@ -289,6 +289,10 @@
         <div id="trustedBtn" class="card dark">
             Trusted Devices<br><b id="trustedCount">{{ trusted_count }}</b>
         </div>
+        <div class="card dark" id="lastAttackerBox">
+    🚨 Last Attacker<br>
+    <b id="attackerInfo">No Data</b>
+</div>
 
     </div>
 
@@ -648,6 +652,27 @@ document.addEventListener("click", () => {
     }).catch(() => {});
 }, { once: true });
 
+
+function updateLastAttacker(){
+    fetch("/api/last-attacker")
+    .then(res => res.json())
+    .then(data => {
+
+        let box = document.getElementById("attackerInfo");
+
+        if(!data.ip){
+            box.innerText = "No recent attacks";
+            return;
+        }
+
+        box.innerHTML = `
+            IP: ${data.ip}<br>
+            Type: ${data.type}<br>
+            ⏱ ${data.last_seen}
+        `;
+    });
+}
+
 function toggleAnalytics(){
     let section = document.getElementById("analyticsSection");
     let toggle = document.getElementById("analyticsToggle");
@@ -863,7 +888,7 @@ if(analyticsVisible){
         drawAnalytics(data);
     });
 }
-
+updateLastAttacker();
 }
 //  Run every 5 seconds
 setInterval(updateLiveData, 5000);

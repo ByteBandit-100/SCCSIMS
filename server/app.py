@@ -15,6 +15,7 @@ last_seen_devices = {}
 lock = threading.Lock()
 os.environ["SCCSIMS_API_KEY"] = "secret123"
 API_KEY = os.getenv("SCCSIMS_API_KEY", "fallback_dev_key")
+
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
 def get_db():
@@ -358,6 +359,16 @@ def init_db():
             "INSERT INTO users (username, password) VALUES (?, ?)",
             ("admin", generate_password_hash("admin123"))
         )
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS rogue_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT,
+        mac TEXT,
+        attack_type TEXT,
+        first_seen TEXT,
+        last_seen TEXT
+    )
+    """)
     conn.commit()
     conn.close()
 # ---------------------------
@@ -595,11 +606,12 @@ def live_data():
     rogue = rogue_devices  # send full objects
 
     trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
+    all_ips = set([d["ip"] for d in devices]) | set([r["ip"] for r in rogue])
 
     return jsonify({
         "devices": devices,
         "rogue": rogue,
-        "total": len(devices),
+        "total": len(all_ips),
         "online": len([d for d in devices if d["status"] == "ONLINE"]),
         "offline": len([d for d in devices if d["status"] == "OFFLINE"]),
         "rogue_count": len(rogue),
@@ -723,6 +735,38 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
         else:
             continue
 
+        try:
+            conn = get_db()
+            cursor = conn.cursor()
+
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            cursor.execute("""
+                SELECT id FROM rogue_history
+                WHERE ip=? AND mac=?
+            """, (ip, mac))
+
+            existing = cursor.fetchone()
+
+            if existing:
+                cursor.execute("""
+                    UPDATE rogue_history
+                    SET last_seen=?, attack_type=?
+                    WHERE ip=? AND mac=?
+                """, (now, status, ip, mac))
+            else:
+                cursor.execute("""
+                    INSERT INTO rogue_history
+                    (ip, mac, attack_type, first_seen, last_seen)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (ip, mac, status, now, now))
+
+            conn.commit()
+            conn.close()
+
+        except Exception as e:
+            print("Rogue history error:", e)
+
         rogue_devices[ip] = {
             "ip": ip,
             "mac": mac,
@@ -730,6 +774,31 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
         }
 
     return list(rogue_devices.values())
+
+@app.route("/api/last-attacker")
+def last_attacker():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT ip, mac, attack_type, last_seen
+        FROM rogue_history
+        ORDER BY last_seen DESC
+        LIMIT 1
+    """)
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        return jsonify({
+            "ip": row[0],
+            "mac": row[1],
+            "type": row[2],
+            "last_seen": row[3]
+        })
+
+    return jsonify({})
 
 @app.route("/api/analytics")
 def analytics():
