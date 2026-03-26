@@ -15,13 +15,13 @@ last_seen_devices = {}
 lock = threading.Lock()
 os.environ["SCCSIMS_API_KEY"] = "secret123"
 API_KEY = os.getenv("SCCSIMS_API_KEY", "fallback_dev_key")
+scan_control = {"stop" : False}
 
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
+
 def get_db():
-    conn = sqlite3.connect(DATABASE, timeout=5, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+    return sqlite3.connect(DATABASE, timeout=10, check_same_thread=False)
 
 analytics_history = {
     "timestamps": [],
@@ -49,6 +49,14 @@ def scan_ports(ip, ports=None):
             pass
 
     return open_ports
+
+def safe_background():
+    while True:
+        try:
+            background_scanner()
+        except Exception as e:
+            print("🔥 Scanner crashed, restarting...", e)
+            time.sleep(3)
 
 @app.route("/scan-ports-advanced", methods=["POST"])
 def scan_ports_advanced():
@@ -130,81 +138,38 @@ def background_scanner():
     global network_cache
 
     while True:
+        start_time = time.time()
+
         try:
-            print("🔍 Scanning network...")
+            print("🔍 Optimized Scan Running...")
 
-            ping_devices = set(scan_network())
-            arp_results = scan_network_arp()
+            # 🚀 PARALLEL SCAN
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                ping_future = executor.submit(scan_network)
+                arp_future = executor.submit(scan_network_arp)
 
-            # Merge devices
-            arp_ips = set(d["ip"] for d in arp_results)
+                ping_devices = set(ping_future.result())
+                arp_results = arp_future.result()
+
+            arp_ips = {d["ip"] for d in arp_results}
             all_devices = arp_ips.union(ping_devices)
 
             with lock:
-                network_cache["devices"] = all_devices
-                network_cache["arp"] = arp_results
-                network_cache["last_scan"] = datetime.now()
+                network_cache = {
+                    "devices": list(all_devices),
+                    "arp": arp_results,
+                    "last_scan": datetime.now()
+                }
 
-            # 📊 STORE ANALYTICS
-            try:
-                conn = get_db()
-                cursor = conn.cursor()
-
-                # CPU avg
-                cursor.execute("SELECT cpu_usage, last_seen FROM devices")
-                rows = cursor.fetchall()
-
-                valid_cpu = []
-                now = datetime.now()
-
-                for cpu, last_seen in rows:
-                    try:
-                        last_seen_time = datetime.strptime(str(last_seen), "%Y-%m-%d %H:%M:%S")
-                        if (now - last_seen_time).total_seconds() <= 30:
-                            valid_cpu.append(float(cpu))
-                    except:
-                        continue
-
-                avg_cpu = sum(valid_cpu) / len(valid_cpu) if valid_cpu else 0
-
-                # Trusted devices
-                cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
-                trusted_rows = cursor.fetchall()
-
-                conn.close()
-
-                trusted_ips = set(r[0] for r in trusted_rows)
-                trusted_macs = set(r[1] for r in trusted_rows)
-
-                rogue_now = 0
-                for d in arp_results:
-                    mac = normalize_mac(d["mac"])
-                    ip = d["ip"]
-
-                    if mac not in trusted_macs and ip not in trusted_ips:
-                        rogue_now += 1
-
-                with lock:
-                    analytics_history["timestamps"].append(datetime.now().strftime("%H:%M:%S"))
-                    analytics_history["cpu_avg"].append(avg_cpu)
-                    analytics_history["total_devices"].append(len(all_devices))
-                    analytics_history["rogue_count"].append(rogue_now)
-
-                MAX_POINTS = 20
-
-                for key in analytics_history:
-                    if len(analytics_history[key]) > MAX_POINTS:
-                        analytics_history[key].pop(0)
-
-            except Exception as e:
-                print("Analytics error:", e)
-
-            print(f"✅ Found {len(all_devices)} devices")
+            print(f"✅ Devices: {len(all_devices)}")
 
         except Exception as e:
-            print("Scan error:", e)
+            print("❌ Scan error:", e)
 
-        time.sleep(10)
+        # ⏱ SMART SLEEP (adaptive)
+        elapsed = time.time() - start_time
+        sleep_time = max(5, 10 - elapsed)
+        time.sleep(sleep_time)
 
 def safe_float(val):
     try:
@@ -364,6 +329,9 @@ def init_db():
         password TEXT
     )
     """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_mac ON devices(mac_address)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ip ON devices(ip_address)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trusted_mac ON trusted_devices(mac_address)")
     cursor.execute("SELECT * FROM users WHERE username=?", ("admin",))
     if not cursor.fetchone():
         cursor.execute(
@@ -645,6 +613,37 @@ def live_data():
         "trusted": trusted_list
     })
 
+def log_rogue_attack(ip, mac, attack_type):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Check if already exists
+    cursor.execute("""
+        SELECT id FROM rogue_history
+        WHERE ip=? AND mac=? AND attack_type=?
+    """, (ip, mac, attack_type))
+
+    row = cursor.fetchone()
+
+    if row:
+        # Update last seen
+        cursor.execute("""
+            UPDATE rogue_history
+            SET last_seen=?
+            WHERE id=?
+        """, (now, row[0]))
+    else:
+        # Insert new
+        cursor.execute("""
+            INSERT INTO rogue_history (ip, mac, attack_type, first_seen, last_seen)
+            VALUES (?, ?, ?, ?, ?)
+        """, (ip, mac, attack_type, now, now))
+
+    conn.commit()
+    conn.close()
+
 def detect_rogue_logic(trusted_macs, trusted_ips):
 
     current_time = datetime.now()
@@ -655,152 +654,45 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     arp_table = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
 
-    # -------------------------------
-    # 🚨 1. DUPLICATE IP DETECTION
-    # -------------------------------
-    ip_mac_map = {}
-    for d in arp_results:
-        ip = d["ip"]
-        mac = normalize_mac(d["mac"])
-        ip_mac_map.setdefault(ip, set()).add(mac)
-
-    duplicate_ip_devices = {
-        ip: list(macs)
-        for ip, macs in ip_mac_map.items()
-        if len(macs) > 1
-    }
-
-    # -------------------------------
-    # 🚨 2. MAC CHANGE DETECTION
-    # -------------------------------
-    mac_change_alerts = {}
+    rogue_devices = []
 
     for ip, mac in arp_table.items():
-        if ip not in ip_mac_history:
-            ip_mac_history[ip] = {
-                "mac": mac,
-                "last_seen": current_time
-            }
-        else:
-            old = ip_mac_history[ip]["mac"]
-
-            # only alert if change happens quickly (within 60 sec)
-            if old != mac and (current_time - ip_mac_history[ip]["last_seen"]).total_seconds() < 60:
-                mac_change_alerts[ip] = {
-                    "old_mac": old,
-                    "new_mac": mac
-                }
-
-            ip_mac_history[ip] = {
-                "mac": mac,
-                "last_seen": current_time
-            }
-    # -------------------------------
-    # 🚨 3. IP SPOOFING DETECTION
-    # -------------------------------
-    mac_ip_map = {}
-    for d in arp_results:
-        ip = d["ip"]
-        mac = normalize_mac(d["mac"])
-        mac_ip_map.setdefault(mac, set()).add(ip)
-
-    ip_spoof_alerts = {
-        mac: list(ips)
-        for mac, ips in mac_ip_map.items()
-        if len(ips) > 1 and not any(ip.startswith("fe80") for ip in ips)
-    }
-
-    # -------------------------------
-    # EXISTING LOGIC (SAFE)
-    # -------------------------------
-    all_devices = set(arp_table.keys())
-    ignored_ips = {"192.168.1.1"}
-
-    with lock:
-        for ip in all_devices:
-            last_seen_devices[ip] = current_time
-
-    # CLEAN OLD DEVICES
-    with lock:
-        for ip, seen_time in list(last_seen_devices.items()):
-            if (current_time - seen_time).total_seconds() > 120:
-                del last_seen_devices[ip]
-
-    with lock:
-        stable_devices = list(last_seen_devices.keys())
-
-    rogue_devices = {}
-
-    for ip in stable_devices:
-
-        if ip in ignored_ips:
-            continue
-
-        mac = arp_table.get(ip)
-
-        if not mac or mac == "unknown":
-            mac = normalize_mac(get_mac_from_arp_cache(ip))
 
         if not mac or mac == "unknown":
             continue
 
-        # -------------------------------
-        # 🚨 PRIORITY ALERT SYSTEM
-        # -------------------------------
-        if ip in duplicate_ip_devices:
-            status = "⚠ Duplicate IP Detected"
+        status = None
 
-        elif ip in mac_change_alerts:
-            status = "⚠ MAC Spoofing Detected"
+        # 🚨 STRICT CHECKS
 
-        elif mac in ip_spoof_alerts:
-            status = "⚠ IP Spoofing Detected"
-
-        elif mac not in trusted_macs and ip not in trusted_ips:
+        # 1. MAC mismatch with DB
+        if mac not in trusted_macs:
             status = "Unauthorized Device"
 
-        else:
-            continue
+        # 2. MAC change detection (persistent memory)
+        if ip in ip_mac_history:
+            old_mac = ip_mac_history[ip]
+            if old_mac != mac:
+                status = "⚠ Possible MAC Spoof"
 
-        try:
-            conn = get_db()
-            cursor = conn.cursor()
+        ip_mac_history[ip] = mac
 
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 3. Duplicate IP detection (real attack)
+        macs_for_ip = [d["mac"] for d in arp_results if d["ip"] == ip]
+        if len(set(macs_for_ip)) > 1:
+            status = "⚠ Duplicate IP Attack"
 
-            cursor.execute("""
-                SELECT id FROM rogue_history
-                WHERE ip=? AND mac=?
-            """, (ip, mac))
+        if status:
+            # save attack in db
+            log_rogue_attack(ip,mac,status)
 
-            existing = cursor.fetchone()
+            rogue_devices.append({
+                "ip": ip,
+                "mac": mac,
+                "status": status
+            })
 
-            if existing:
-                cursor.execute("""
-                    UPDATE rogue_history
-                    SET last_seen=?, attack_type=?
-                    WHERE ip=? AND mac=?
-                """, (now, status, ip, mac))
-            else:
-                cursor.execute("""
-                    INSERT INTO rogue_history
-                    (ip, mac, attack_type, first_seen, last_seen)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (ip, mac, status, now, now))
-
-            conn.commit()
-            conn.close()
-
-        except Exception as e:
-            print("Rogue history error:", e)
-
-        rogue_devices[ip] = {
-            "ip": ip,
-            "mac": mac,
-            "status": status
-        }
-
-    return list(rogue_devices.values())
+    return rogue_devices
 
 @app.route("/api/last-attacker")
 def last_attacker():
@@ -907,15 +799,21 @@ def scan_ports_live():
         timeout = 0.8
 
     def generate():
+        scan_control["stop"] = False
 
         with ThreadPoolExecutor(max_workers=threads) as executor:
-
             futures = []
 
             for port in ports:
+                if scan_control["stop"]:
+                    break
+
                 futures.append(executor.submit(scan_single_port, ip, port, timeout))
 
             for future in as_completed(futures):
+                if scan_control["stop"]:
+                    break
+
                 result = future.result()
                 if result:
                     yield f"data: {result}\n\n"
@@ -923,6 +821,11 @@ def scan_ports_live():
         yield "data: done\n\n"
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+@app.route("/stop-scan")
+def stop_scan():
+    scan_control["stop"] = True
+    return jsonify({"status": "stopped"})
 
 if __name__ == "__main__":
     init_db()
