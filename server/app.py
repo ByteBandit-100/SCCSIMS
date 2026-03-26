@@ -280,28 +280,39 @@ def dashboard():
         arp_results = list(network_cache["arp"])
     arp_map = {d["ip"]: d["mac"] for d in arp_results}
 
-    device_map = {}
+    final_devices = []
 
-    # DB devices
-    for d in devices:
-        device_map[d["ip_address"]] = {
-            "status": d["status"]
-        }
+    arp_ips = set(arp_map.keys())
+    db_ips = set([d["ip_address"] for d in devices])
 
-    # ARP devices (REAL NETWORK)
-    for ip in arp_map:
-        if ip not in device_map:
-            device_map[ip] = {
-                "status": "ONLINE"
-            }
+    all_ips = arp_ips.union(db_ips)
 
-    final_devices = list(device_map.values())
+    for ip in all_ips:
+
+        # Default values
+        status = "OFFLINE"
+
+        # If in ARP → definitely ONLINE
+        if ip in arp_ips:
+            status = "ONLINE"
+
+        # If in DB → check last_seen
+        for d in devices:
+            if d["ip_address"] == ip:
+                status = d["status"]
+
+        final_devices.append({
+            "ip": ip,
+            "status": status
+        })
 
     total_devices = len(final_devices)
-    online_devices = len([d for d in final_devices if d["status"] == "ONLINE"])
-    offline_devices = total_devices - online_devices
+    online_devices = sum(1 for d in final_devices if d["status"] == "ONLINE")
+    offline_devices = sum(1 for d in final_devices if d["status"] == "OFFLINE")
 
-    rogue_count = len(rogue_devices)
+    rogue_unique_ips = set(d["ip"] for d in rogue_devices)
+    rogue_count = len(rogue_unique_ips)
+
     trusted_count = len(trusted_ips)
 
     return render_template(
@@ -606,16 +617,32 @@ def live_data():
     rogue = rogue_devices  # send full objects
 
     trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
+
     all_ips = set([d["ip"] for d in devices]) | set([r["ip"] for r in rogue])
+
+    final = []
+
+    for ip in all_ips:
+        status = "OFFLINE"
+
+        for d in devices:
+            if d["ip"] == ip:
+                status = d["status"]
+
+        for r in rogue:
+            if r["ip"] == ip:
+                status = "ONLINE"
+
+        final.append({"ip": ip, "status": status})
 
     return jsonify({
         "devices": devices,
         "rogue": rogue,
-        "total": len(all_ips),
-        "online": len([d for d in devices if d["status"] == "ONLINE"]),
-        "offline": len([d for d in devices if d["status"] == "OFFLINE"]),
-        "rogue_count": len(rogue),
-        "trusted": trusted_list  #  FIXED
+        "total": len(final),
+        "online": sum(1 for d in final if d["status"] == "ONLINE"),
+        "offline": sum(1 for d in final if d["status"] == "OFFLINE"),
+        "rogue_count": len(set(r["ip"] for r in rogue)),
+        "trusted": trusted_list
     })
 
 def detect_rogue_logic(trusted_macs, trusted_ips):
