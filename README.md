@@ -70,6 +70,9 @@ python app.py
 
 The dashboard will be available at:
 http://localhost:5000
+
+credentials for dashboard :-> username : admin
+password : admin123
 ---
 
 ## Running the Monitoring Agent
