@@ -28,7 +28,7 @@ analytics_history = {
     "total_devices": [],
     "rogue_count": []
 }
-
+ip_mac_history = {}
 def scan_ports(ip, ports=None):
     if ports is None:
         ports = [21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 3389]
@@ -609,35 +609,83 @@ def live_data():
 def detect_rogue_logic(trusted_macs, trusted_ips):
 
     current_time = datetime.now()
-
     trusted_macs = set(normalize_mac(m) for m in trusted_macs)
 
-    #  USE ONLY ARP (REAL DEVICES)
     with lock:
         arp_results = list(network_cache["arp"])
+
     arp_table = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
 
-    all_devices = set(arp_table.keys())
+    # -------------------------------
+    # 🚨 1. DUPLICATE IP DETECTION
+    # -------------------------------
+    ip_mac_map = {}
+    for d in arp_results:
+        ip = d["ip"]
+        mac = normalize_mac(d["mac"])
+        ip_mac_map.setdefault(ip, set()).add(mac)
 
+    duplicate_ip_devices = {
+        ip: list(macs)
+        for ip, macs in ip_mac_map.items()
+        if len(macs) > 1
+    }
+
+    # -------------------------------
+    # 🚨 2. MAC CHANGE DETECTION
+    # -------------------------------
+    mac_change_alerts = {}
+
+    for ip, mac in arp_table.items():
+        if ip not in ip_mac_history:
+            ip_mac_history[ip] = {
+                "mac": mac,
+                "last_seen": current_time
+            }
+        else:
+            old = ip_mac_history[ip]["mac"]
+
+            # only alert if change happens quickly (within 60 sec)
+            if old != mac and (current_time - ip_mac_history[ip]["last_seen"]).total_seconds() < 60:
+                mac_change_alerts[ip] = {
+                    "old_mac": old,
+                    "new_mac": mac
+                }
+
+            ip_mac_history[ip] = {
+                "mac": mac,
+                "last_seen": current_time
+            }
+    # -------------------------------
+    # 🚨 3. IP SPOOFING DETECTION
+    # -------------------------------
+    mac_ip_map = {}
+    for d in arp_results:
+        ip = d["ip"]
+        mac = normalize_mac(d["mac"])
+        mac_ip_map.setdefault(mac, set()).add(ip)
+
+    ip_spoof_alerts = {
+        mac: list(ips)
+        for mac, ips in mac_ip_map.items()
+        if len(ips) > 1 and not any(ip.startswith("fe80") for ip in ips)
+    }
+
+    # -------------------------------
+    # EXISTING LOGIC (SAFE)
+    # -------------------------------
+    all_devices = set(arp_table.keys())
     ignored_ips = {"192.168.1.1"}
 
-    #  UPDATE CACHE
     with lock:
         for ip in all_devices:
             last_seen_devices[ip] = current_time
 
-    #  REMOVE OLD DEVICES (ANTI-GHOST)
-    to_delete = []
+    # CLEAN OLD DEVICES
     with lock:
-        items = list(last_seen_devices.items())
-
-    for ip, seen_time in items:
-        if (current_time - seen_time).total_seconds() > 120:
-            to_delete.append(ip)
-
-    with lock:
-        for ip in to_delete:
-            del last_seen_devices[ip]
+        for ip, seen_time in list(last_seen_devices.items()):
+            if (current_time - seen_time).total_seconds() > 120:
+                del last_seen_devices[ip]
 
     with lock:
         stable_devices = list(last_seen_devices.keys())
@@ -651,20 +699,35 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
         mac = arp_table.get(ip)
 
-        #  fallback to ARP cache
         if not mac or mac == "unknown":
             mac = normalize_mac(get_mac_from_arp_cache(ip))
 
-        #  still unknown → skip
         if not mac or mac == "unknown":
             continue
 
-        if mac not in trusted_macs and ip not in trusted_ips:
-            rogue_devices[ip] = {
-                "ip": ip,
-                "mac": mac,
-                "status": "Unauthorized Device"
-            }
+        # -------------------------------
+        # 🚨 PRIORITY ALERT SYSTEM
+        # -------------------------------
+        if ip in duplicate_ip_devices:
+            status = "⚠ Duplicate IP Detected"
+
+        elif ip in mac_change_alerts:
+            status = "⚠ MAC Spoofing Detected"
+
+        elif mac in ip_spoof_alerts:
+            status = "⚠ IP Spoofing Detected"
+
+        elif mac not in trusted_macs and ip not in trusted_ips:
+            status = "Unauthorized Device"
+
+        else:
+            continue
+
+        rogue_devices[ip] = {
+            "ip": ip,
+            "mac": mac,
+            "status": status
+        }
 
     return list(rogue_devices.values())
 

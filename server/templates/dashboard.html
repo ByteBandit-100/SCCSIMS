@@ -800,8 +800,12 @@ document.getElementById("trustedCount").innerText = data.trusted.length;
         row.insertCell(1).innerText = device.mac;
 
         let statusCell = row.insertCell(2);
-        statusCell.innerText = "Unauthorized Device";
-        statusCell.style.color = "red";
+statusCell.innerText = device.status;
+
+// dynamic color
+if(device.status.includes("Duplicate")) statusCell.style.color = "#f59e0b";
+else if(device.status.includes("Spoof")) statusCell.style.color = "#ef4444";
+else statusCell.style.color = "red";
 
         row.insertCell(3).innerHTML =
     `<button class="approve-btn"
@@ -848,7 +852,9 @@ knownRogueIPs = currentRogueIPs;
 localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
 });
 
-let analyticsVisible = document.getElementById("analyticsSection").style.display === "flex";
+let analyticsVisible = window.getComputedStyle(
+    document.getElementById("analyticsSection")
+).display === "flex";
 
 if(analyticsVisible){
     fetch("/api/analytics")
