@@ -163,6 +163,39 @@ def background_scanner():
                     "last_scan": datetime.now()
                 }
 
+            # 📊 UPDATE ANALYTICS
+            try:
+                conn = get_db()
+                cursor = conn.cursor()
+
+                cursor.execute("SELECT cpu_usage FROM devices")
+                cpu_values = [safe_float(r[0]) for r in cursor.fetchall()]
+                conn.close()
+
+                avg_cpu = sum(cpu_values) / len(cpu_values) if cpu_values else 0
+
+                # rogue detection
+                trusted_macs = set()
+                trusted_ips = set()
+                rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
+
+                timestamp = datetime.now().strftime("%H:%M:%S")
+
+                # LIMIT HISTORY SIZE (prevent memory leak)
+                MAX_POINTS = 20
+
+                analytics_history["timestamps"].append(timestamp)
+                analytics_history["cpu_avg"].append(round(avg_cpu, 2))
+                analytics_history["total_devices"].append(len(all_devices))
+                analytics_history["rogue_count"].append(len(rogue_devices))
+
+                for key in analytics_history:
+                    if len(analytics_history[key]) > MAX_POINTS:
+                        analytics_history[key].pop(0)
+
+            except Exception as e:
+                print("Analytics Error:", e)
+
             print(f"✅ Devices: {len(all_devices)}")
 
         except Exception as e:
@@ -268,11 +301,6 @@ def dashboard():
 
         else:
             status = "OFFLINE"
-
-        final_devices.append({
-            "ip": ip,
-            "status": status
-        })
 
         final_devices.append({
             "ip": ip,

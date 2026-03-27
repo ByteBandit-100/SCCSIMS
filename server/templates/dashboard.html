@@ -680,6 +680,14 @@ function toggleAnalytics(){
     if(section.style.display === "none"){
         section.style.display = "flex";
         toggle.innerHTML = "📊 Advanced Analytics ⬆️";
+
+        // 🔥 LOAD DATA IMMEDIATELY
+        fetch("/api/analytics")
+        .then(res => res.json())
+        .then(data => {
+            drawAnalytics(data);
+        });
+
     } else {
         section.style.display = "none";
         toggle.innerHTML = "📊 Advanced Analytics ⬇️";
@@ -877,9 +885,17 @@ knownRogueIPs = currentRogueIPs;
 localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
 });
 
-let analyticsVisible = window.getComputedStyle(
-    document.getElementById("analyticsSection")
-).display === "flex";
+let analyticsSection = document.getElementById("analyticsSection");
+
+if(analyticsSection.style.display === "flex"){
+    fetch("/api/analytics")
+    .then(res => res.json())
+    .then(data => {
+        if(data.timestamps.length > 0){
+            drawAnalytics(data);
+        }
+    });
+}
 
 if(analyticsVisible){
     fetch("/api/analytics")
