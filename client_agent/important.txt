@@ -1,0 +1,8 @@
+Make agent.py as executable file and place them into statup
+
+For windows :
+STEP 1 :  Modify the agent.py change server ip(static server ip) and location
+STEP 2 :  use pyinstaller python package for convert agent.py -> agent.exe
+STEP 3 :  Open Run window(win+r) and enter "shell:startup" and in the startup folder open now place the agent.exe file in this folder
+
+Now if pc restarts the agent.exe run automatically in background

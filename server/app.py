@@ -16,6 +16,8 @@ lock = threading.Lock()
 os.environ["SCCSIMS_API_KEY"] = "secret123"
 API_KEY = os.getenv("SCCSIMS_API_KEY", "fallback_dev_key")
 scan_control = {"stop" : False}
+mac_ip_history = {}   # {mac: ip}
+
 
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
@@ -252,19 +254,25 @@ def dashboard():
 
     all_ips = arp_ips.union(db_ips)
 
+    device_map = {d["ip_address"]: d for d in devices}
+
     for ip in all_ips:
 
-        # Default values
-        status = "OFFLINE"
-
-        # If in ARP → definitely ONLINE
+        # ✅ PRIORITY 1 → ARP = REAL NETWORK PRESENCE
         if ip in arp_ips:
             status = "ONLINE"
 
-        # If in DB → check last_seen
-        for d in devices:
-            if d["ip_address"] == ip:
-                status = d["status"]
+        # ✅ PRIORITY 2 → DB fallback
+        elif ip in device_map:
+            status = device_map[ip]["status"]
+
+        else:
+            status = "OFFLINE"
+
+        final_devices.append({
+            "ip": ip,
+            "status": status
+        })
 
         final_devices.append({
             "ip": ip,
@@ -476,13 +484,19 @@ def approve_device():
     ip = request.form.get("ip")
     mac = normalize_mac(request.form.get("mac"))
 
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    INSERT INTO trusted_devices
+    (ip_address, mac_address, device_name, location)
+    VALUES (?, ?, ?, ?)
+    """, (ip, mac, "Approved Device", "Network"))
+
     print("APPROVE REQUEST:", ip, mac)
 
     if not mac or mac == "unknown":
         return jsonify({"status": "error", "message": "Invalid MAC"})
-
-    conn = get_db()
-    cursor = conn.cursor()
 
     #  CHECK BY MAC (not IP)
     cursor.execute("SELECT mac_address FROM trusted_devices WHERE mac_address=?", (mac,))
@@ -656,35 +670,68 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     rogue_devices = []
 
+    ip_seen = {}
+    mac_seen = {}
+
     for ip, mac in arp_table.items():
 
         if not mac or mac == "unknown":
             continue
 
-        status = None
+        status_list = []
 
-        # 🚨 STRICT CHECKS
-
-        # 1. MAC mismatch with DB
+        # ---------------------------
+        # 1. Unauthorized Device
+        # ---------------------------
         if mac not in trusted_macs:
-            status = "Unauthorized Device"
+            status_list.append("Unauthorized Device")
 
-        # 2. MAC change detection (persistent memory)
+        # ---------------------------
+        # 2. MAC Spoof Detection (Improved)
+        # ---------------------------
         if ip in ip_mac_history:
-            old_mac = ip_mac_history[ip]
-            if old_mac != mac:
-                status = "⚠ Possible MAC Spoof"
+            old_mac, last_time = ip_mac_history[ip]
 
-        ip_mac_history[ip] = mac
+            # only flag if recent change (within 60 sec)
+            if old_mac != mac and (current_time - last_time).total_seconds() < 60:
+                status_list.append("⚠ MAC Spoofing Detected")
 
-        # 3. Duplicate IP detection (real attack)
-        macs_for_ip = [d["mac"] for d in arp_results if d["ip"] == ip]
-        if len(set(macs_for_ip)) > 1:
-            status = "⚠ Duplicate IP Attack"
+        ip_mac_history[ip] = (mac, current_time)
 
-        if status:
-            # save attack in db
-            log_rogue_attack(ip,mac,status)
+        # ---------------------------
+        # 3. IP Spoof Detection
+        # ---------------------------
+        if mac in mac_ip_history:
+            old_ip = mac_ip_history[mac]
+
+            if old_ip != ip:
+                status_list.append("⚠ IP Spoofing Detected")
+
+        mac_ip_history[mac] = ip
+
+        # ---------------------------
+        # 4. Duplicate IP Detection (FIXED)
+        # ---------------------------
+        if ip in ip_seen and ip_seen[ip] != mac:
+            status_list.append("⚠ Duplicate IP Conflict")
+
+        ip_seen[ip] = mac
+
+        # ---------------------------
+        # 5. Duplicate MAC Detection
+        # ---------------------------
+        if mac in mac_seen and mac_seen[mac] != ip:
+            status_list.append("⚠ Duplicate MAC Detected")
+
+        mac_seen[mac] = ip
+
+        # ---------------------------
+        # FINAL DECISION
+        # ---------------------------
+        if status_list:
+            status = " | ".join(status_list)
+
+            log_rogue_attack(ip, mac, status)
 
             rogue_devices.append({
                 "ip": ip,
