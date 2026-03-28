@@ -10,10 +10,8 @@
             --bg-card:     #0d1e35;
             --bg-surface:  #111f38;
             --bg-hover:    #162845;
-
             --border:      rgba(0,200,255,0.12);
             --border-glow: rgba(0,200,255,0.35);
-
             --cyan:        #00c8ff;
             --cyan-dim:    rgba(0,200,255,0.15);
             --green:       #00e676;
@@ -24,845 +22,133 @@
             --amber-dim:   rgba(255,171,0,0.15);
             --blue:        #448aff;
             --blue-dim:    rgba(68,138,255,0.15);
-
             --text-primary:   #e8f4fd;
             --text-secondary: #7a9bb5;
             --text-muted:     #3d5a78;
-
             --font-display: 'Oxanium', sans-serif;
             --font-mono:    'JetBrains Mono', monospace;
-
-            --radius-sm: 6px;
-            --radius-md: 10px;
-            --radius-lg: 16px;
-
+            --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px;
             --shadow-cyan: 0 0 30px rgba(0,200,255,0.08);
             --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
         }
-
-        * {
-            box-sizing: border-box;
-            outline: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: var(--font-display);
-            background: var(--bg-base);
-            color: var(--text-primary);
-            min-height: 100vh;
-            user-select: none;
-            caret-color: transparent;
-            overflow-x: hidden;
-        }
-
-        /* ─── SCAN LINE OVERLAY ─── */
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(0,200,255,0.012) 2px,
-                rgba(0,200,255,0.012) 4px
-            );
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        /* ─── GRID BG ─── */
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(0,200,255,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,200,255,0.04) 1px, transparent 1px);
-            background-size: 40px 40px;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .page-wrapper {
-            position: relative;
-            z-index: 1;
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 24px 28px;
-        }
-
-        /* ─── TOP BAR ─── */
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 18px 28px;
-            background: linear-gradient(135deg, var(--bg-panel), rgba(0,200,255,0.04));
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-cyan);
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .brand-icon {
-            width: 42px;
-            height: 42px;
-            background: var(--cyan-dim);
-            border: 1px solid var(--border-glow);
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 0 15px rgba(0,200,255,0.2);
-        }
-
-        .brand-text {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .brand-title {
-            font-size: 20px;
-            font-weight: 800;
-            letter-spacing: 3px;
-            color: var(--cyan);
-            text-shadow: 0 0 20px rgba(0,200,255,0.4);
-        }
-
-        .brand-sub {
-            font-size: 10px;
-            letter-spacing: 2px;
-            color: var(--text-secondary);
-            font-weight: 300;
-        }
-
-        .top-bar-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .status-pill {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: var(--green-dim);
-            border: 1px solid rgba(0,230,118,0.25);
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            color: var(--green);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--green);
-            box-shadow: 0 0 8px var(--green);
-            animation: pulse-dot 2s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.8); }
-        }
-
-        .clock {
-            font-family: var(--font-mono);
-            font-size: 13px;
-            color: var(--text-secondary);
-            letter-spacing: 1px;
-        }
-
-        .logout-btn {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 18px;
-            background: var(--red-dim);
-            border: 1px solid rgba(255,61,90,0.3);
-            border-radius: var(--radius-sm);
-            color: var(--red);
-            text-decoration: none;
-            font-family: var(--font-display);
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .logout-btn:hover {
-            background: rgba(255,61,90,0.25);
-            border-color: var(--red);
-            box-shadow: 0 0 15px rgba(255,61,90,0.2);
-        }
-
-        /* ─── SECTION HEADERS ─── */
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 28px 0 16px;
-        }
-
-        .section-header::before {
-            content: '';
-            width: 3px;
-            height: 22px;
-            background: linear-gradient(to bottom, var(--cyan), transparent);
-            border-radius: 2px;
-        }
-
-        .section-title {
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-        }
-
-        .section-line {
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(to right, var(--border), transparent);
-        }
-
-        /* ─── OVERVIEW LAYOUT ─── */
-        .overview-container {
-            display: flex;
-            gap: 20px;
-            align-items: stretch;
-            flex-wrap: wrap;
-        }
-
-        /* ─── STAT CARDS ─── */
-        .card-grid {
-            flex: 2;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 14px;
-        }
-
-        .stat-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 20px 18px;
-            cursor: default;
-            transition: all 0.25s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
-        }
-
-        .stat-card.s-blue::before  { background: linear-gradient(to right, var(--blue), transparent); }
-        .stat-card.s-green::before { background: linear-gradient(to right, var(--green), transparent); }
-        .stat-card.s-red::before   { background: linear-gradient(to right, var(--red), transparent); }
-        .stat-card.s-amber::before { background: linear-gradient(to right, var(--amber), transparent); }
-        .stat-card.s-dark::before  { background: linear-gradient(to right, var(--cyan), transparent); }
-
-        .stat-card:hover {
-            border-color: var(--border-glow);
-            background: var(--bg-surface);
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-cyan);
-        }
-
-        .stat-card.s-dark { cursor: pointer; }
-
-        .stat-label {
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
-            font-weight: 400;
-        }
-
-        .stat-value {
-            font-size: 32px;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        .s-blue  .stat-value { color: var(--blue); }
-        .s-green .stat-value { color: var(--green); }
-        .s-red   .stat-value { color: var(--red); }
-        .s-amber .stat-value { color: var(--amber); }
-        .s-dark  .stat-value { color: var(--cyan); }
-
-        .stat-icon {
-            position: absolute;
-            bottom: 12px;
-            right: 14px;
-            font-size: 28px;
-            opacity: 0.1;
-        }
-
-        /* ─── ATTACKER BOX ─── */
-        .attacker-card {
-            background: var(--bg-card);
-            border: 1px solid rgba(255,61,90,0.2);
-            border-radius: var(--radius-md);
-            padding: 20px 18px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .attacker-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
-            background: linear-gradient(to right, var(--red), transparent);
-        }
-
-        .attacker-label {
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #ff3d5a80;
-            margin-bottom: 10px;
-        }
-
-        #attackerInfo {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--text-primary);
-            line-height: 1.8;
-        }
-
-        /* ─── CHART BOX ─── */
-        .chart-box {
-            flex: 1;
-            min-width: 280px;
-            max-width: 360px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-shadow: var(--shadow-card);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .chart-box::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
-            background: linear-gradient(to right, transparent, var(--cyan), transparent);
-        }
-
-        .chart-title {
-            font-size: 11px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-            font-weight: 400;
-        }
-
-        .chart-box canvas {
-            width: 100% !important;
-            height: 200px !important;
-        }
-
-        /* ─── ANALYTICS TOGGLE ─── */
-        .analytics-toggle {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            padding: 14px 20px;
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            margin: 28px 0 16px;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-
-        .analytics-toggle:hover {
-            border-color: var(--border-glow);
-            background: var(--bg-surface);
-        }
-
-        .analytics-toggle-label {
-            font-size: 12px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            font-weight: 600;
-        }
-
-        .analytics-toggle-icon {
-            margin-left: auto;
-            color: var(--cyan);
-            font-size: 14px;
-            transition: transform 0.3s ease;
-        }
-
-        #analyticsSection {
-            overflow: hidden;
-            transition: all 0.4s ease;
-        }
-
-        .analytics-grid {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .analytics-grid .chart-box {
-            max-width: none;
-            flex: 1;
-            min-width: 250px;
-        }
-
-        /* ─── TABLES ─── */
-        .table-wrapper {
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            margin-bottom: 8px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead tr {
-            background: var(--bg-surface);
-        }
-
-        th {
-            padding: 12px 16px;
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            font-weight: 600;
-            text-align: center;
-            border-bottom: 1px solid var(--border);
-        }
-
-        td {
-            padding: 11px 16px;
-            text-align: center;
-            font-size: 13px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            font-family: var(--font-mono);
-            color: var(--text-primary);
-            font-weight: 300;
-        }
-
-        tbody tr {
-            transition: background 0.15s ease;
-        }
-
-        tbody tr:hover {
-            background: var(--bg-hover);
-        }
-
-        tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* Status colors */
-        .val-high { color: var(--red) !important; font-weight: 600; }
-        .val-normal { color: var(--green) !important; }
-
-        .status-online {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--green);
-            font-weight: 600;
-        }
-
-        .status-online::before {
-            content: '';
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: var(--green);
-            box-shadow: 0 0 6px var(--green);
-        }
-
-        .status-offline {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--red);
-        }
-
-        .status-offline::before {
-            content: '';
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: var(--red);
-        }
-
-        /* ─── BUTTONS ─── */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            border: 1px solid;
-            border-radius: var(--radius-sm);
-            font-family: var(--font-display);
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-        }
-
-        .btn:hover { transform: scale(1.04); }
-
-        .btn-scan {
-            background: var(--cyan-dim);
-            border-color: rgba(0,200,255,0.3);
-            color: var(--cyan);
-        }
-
-        .btn-scan:hover {
-            background: rgba(0,200,255,0.2);
-            border-color: var(--cyan);
-            box-shadow: 0 0 12px rgba(0,200,255,0.2);
-        }
-
-        .btn-approve {
-            background: var(--green-dim);
-            border-color: rgba(0,230,118,0.3);
-            color: var(--green);
-        }
-
-        .btn-approve:hover {
-            background: rgba(0,230,118,0.2);
-            border-color: var(--green);
-            box-shadow: 0 0 12px rgba(0,230,118,0.2);
-        }
-
-        .btn-disapprove {
-            background: var(--red-dim);
-            border-color: rgba(255,61,90,0.3);
-            color: var(--red);
-        }
-
-        .btn-disapprove:hover {
-            background: rgba(255,61,90,0.2);
-            border-color: var(--red);
-            box-shadow: 0 0 12px rgba(255,61,90,0.2);
-        }
-
-        .btn-primary {
-            background: var(--cyan-dim);
-            border-color: var(--border-glow);
-            color: var(--cyan);
-            padding: 9px 20px;
-            font-size: 12px;
-        }
-
-        .btn-primary:hover {
-            background: rgba(0,200,255,0.25);
-            box-shadow: 0 0 20px rgba(0,200,255,0.2);
-        }
-
-        .btn-stop {
-            background: var(--red-dim);
-            border-color: rgba(255,61,90,0.3);
-            color: var(--red);
-            padding: 9px 20px;
-            font-size: 12px;
-        }
-
-        /* ─── ROGUE TABLE HEADER ─── */
-        .rogue-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .rogue-badge {
-            background: var(--red-dim);
-            border: 1px solid rgba(255,61,90,0.3);
-            border-radius: 999px;
-            padding: 3px 12px;
-            font-size: 10px;
-            letter-spacing: 1px;
-            color: var(--red);
-        }
-
-        /* ─── MODALS ─── */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            inset: 0;
-            background: rgba(0,0,0,0.75);
-            backdrop-filter: blur(6px);
-            animation: modalBg 0.2s ease;
-        }
-
-        @keyframes modalBg {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-content {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-glow);
-            border-radius: var(--radius-lg);
-            margin: 6% auto;
-            padding: 28px;
-            width: min(65%, 700px);
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 0 60px rgba(0,200,255,0.1);
-            animation: modalIn 0.25s ease;
-            position: relative;
-        }
-
-        @keyframes modalIn {
-            from { opacity: 0; transform: translateY(-20px) scale(0.97); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .modal-content::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 10%; right: 10%;
-            height: 1px;
-            background: linear-gradient(to right, transparent, var(--cyan), transparent);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 22px;
-        }
-
-        .modal-title {
-            font-size: 16px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            color: var(--cyan);
-        }
-
-        .close {
-            width: 32px;
-            height: 32px;
-            background: var(--red-dim);
-            border: 1px solid rgba(255,61,90,0.3);
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            cursor: pointer;
-            color: var(--red);
-            transition: all 0.2s ease;
-            line-height: 1;
-        }
-
-        .close:hover {
-            background: rgba(255,61,90,0.25);
-            box-shadow: 0 0 10px rgba(255,61,90,0.2);
-        }
-
-        /* ─── PORT SCANNER MODAL ─── */
-        .scan-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 18px;
-            margin-bottom: 16px;
-        }
-
-        .scan-section-title {
-            font-size: 11px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--cyan);
-            margin-bottom: 14px;
-            font-weight: 600;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 14px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .form-label {
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            font-weight: 400;
-        }
-
-        .form-control {
-            background: var(--bg-base);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 9px 12px;
-            color: var(--text-primary);
-            font-family: var(--font-mono);
-            font-size: 13px;
-            transition: border-color 0.2s ease;
-            caret-color: var(--cyan);
-        }
-
-        .form-control:focus {
-            border-color: var(--border-glow);
-            box-shadow: 0 0 10px rgba(0,200,255,0.1);
-        }
-
-        .target-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--cyan-dim);
-            border: 1px solid var(--border-glow);
-            border-radius: var(--radius-sm);
-            padding: 8px 16px;
-            font-family: var(--font-mono);
-            font-size: 14px;
-            color: var(--cyan);
-            margin-bottom: 16px;
-        }
-
-        .divider {
-            height: 1px;
-            background: var(--border);
-            margin: 16px 0;
-        }
-
-        /* ─── PORT RESULTS ─── */
-        #portResult {
-            margin-top: 14px;
-            font-family: var(--font-mono);
-            font-size: 13px;
-        }
-
-        #portResult .scan-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--cyan);
-            font-weight: 500;
-            margin-bottom: 10px;
-            padding: 8px 12px;
-            background: var(--cyan-dim);
-            border-radius: var(--radius-sm);
-        }
-
-        #portResult .port-entry {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 6px 10px;
-            border-radius: var(--radius-sm);
-            margin-bottom: 4px;
-            border: 1px solid transparent;
-        }
-
-        #portResult .port-entry:hover { background: var(--bg-hover); }
-
-        /* ─── ALERT POPUP ─── */
-        #rogueAlert {
-            display: none;
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            background: var(--bg-panel);
-            border: 1px solid var(--red);
-            color: var(--red);
-            padding: 16px 22px;
-            border-radius: var(--radius-md);
-            z-index: 9999;
-            font-weight: 600;
-            font-size: 13px;
-            letter-spacing: 0.5px;
-            box-shadow: 0 0 30px rgba(255,61,90,0.25);
-            animation: slideInAlert 0.3s ease;
-        }
-
-        @keyframes slideInAlert {
-            from { opacity: 0; transform: translateX(20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        /* ─── PAGE FADE IN ─── */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .fade-in { animation: fadeIn 0.5s ease; }
-
-        /* ─── SCROLLBAR ─── */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-base); }
-        ::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
-
-        a { text-decoration: none; }
-
-        /* ─── RESPONSIVE ─── */
-        @media (max-width: 768px) {
-            .page-wrapper { padding: 16px; }
-            .top-bar { padding: 14px 18px; flex-wrap: wrap; gap: 12px; }
-            .brand-title { font-size: 16px; }
-            .card-grid { grid-template-columns: repeat(2, 1fr); }
-            .chart-box { max-width: 100%; }
-            .modal-content { width: 95%; margin: 10% auto; padding: 20px; }
-            .form-row { grid-template-columns: 1fr; }
-        }
+        *,*::before,*::after{box-sizing:border-box;outline:none;margin:0;padding:0;}
+        body{font-family:var(--font-display);background:var(--bg-base);color:var(--text-primary);min-height:100vh;user-select:none;caret-color:transparent;overflow-x:hidden;}
+        body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,0.012) 2px,rgba(0,200,255,0.012) 4px);pointer-events:none;z-index:0;}
+        body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+        .page-wrapper{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:24px 28px;}
+        /* TOP BAR */
+        .top-bar{display:flex;justify-content:space-between;align-items:center;padding:18px 28px;background:linear-gradient(135deg,var(--bg-panel),rgba(0,200,255,0.04));border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:20px;box-shadow:var(--shadow-cyan);}
+        .brand{display:flex;align-items:center;gap:14px;}
+        .brand-icon{width:42px;height:42px;background:var(--cyan-dim);border:1px solid var(--border-glow);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 15px rgba(0,200,255,0.2);}
+        .brand-text{display:flex;flex-direction:column;}
+        .brand-title{font-size:20px;font-weight:800;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 20px rgba(0,200,255,0.4);}
+        .brand-sub{font-size:10px;letter-spacing:2px;color:var(--text-secondary);font-weight:300;}
+        .top-bar-right{display:flex;align-items:center;gap:20px;}
+        .status-pill{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--green-dim);border:1px solid rgba(0,230,118,0.25);border-radius:999px;font-size:12px;font-weight:600;letter-spacing:1px;color:var(--green);transition:all 0.3s ease;}
+        .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse-dot 2s infinite;flex-shrink:0;}
+        @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.8);}}
+        .clock{font-family:var(--font-mono);font-size:13px;color:var(--text-secondary);letter-spacing:1px;}
+        .logout-btn{display:flex;align-items:center;gap:8px;padding:9px 18px;background:var(--red-dim);border:1px solid rgba(255,61,90,0.3);border-radius:var(--radius-sm);color:var(--red);text-decoration:none;font-family:var(--font-display);font-size:12px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all 0.2s ease;}
+        .logout-btn:hover{background:rgba(255,61,90,0.25);border-color:var(--red);box-shadow:0 0 15px rgba(255,61,90,0.2);}
+        /* SECTION */
+        .section-header{display:flex;align-items:center;gap:12px;margin:28px 0 16px;}
+        .section-header::before{content:'';width:3px;height:22px;background:linear-gradient(to bottom,var(--cyan),transparent);border-radius:2px;}
+        .section-title{font-size:14px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--text-secondary);}
+        .section-line{flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent);}
+        /* CARDS */
+        .overview-container{display:flex;gap:20px;align-items:stretch;flex-wrap:wrap;}
+        .card-grid{flex:2;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+        .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px 18px;cursor:default;transition:all 0.25s ease;position:relative;overflow:hidden;}
+        .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+        .stat-card.s-blue::before{background:linear-gradient(to right,var(--blue),transparent);}
+        .stat-card.s-green::before{background:linear-gradient(to right,var(--green),transparent);}
+        .stat-card.s-red::before{background:linear-gradient(to right,var(--red),transparent);}
+        .stat-card.s-amber::before{background:linear-gradient(to right,var(--amber),transparent);}
+        .stat-card.s-dark::before{background:linear-gradient(to right,var(--cyan),transparent);}
+        .stat-card:hover{border-color:var(--border-glow);background:var(--bg-surface);transform:translateY(-3px);box-shadow:var(--shadow-cyan);}
+        .stat-card.s-dark{cursor:pointer;}
+        .stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:12px;font-weight:400;}
+        .stat-value{font-size:32px;font-weight:800;line-height:1;}
+        .s-blue .stat-value{color:var(--blue);} .s-green .stat-value{color:var(--green);} .s-red .stat-value{color:var(--red);} .s-amber .stat-value{color:var(--amber);} .s-dark .stat-value{color:var(--cyan);}
+        .stat-icon{position:absolute;bottom:12px;right:14px;font-size:28px;opacity:0.1;}
+        .attacker-card{background:var(--bg-card);border:1px solid rgba(255,61,90,0.2);border-radius:var(--radius-md);padding:20px 18px;position:relative;overflow:hidden;}
+        .attacker-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red),transparent);}
+        .attacker-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#ff3d5a80;margin-bottom:10px;}
+        #attackerInfo{font-family:var(--font-mono);font-size:12px;color:var(--text-primary);line-height:1.8;}
+        /* CHART */
+        .chart-box{flex:1;min-width:280px;max-width:360px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;display:flex;flex-direction:column;align-items:center;box-shadow:var(--shadow-card);position:relative;overflow:hidden;}
+        .chart-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--cyan),transparent);}
+        .chart-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:16px;font-weight:400;}
+        .chart-box canvas{width:100% !important;height:200px !important;}
+        /* ANALYTICS */
+        .analytics-toggle{display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-md);margin:28px 0 16px;transition:all 0.2s ease;user-select:none;}
+        .analytics-toggle:hover{border-color:var(--border-glow);background:var(--bg-surface);}
+        .analytics-toggle-label{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;}
+        .analytics-toggle-icon{margin-left:auto;color:var(--cyan);font-size:14px;transition:transform 0.3s ease;}
+        #analyticsSection{overflow:hidden;transition:all 0.4s ease;}
+        .analytics-grid{display:flex;gap:20px;flex-wrap:wrap;}
+        .analytics-grid .chart-box{max-width:none;flex:1;min-width:250px;}
+        /* TABLES */
+        .table-wrapper{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:8px;}
+        table{width:100%;border-collapse:collapse;}
+        thead tr{background:var(--bg-surface);}
+        th{padding:12px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;text-align:center;border-bottom:1px solid var(--border);}
+        td{padding:11px 16px;text-align:center;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);font-family:var(--font-mono);color:var(--text-primary);font-weight:300;}
+        tbody tr{transition:background 0.15s ease;} tbody tr:hover{background:var(--bg-hover);} tbody tr:last-child td{border-bottom:none;}
+        .val-high{color:var(--red) !important;font-weight:600;} .val-normal{color:var(--green) !important;}
+        .status-online{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-weight:600;}
+        .status-online::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
+        .status-offline{display:inline-flex;align-items:center;gap:6px;color:var(--red);}
+        .status-offline::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--red);}
+        /* BUTTONS */
+        .btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid;border-radius:var(--radius-sm);font-family:var(--font-display);font-size:11px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all 0.2s ease;text-transform:uppercase;}
+        .btn:hover{transform:scale(1.04);}
+        .btn-scan{background:var(--cyan-dim);border-color:rgba(0,200,255,0.3);color:var(--cyan);}
+        .btn-scan:hover{background:rgba(0,200,255,0.2);border-color:var(--cyan);box-shadow:0 0 12px rgba(0,200,255,0.2);}
+        .btn-approve{background:var(--green-dim);border-color:rgba(0,230,118,0.3);color:var(--green);}
+        .btn-approve:hover{background:rgba(0,230,118,0.2);border-color:var(--green);box-shadow:0 0 12px rgba(0,230,118,0.2);}
+        .btn-disapprove{background:var(--red-dim);border-color:rgba(255,61,90,0.3);color:var(--red);}
+        .btn-disapprove:hover{background:rgba(255,61,90,0.2);border-color:var(--red);box-shadow:0 0 12px rgba(255,61,90,0.2);}
+        .btn-primary{background:var(--cyan-dim);border-color:var(--border-glow);color:var(--cyan);padding:9px 20px;font-size:12px;}
+        .btn-primary:hover{background:rgba(0,200,255,0.25);box-shadow:0 0 20px rgba(0,200,255,0.2);}
+        .btn-stop{background:var(--red-dim);border-color:rgba(255,61,90,0.3);color:var(--red);padding:9px 20px;font-size:12px;}
+        .rogue-header{display:flex;align-items:center;gap:10px;}
+        .rogue-badge{background:var(--red-dim);border:1px solid rgba(255,61,90,0.3);border-radius:999px;padding:3px 12px;font-size:10px;letter-spacing:1px;color:var(--red);}
+        /* MODALS */
+        .modal{display:none;position:fixed;z-index:1000;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);}
+        .modal-content{background:var(--bg-panel);border:1px solid var(--border-glow);border-radius:var(--radius-lg);margin:6% auto;padding:28px;width:min(65%,700px);max-height:80vh;overflow-y:auto;box-shadow:0 0 60px rgba(0,200,255,0.1);position:relative;animation:modalIn 0.25s ease;}
+        @keyframes modalIn{from{opacity:0;transform:translateY(-20px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+        .modal-content::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(to right,transparent,var(--cyan),transparent);}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+        .modal-title{font-size:16px;font-weight:700;letter-spacing:2px;color:var(--cyan);}
+        .close{width:32px;height:32px;background:var(--red-dim);border:1px solid rgba(255,61,90,0.3);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:var(--red);transition:all 0.2s ease;line-height:1;}
+        .close:hover{background:rgba(255,61,90,0.25);box-shadow:0 0 10px rgba(255,61,90,0.2);}
+        /* PORT SCANNER */
+        .scan-section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px;margin-bottom:16px;}
+        .scan-section-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);margin-bottom:14px;font-weight:600;}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+        .form-group{display:flex;flex-direction:column;gap:6px;}
+        .form-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);font-weight:400;}
+        .form-control{background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s ease;caret-color:var(--cyan);}
+        .form-control:focus{border-color:var(--border-glow);box-shadow:0 0 10px rgba(0,200,255,0.1);}
+        .target-badge{display:inline-flex;align-items:center;gap:8px;background:var(--cyan-dim);border:1px solid var(--border-glow);border-radius:var(--radius-sm);padding:8px 16px;font-family:var(--font-mono);font-size:14px;color:var(--cyan);margin-bottom:16px;}
+        #portResult{margin-top:14px;font-family:var(--font-mono);font-size:13px;}
+        #portResult .scan-status{display:flex;align-items:center;gap:8px;color:var(--cyan);font-weight:500;margin-bottom:10px;padding:8px 12px;background:var(--cyan-dim);border-radius:var(--radius-sm);}
+        #portResult .port-entry{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--radius-sm);margin-bottom:4px;border:1px solid transparent;}
+        #portResult .port-entry:hover{background:var(--bg-hover);}
+        /* ALERT */
+        #rogueAlert{display:none;position:fixed;top:24px;right:24px;background:var(--bg-panel);border:1px solid var(--red);color:var(--red);padding:16px 22px;border-radius:var(--radius-md);z-index:9999;font-weight:600;font-size:13px;letter-spacing:0.5px;box-shadow:0 0 30px rgba(255,61,90,0.25);}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+        .fade-in{animation:fadeIn 0.5s ease;}
+        ::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-track{background:var(--bg-base);} ::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;} ::-webkit-scrollbar-thumb:hover{background:var(--cyan);}
+        a{text-decoration:none;}
+        @media(max-width:768px){.page-wrapper{padding:16px;}.top-bar{padding:14px 18px;flex-wrap:wrap;gap:12px;}.brand-title{font-size:16px;}.card-grid{grid-template-columns:repeat(2,1fr);}.chart-box{max-width:100%;}.modal-content{width:95%;margin:10% auto;padding:20px;}.form-row{grid-template-columns:1fr;}}
     </style>
 </head>
 
 <body class="fade-in">
 <div class="page-wrapper">
 
-    <!-- ─── TOP BAR ─── -->
     <header class="top-bar">
         <div class="brand">
             <div class="brand-icon">🛡️</div>
@@ -874,92 +160,69 @@
         <div class="top-bar-right">
             <span class="clock" id="liveClock">--:--:--</span>
             <div class="status-pill" id="systemStatus">
-                <div class="status-dot"></div>
-                SYSTEM SECURE
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">SYSTEM SECURE</span>
             </div>
             <a href="/logout" class="logout-btn">⏻ Logout</a>
         </div>
     </header>
 
-    <!-- ─── NETWORK OVERVIEW ─── -->
     <div class="section-header">
         <div class="section-title">Network Overview</div>
         <div class="section-line"></div>
     </div>
 
     <div class="overview-container">
-        <!-- LEFT: CARDS -->
         <div class="card-grid">
-
             <div class="stat-card s-blue">
                 <div class="stat-label">Total Devices</div>
-                <div class="stat-value">{{ total_devices }}</div>
+                <div class="stat-value" id="totalCount">{{ total_devices }}</div>
                 <div class="stat-icon">💻</div>
             </div>
-
             <div class="stat-card s-green">
                 <div class="stat-label">Online</div>
-                <div class="stat-value">{{ online_devices }}</div>
+                <div class="stat-value" id="onlineCount">{{ online_devices }}</div>
                 <div class="stat-icon">📡</div>
             </div>
-
             <div class="stat-card s-red">
                 <div class="stat-label">Offline</div>
-                <div class="stat-value">{{ offline_devices }}</div>
+                <div class="stat-value" id="offlineCount">{{ offline_devices }}</div>
                 <div class="stat-icon">🔌</div>
             </div>
-
             <div class="stat-card s-amber">
                 <div class="stat-label">Rogue Devices</div>
                 <div class="stat-value" id="rogueCount">{{ rogue_count }}</div>
                 <div class="stat-icon">⚠️</div>
             </div>
-
             <div class="stat-card s-dark" id="trustedBtn">
                 <div class="stat-label">Trusted Devices</div>
                 <div class="stat-value" id="trustedCount">{{ trusted_count }}</div>
                 <div class="stat-icon">✅</div>
             </div>
-
-            <div class="attacker-card" id="lastAttackerBox">
+            <div class="attacker-card">
                 <div class="attacker-label">🚨 Last Attacker</div>
                 <div id="attackerInfo">No Data</div>
             </div>
-
         </div>
-
-        <!-- RIGHT: CHART -->
         <div class="chart-box">
-            <div class="chart-title">📊 Live Network Status</div>
+            <div class="chart-title">Live Network Status</div>
             <canvas id="deviceChart"></canvas>
         </div>
     </div>
 
-    <!-- ─── ANALYTICS TOGGLE ─── -->
-    <div class="analytics-toggle" id="analyticsToggle" onclick="toggleAnalytics()">
-        <span style="color:var(--cyan); font-size:14px;">◈</span>
+    <div class="analytics-toggle" onclick="toggleAnalytics()">
+        <span style="color:var(--cyan);font-size:14px;">◈</span>
         <span class="analytics-toggle-label">Advanced Analytics</span>
         <span class="analytics-toggle-icon" id="analyticsArrow">▼</span>
     </div>
-
     <div id="analyticsSection" style="display:none;">
         <div class="analytics-grid">
-            <div class="chart-box">
-                <div class="chart-title">CPU Usage Trend</div>
-                <canvas id="cpuChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">Device Growth</div>
-                <canvas id="deviceGrowthChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">Rogue Activity</div>
-                <canvas id="rogueChart"></canvas>
-            </div>
+            <div class="chart-box"><div class="chart-title">CPU Usage Trend</div><canvas id="cpuChart"></canvas></div>
+            <div class="chart-box"><div class="chart-title">Device Growth</div><canvas id="deviceGrowthChart"></canvas></div>
+            <div class="chart-box"><div class="chart-title">Rogue Activity</div><canvas id="rogueChart"></canvas></div>
         </div>
     </div>
 
-    <!-- ─── DEVICE MONITORING ─── -->
     <div class="section-header" style="margin-top:32px;">
         <div class="section-title">Device Monitoring</div>
         <div class="section-line"></div>
@@ -969,56 +232,36 @@
         <table id="deviceTable">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Hostname</th>
-                    <th>IP Address</th>
-                    <th>OS</th>
-                    <th>CPU</th>
-                    <th>RAM</th>
-                    <th>Location</th>
-                    <th>Last Seen</th>
-                    <th>Status</th>
-                    <th>Action</th>
+                    <th>ID</th><th>Hostname</th><th>IP Address</th><th>OS</th>
+                    <th>CPU</th><th>RAM</th><th>Location</th><th>Last Seen</th>
+                    <th>Status</th><th>Action</th>
                 </tr>
             </thead>
             <tbody>
             {% for device in devices %}
-            <tr>
+            <tr data-ip="{{ device.ip_address }}">
                 <td>{{ device.id }}</td>
                 <td>{{ device.hostname }}</td>
                 <td>{{ device.ip_address }}</td>
                 <td>{{ device.os }}</td>
-
-                <td class="{{ 'val-high' if device.cpu_usage|float > 80 else 'val-normal' }}">
-                    {{ device.cpu_usage }}%
-                </td>
-
-                <td class="{{ 'val-high' if device.ram_usage|float > 80 else 'val-normal' }}">
-                    {{ device.ram_usage }}%
-                </td>
-
+                <td class="cell-cpu {{ 'val-high' if device.cpu_usage|float > 80 else 'val-normal' }}">{{ device.cpu_usage }}%</td>
+                <td class="cell-ram {{ 'val-high' if device.ram_usage|float > 80 else 'val-normal' }}">{{ device.ram_usage }}%</td>
                 <td>{{ device.location }}</td>
                 <td>{{ device.last_seen }}</td>
-
-                <td>
+                <td class="cell-status">
                     {% if device.status == 'ONLINE' %}
                     <span class="status-online">ONLINE</span>
                     {% else %}
                     <span class="status-offline">OFFLINE</span>
                     {% endif %}
                 </td>
-                <td>
-                    <button class="btn btn-scan" onclick="scanPorts('{{ device.ip_address }}')">
-                        ⌖ Scan
-                    </button>
-                </td>
+                <td><button class="btn btn-scan" onclick="scanPorts('{{ device.ip_address }}')">⌖ Scan</button></td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <!-- ─── ROGUE DEVICES ─── -->
     <div class="section-header" style="margin-top:32px;">
         <div class="rogue-header">
             <div class="section-title" style="color:var(--red);">Unauthorized Devices</div>
@@ -1027,71 +270,41 @@
         <div class="section-line"></div>
     </div>
 
-    <div class="table-wrapper" style="border-color: rgba(255,61,90,0.18);">
+    <div class="table-wrapper" style="border-color:rgba(255,61,90,0.18);">
         <table id="rogueTable">
-            <thead>
-                <tr>
-                    <th>IP Address</th>
-                    <th>MAC Address</th>
-                    <th>Status</th>
-                    <th>Approve</th>
-                    <th>Scan</th>
-                </tr>
-            </thead>
+            <thead><tr><th>IP Address</th><th>MAC Address</th><th>Status</th><th>Approve</th><th>Scan</th></tr></thead>
             <tbody>
             {% for device in rogue_devices %}
             <tr>
                 <td>{{ device.ip }}</td>
                 <td>{{ device.mac }}</td>
                 <td style="color:var(--red);">{{ device.status }}</td>
-                <td>
-                    <button class="btn btn-approve"
-                        onclick="approveDevice('{{ device.ip }}','{{ device.mac }}', this)">
-                        ✓ Approve
-                    </button>
-                </td>
-                <td>
-                    <button class="btn btn-scan" onclick="scanPorts('{{ device.ip }}')">
-                        ⌖ Scan
-                    </button>
-                </td>
+                <td><button class="btn btn-approve" onclick="approveDevice('{{ device.ip }}','{{ device.mac }}',this)">✓ Approve</button></td>
+                <td><button class="btn btn-scan" onclick="scanPorts('{{ device.ip }}')">⌖ Scan</button></td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
 
-</div><!-- end page-wrapper -->
+</div>
 
-
-<!-- ─── TRUSTED DEVICES MODAL ─── -->
+<!-- Trusted Modal -->
 <div id="trustedModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <div class="modal-title">✅ Trusted Devices</div>
             <div id="closeModal" class="close">✕</div>
         </div>
-
         <div class="table-wrapper">
             <table id="trustedTable">
-                <thead>
-                    <tr>
-                        <th>IP Address</th>
-                        <th>MAC Address</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>IP Address</th><th>MAC Address</th><th>Action</th></tr></thead>
                 <tbody>
                 {% for device in trusted_devices %}
                 <tr>
                     <td>{{ device.ip }}</td>
                     <td>{{ device.mac }}</td>
-                    <td>
-                        <button class="btn btn-disapprove"
-                            onclick="disapproveDevice('{{ device.ip }}','{{ device.mac }}')">
-                            ✗ Disapprove
-                        </button>
-                    </td>
+                    <td><button class="btn btn-disapprove" onclick="disapproveDevice('{{ device.ip }}','{{ device.mac }}')">✗ Disapprove</button></td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -1100,489 +313,258 @@
     </div>
 </div>
 
-
-<!-- ─── PORT SCANNER MODAL ─── -->
+<!-- Port Scanner Modal -->
 <div id="portModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <div class="modal-title">⌖ Port Scanner</div>
             <div id="closePortModal" class="close">✕</div>
         </div>
-
-        <div class="target-badge">
-            🎯 <span id="scanIP">--</span>
-        </div>
-
-        <!-- Quick Scan -->
+        <div class="target-badge">🎯 <span id="scanIP">--</span></div>
         <div class="scan-section">
-            <div class="scan-section-title">⚡ Quick Scan  ·  Default 1–1024</div>
-            <button class="btn btn-primary" id="quickScanBtn" onclick="runQuickScan()">
-                ▶ Run Default Scan
-            </button>
+            <div class="scan-section-title">⚡ Quick Scan · Default 1–1024</div>
+            <button class="btn btn-primary" id="quickScanBtn" onclick="runQuickScan()">▶ Run Default Scan</button>
         </div>
-
-        <!-- Advanced Scan -->
         <div class="scan-section">
             <div class="scan-section-title">⚙ Advanced Scan</div>
-
             <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Protocol</label>
-                    <select id="protocol" class="form-control">
-                        <option value="tcp">TCP</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Speed</label>
-                    <select id="speed" class="form-control">
-                        <option value="normal">Normal</option>
-                        <option value="aggressive">Aggressive</option>
-                        <option value="stealth">Stealth</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Port Range</label>
-                    <input type="text" id="portRange" class="form-control" placeholder="e.g. 1–1024">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Threads</label>
-                    <input type="number" id="threads" class="form-control" value="10" min="1" max="100">
-                </div>
+                <div class="form-group"><label class="form-label">Protocol</label><select id="protocol" class="form-control"><option value="tcp">TCP</option></select></div>
+                <div class="form-group"><label class="form-label">Speed</label><select id="speed" class="form-control"><option value="normal">Normal</option><option value="aggressive">Aggressive</option><option value="stealth">Stealth</option></select></div>
+                <div class="form-group"><label class="form-label">Port Range</label><input type="text" id="portRange" class="form-control" placeholder="e.g. 1-1024"></div>
+                <div class="form-group"><label class="form-label">Threads</label><input type="number" id="threads" class="form-control" value="10" min="1" max="100"></div>
             </div>
-
-            <button class="btn btn-primary" id="advancedScanBtn" onclick="runAdvancedScan()">
-                ▶ Run Advanced Scan
-            </button>
+            <button class="btn btn-primary" id="advancedScanBtn" onclick="runAdvancedScan()">▶ Run Advanced Scan</button>
         </div>
-
         <div id="portResult"></div>
     </div>
 </div>
 
-
-<!-- ─── ROGUE ALERT POPUP ─── -->
 <div id="rogueAlert"></div>
 
-
-<!-- ─── SCRIPTS (unchanged logic) ─── -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-/* ── Live Clock ── */
-setInterval(() => {
-    let now = new Date();
-    document.getElementById("liveClock").innerText = now.toLocaleTimeString();
-}, 1000);
+/* ── Clock ── */
+setInterval(()=>{ document.getElementById("liveClock").innerText=new Date().toLocaleTimeString(); },1000);
 
-/* ── Doughnut Chart ── */
-Chart.defaults.color = '#7a9bb5';
-Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.color='#7a9bb5';
+Chart.defaults.font.family="'JetBrains Mono',monospace";
 
 function drawChart(data){
-    let ctx = document.getElementById('deviceChart').getContext('2d');
-    if(window.chart){
-        window.chart.data.datasets[0].data = [data.online, data.offline, data.rogue_count];
-        window.chart.update();
-        return;
-    }
-    window.chart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Online', 'Offline', 'Rogue'],
-            datasets: [{
-                data: [data.online, data.offline, data.rogue_count],
-                backgroundColor: ['#00e676','#ff3d5a','#ffab00'],
-                borderWidth: 2,
-                borderColor: "#0a1628"
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "72%",
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: "#7a9bb5", padding: 14, boxWidth: 10, font: { size: 11 } }
-                }
-            }
-        }
-    });
+    let ctx=document.getElementById('deviceChart').getContext('2d');
+    if(window.chart){ window.chart.data.datasets[0].data=[data.online,data.offline,data.rogue_count]; window.chart.update(); return; }
+    window.chart=new Chart(ctx,{type:'doughnut',data:{labels:['Online','Offline','Rogue'],datasets:[{data:[data.online,data.offline,data.rogue_count],backgroundColor:['#00e676','#ff3d5a','#ffab00'],borderWidth:2,borderColor:"#0a1628"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"72%",plugins:{legend:{position:'bottom',labels:{color:"#7a9bb5",padding:14,boxWidth:10,font:{size:11}}}}}});
 }
 </script>
 
 <script>
-/* ── Analytics Charts ── */
-let cpuChart, deviceChart2, rogueChart;
-
+let cpuChart,deviceChart2,rogueChart;
 function drawAnalytics(data){
-    let ctx1 = document.getElementById("cpuChart").getContext("2d");
-    if(!cpuChart){
-        cpuChart = new Chart(ctx1, {
-            type: "line",
-            data: {
-                labels: data.timestamps,
-                datasets: [{
-                    label: "Avg CPU %",
-                    data: data.cpu_avg,
-                    borderColor: "#00c8ff",
-                    backgroundColor: "rgba(0,200,255,0.06)",
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 3,
-                    pointBackgroundColor: "#00c8ff"
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-    } else {
-        cpuChart.data.labels = data.timestamps;
-        cpuChart.data.datasets[0].data = data.cpu_avg;
-        cpuChart.update();
-    }
-
-    let ctx2 = document.getElementById("deviceGrowthChart").getContext("2d");
-    if(!deviceChart2){
-        deviceChart2 = new Chart(ctx2, {
-            type: "line",
-            data: {
-                labels: data.timestamps,
-                datasets: [{
-                    label: "Devices",
-                    data: data.total_devices,
-                    borderColor: "#00e676",
-                    backgroundColor: "rgba(0,230,118,0.06)",
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 3,
-                    pointBackgroundColor: "#00e676"
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-    } else {
-        deviceChart2.data.labels = data.timestamps;
-        deviceChart2.data.datasets[0].data = data.total_devices;
-        deviceChart2.update();
-    }
-
-    let ctx3 = document.getElementById("rogueChart").getContext("2d");
-    if(!rogueChart){
-        rogueChart = new Chart(ctx3, {
-            type: "bar",
-            data: {
-                labels: data.timestamps,
-                datasets: [{
-                    label: "Rogue Devices",
-                    data: data.rogue_count,
-                    backgroundColor: "rgba(255,61,90,0.5)",
-                    borderColor: "#ff3d5a",
-                    borderWidth: 1,
-                    borderRadius: 4
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-    } else {
-        rogueChart.data.labels = data.timestamps;
-        rogueChart.data.datasets[0].data = data.rogue_count;
-        rogueChart.update();
-    }
+    const lo={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+    let c1=document.getElementById("cpuChart").getContext("2d");
+    if(!cpuChart){ cpuChart=new Chart(c1,{type:"line",data:{labels:data.timestamps,datasets:[{label:"Avg CPU %",data:data.cpu_avg,borderColor:"#00c8ff",backgroundColor:"rgba(0,200,255,0.06)",fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:"#00c8ff"}]},options:lo}); }
+    else{ cpuChart.data.labels=data.timestamps; cpuChart.data.datasets[0].data=data.cpu_avg; cpuChart.update(); }
+    let c2=document.getElementById("deviceGrowthChart").getContext("2d");
+    if(!deviceChart2){ deviceChart2=new Chart(c2,{type:"line",data:{labels:data.timestamps,datasets:[{label:"Devices",data:data.total_devices,borderColor:"#00e676",backgroundColor:"rgba(0,230,118,0.06)",fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:"#00e676"}]},options:lo}); }
+    else{ deviceChart2.data.labels=data.timestamps; deviceChart2.data.datasets[0].data=data.total_devices; deviceChart2.update(); }
+    let c3=document.getElementById("rogueChart").getContext("2d");
+    if(!rogueChart){ rogueChart=new Chart(c3,{type:"bar",data:{labels:data.timestamps,datasets:[{label:"Rogue",data:data.rogue_count,backgroundColor:"rgba(255,61,90,0.5)",borderColor:"#ff3d5a",borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}}); }
+    else{ rogueChart.data.labels=data.timestamps; rogueChart.data.datasets[0].data=data.rogue_count; rogueChart.update(); }
 }
 </script>
 
 <script>
-/* ── Modal + App Logic (unchanged) ── */
-var modal     = document.getElementById("trustedModal");
-var btn       = document.getElementById("trustedBtn");
-var closeBtn  = document.getElementById("closeModal");
-var portModal = document.getElementById("portModal");
-var closePort = document.getElementById("closePortModal");
+var modal=document.getElementById("trustedModal");
+var portModal=document.getElementById("portModal");
+document.getElementById("trustedBtn").onclick=()=>modal.style.display="block";
+document.getElementById("closeModal").onclick=()=>modal.style.display="none";
+document.getElementById("closePortModal").onclick=()=>portModal.style.display="none";
+window.onclick=function(e){ if(e.target==modal)modal.style.display="none"; if(e.target==portModal)portModal.style.display="none"; };
 
-let scanController = null;
-let eventSource    = null;
-let isScanning     = false;
-let currentScanIP  = "";
-let analyticsVisible = false;
+let scanController=null, eventSource=null, isScanning=false, currentScanIP="", analyticsVisible=false;
+let alertSound=new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
+let knownRogueIPs=new Set(JSON.parse(localStorage.getItem("rogueIPs")||"[]"));
 
-let knownRogueIPs = new Set(
-    JSON.parse(localStorage.getItem("rogueIPs") || "[]")
-);
-
-closePort.onclick = () => portModal.style.display = "none";
-
-window.onclick = function(e){
-    if(e.target == modal)     modal.style.display = "none";
-    if(e.target == portModal) portModal.style.display = "none";
-};
-
-var alertSound = new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
-btn.onclick   = () => modal.style.display = "block";
-closeBtn.onclick = () => modal.style.display = "none";
-
-document.addEventListener("click", () => {
-    alertSound.play().then(() => { alertSound.pause(); alertSound.currentTime = 0; }).catch(() => {});
-}, { once: true });
+document.addEventListener("click",()=>{ alertSound.play().then(()=>{alertSound.pause();alertSound.currentTime=0;}).catch(()=>{}); },{once:true});
 
 function updateLastAttacker(){
-    fetch("/api/last-attacker")
-    .then(res => res.json())
-    .then(data => {
-        let box = document.getElementById("attackerInfo");
-        if(!data.ip){ box.innerText = "No recent attacks"; return; }
-        box.innerHTML = `IP: ${data.ip}<br>Type: ${data.type}<br>⏱ ${data.last_seen}`;
-    });
+    fetch("/api/last-attacker").then(r=>r.json()).then(data=>{
+        let box=document.getElementById("attackerInfo");
+        if(!data.ip){ box.innerText="No recent attacks"; return; }
+        // app.py now returns clean formatted timestamp
+        box.innerHTML=`IP: ${data.ip}<br>MAC: ${data.mac}<br>Type: ${data.type}<br>⏱ ${data.last_seen}`;
+    }).catch(()=>{});
 }
 
 function toggleAnalytics(){
-    let section = document.getElementById("analyticsSection");
-    let arrow   = document.getElementById("analyticsArrow");
-    analyticsVisible = !analyticsVisible;
-
-    if(analyticsVisible){
-        section.style.display = "block";
-        arrow.style.transform = "rotate(180deg)";
-        fetch("/api/analytics").then(r => r.json()).then(d => drawAnalytics(d));
-    } else {
-        section.style.display = "none";
-        arrow.style.transform = "";
-    }
+    analyticsVisible=!analyticsVisible;
+    document.getElementById("analyticsSection").style.display=analyticsVisible?"block":"none";
+    document.getElementById("analyticsArrow").style.transform=analyticsVisible?"rotate(180deg)":"";
+    if(analyticsVisible) fetch("/api/analytics").then(r=>r.json()).then(d=>drawAnalytics(d));
 }
 
-function disapproveDevice(ip, mac){
-    fetch("/disapprove-device", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "ip=" + ip + "&mac=" + mac
-    }).then(r => r.json()).then(data => {
-        if(data.status === "success"){
-            let rows = document.querySelectorAll("#trustedTable tr");
-            rows.forEach((row, i) => {
-                if(i === 0) return;
-                if(row.cells[0].innerText === ip && row.cells[1].innerText === mac) row.remove();
+function disapproveDevice(ip,mac){
+    fetch("/disapprove-device",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"ip="+ip+"&mac="+mac})
+    .then(r=>r.json()).then(data=>{
+        if(data.status==="success"){
+            let tbody=document.querySelector("#trustedTable tbody");
+            Array.from(tbody.rows).forEach(row=>{
+                if(row.cells[0].innerText===ip && row.cells[1].innerText===mac) row.remove();
             });
-            let count = document.getElementById("trustedCount");
-            count.innerText = parseInt(count.innerText) - 1;
-            setTimeout(updateLiveData, 500);
+            document.getElementById("trustedCount").innerText=
+                parseInt(document.getElementById("trustedCount").innerText)-1;
+            setTimeout(updateLiveData,500);
         }
     });
 }
 
-function approveDevice(ip, mac, btn){
-    fetch("/approve-device", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "ip=" + ip + "&mac=" + mac
-    }).then(r => r.json()).then(data => {
-        if(data.status === "success"){
+function approveDevice(ip,mac,btn){
+    fetch("/approve-device",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"ip="+ip+"&mac="+mac})
+    .then(r=>r.json()).then(data=>{
+        if(data.status==="success"){
             if(btn) btn.closest("tr").remove();
-            let count = document.getElementById("rogueCount");
-            count.innerText = parseInt(count.innerText) - 1;
-            setTimeout(updateLiveData, 500);
+            document.getElementById("rogueCount").innerText=
+                parseInt(document.getElementById("rogueCount").innerText)-1;
+            setTimeout(updateLiveData,500);
         }
     });
 }
 
 function updateLiveData(){
-    fetch("/api/live-data")
-    .then(r => r.json())
-    .then(data => {
-        let statusBox = document.getElementById("systemStatus");
-
-        if(data.rogue_count > 0){
-            statusBox.innerHTML = `<div class="status-dot" style="background:var(--red);box-shadow:0 0 8px var(--red);"></div> THREAT DETECTED`;
-            statusBox.style.background = "var(--red-dim)";
-            statusBox.style.borderColor = "rgba(255,61,90,0.25)";
-            statusBox.style.color = "var(--red)";
+    fetch("/api/live-data").then(r=>r.json()).then(data=>{
+        let pill=document.getElementById("systemStatus");
+        let dot=document.getElementById("statusDot");
+        let txt=document.getElementById("statusText");
+        if(data.rogue_count>0){
+            dot.style.background="var(--red)"; dot.style.boxShadow="0 0 8px var(--red)";
+            txt.innerText="THREAT DETECTED";
+            pill.style.background="var(--red-dim)"; pill.style.borderColor="rgba(255,61,90,0.25)"; pill.style.color="var(--red)";
         } else {
-            statusBox.innerHTML = `<div class="status-dot"></div> SYSTEM SECURE`;
-            statusBox.style.background = "var(--green-dim)";
-            statusBox.style.borderColor = "rgba(0,230,118,0.25)";
-            statusBox.style.color = "var(--green)";
+            dot.style.background="var(--green)"; dot.style.boxShadow="0 0 8px var(--green)";
+            txt.innerText="SYSTEM SECURE";
+            pill.style.background="var(--green-dim)"; pill.style.borderColor="rgba(0,230,118,0.25)"; pill.style.color="var(--green)";
         }
 
-        document.querySelector(".s-blue .stat-value").innerText  = data.total;
-        document.querySelector(".s-green .stat-value").innerText = data.online;
-        document.querySelector(".s-red .stat-value").innerText   = data.offline;
-        document.getElementById("rogueCount").innerText          = data.rogue_count;
+        document.getElementById("totalCount").innerText  =data.total;
+        document.getElementById("onlineCount").innerText =data.online;
+        document.getElementById("offlineCount").innerText=data.offline;
+        document.getElementById("rogueCount").innerText  =data.rogue_count;
 
-        // Refresh trusted table
-        let trustedTable = document.getElementById("trustedTable").querySelector("tbody");
-        trustedTable.innerHTML = "";
-        data.trusted.forEach(device => {
-            let row = trustedTable.insertRow();
-            row.insertCell(0).innerText = device.ip;
-            row.insertCell(1).innerText = device.mac;
-            row.insertCell(2).innerHTML =
-                `<button class="btn btn-disapprove" onclick="disapproveDevice('${device.ip}','${device.mac}')">✗ Disapprove</button>`;
+
+        data.devices.forEach(device=>{
+            let row=document.querySelector(`#deviceTable tbody tr[data-ip="${device.ip}"]`);
+            if(!row) return;
+            let cpuCell=row.querySelector(".cell-cpu");
+            let ramCell=row.querySelector(".cell-ram");
+            let stCell =row.querySelector(".cell-status");
+            if(cpuCell){ cpuCell.innerText=device.cpu+"%"; cpuCell.className="cell-cpu "+(parseFloat(device.cpu)>80?"val-high":"val-normal"); }
+            if(ramCell){ ramCell.innerText=device.ram+"%"; ramCell.className="cell-ram "+(parseFloat(device.ram)>80?"val-high":"val-normal"); }
+            if(stCell){ stCell.innerHTML=device.status==="ONLINE"?`<span class="status-online">ONLINE</span>`:`<span class="status-offline">OFFLINE</span>`; }
         });
-        document.getElementById("trustedCount").innerText = data.trusted.length;
 
-        // Update device table
-        let table = document.getElementById("deviceTable");
-        let rows = table.getElementsByTagName("tr");
-        for(let i=1; i<rows.length; i++){
-            let ip = rows[i].cells[2].innerText;
-            let device = data.devices.find(d => d.ip === ip);
-            if(device){
-                rows[i].cells[4].innerText = device.cpu + "%";
-                rows[i].cells[5].innerText = device.ram + "%";
-                let sc = rows[i].cells[8];
-                sc.innerHTML = device.status === "ONLINE"
-                    ? `<span class="status-online">ONLINE</span>`
-                    : `<span class="status-offline">OFFLINE</span>`;
-            }
-        }
+        // Refresh trusted tbody
+        let trustedBody=document.querySelector("#trustedTable tbody");
+        trustedBody.innerHTML="";
+        data.trusted.forEach(device=>{
+            let row=trustedBody.insertRow();
+            row.insertCell(0).innerText=device.ip;
+            row.insertCell(1).innerText=device.mac;
+            row.insertCell(2).innerHTML=`<button class="btn btn-disapprove" onclick="disapproveDevice('${device.ip}','${device.mac}')">✗ Disapprove</button>`;
+        });
+        document.getElementById("trustedCount").innerText=data.trusted.length;
 
-        // Refresh rogue table
-        let rogueBody = document.getElementById("rogueTable").querySelector("tbody");
-        rogueBody.innerHTML = "";
-        data.rogue.forEach(device => {
-            let row = rogueBody.insertRow();
-            row.insertCell(0).innerText = device.ip;
-            row.insertCell(1).innerText = device.mac;
-            let sc = row.insertCell(2);
-            sc.innerText = device.status;
-            if(device.status.includes("Duplicate"))      sc.style.color = "var(--amber)";
-            else if(device.status.includes("Spoof"))     sc.style.color = "var(--red)";
-            else                                          sc.style.color = "var(--red)";
-            row.insertCell(3).innerHTML =
-                `<button class="btn btn-approve" onclick="approveDevice('${device.ip}','${device.mac}')">✓ Approve</button>`;
-            row.insertCell(4).innerHTML =
-                `<button class="btn btn-scan" onclick="scanPorts('${device.ip}')">⌖ Scan</button>`;
+        // Refresh rogue tbody
+        let rogueBody=document.querySelector("#rogueTable tbody");
+        rogueBody.innerHTML="";
+        data.rogue.forEach(device=>{
+            let row=rogueBody.insertRow();
+            row.insertCell(0).innerText=device.ip;
+            row.insertCell(1).innerText=device.mac;
+            let sc=row.insertCell(2);
+            sc.innerText=device.status;
+            sc.style.color=device.status.includes("Duplicate")?"var(--amber)":device.status.includes("Spoof")?"var(--red)":"var(--red)";
+            row.insertCell(3).innerHTML=`<button class="btn btn-approve" onclick="approveDevice('${device.ip}','${device.mac}',this)">✓ Approve</button>`;
+            row.insertCell(4).innerHTML=`<button class="btn btn-scan" onclick="scanPorts('${device.ip}')">⌖ Scan</button>`;
         });
 
         drawChart(data);
 
-        // Alert system
-        let currentRogueIPs = new Set(data.rogue.map(d => d.ip));
+        // Rogue alert logic
+        let currentRogueIPs=new Set(data.rogue.map(d=>d.ip));
         if(!window.initialized){
-            knownRogueIPs = new Set(currentRogueIPs);
-            localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
-            window.initialized = true;
+            knownRogueIPs=new Set(currentRogueIPs);
+            localStorage.setItem("rogueIPs",JSON.stringify([...knownRogueIPs]));
+            window.initialized=true;
+            updateLastAttacker();
             return;
         }
-        let newRogues = [...currentRogueIPs].filter(ip => !knownRogueIPs.has(ip));
-        if(newRogues.length > 0){
-            alertSound.currentTime = 0;
-            alertSound.play().catch(() => {});
-            let alertBox = document.getElementById("rogueAlert");
-            alertBox.innerText = "🚨 ALERT: Unauthorized device detected → " + newRogues.join(", ");
-            alertBox.style.display = "block";
-            setTimeout(() => { alertBox.style.display = "none"; }, 3000);
+        let newRogues=[...currentRogueIPs].filter(ip=>!knownRogueIPs.has(ip));
+        if(newRogues.length>0){
+            alertSound.currentTime=0; alertSound.play().catch(()=>{});
+            let ab=document.getElementById("rogueAlert");
+            ab.innerText="🚨 ALERT: Unauthorized device → "+newRogues.join(", ");
+            ab.style.display="block";
+            setTimeout(()=>{ ab.style.display="none"; },4000);
         }
-        knownRogueIPs = currentRogueIPs;
-        localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
+        knownRogueIPs=currentRogueIPs;
+        localStorage.setItem("rogueIPs",JSON.stringify([...knownRogueIPs]));
 
-        if(analyticsVisible){
-            fetch("/api/analytics").then(r => r.json()).then(d => drawAnalytics(d));
-        }
+        if(analyticsVisible) fetch("/api/analytics").then(r=>r.json()).then(d=>drawAnalytics(d));
         updateLastAttacker();
-    });
+
+    }).catch(err=>console.warn("Live data error:",err));
 }
 
-setInterval(updateLiveData, 5000);
+setInterval(updateLiveData,5000);
+updateLiveData(); // immediate first call
 
 /* ── Port Scanner ── */
-function scanPorts(ip){
-    currentScanIP = ip;
-    document.getElementById("scanIP").innerText = ip;
-    document.getElementById("portResult").innerHTML = "";
-    portModal.style.display = "block";
-}
+function scanPorts(ip){ currentScanIP=ip; document.getElementById("scanIP").innerText=ip; document.getElementById("portResult").innerHTML=""; portModal.style.display="block"; }
 
 function runQuickScan(){
-    if(isScanning){ stopScan(); return; }
-    isScanning = true;
-    let btn = document.getElementById("quickScanBtn");
-    let advBtn = document.getElementById("advancedScanBtn");
-    btn.textContent = "⬛ Stop Scan";
-    btn.className = "btn btn-stop";
-    advBtn.disabled = true;
-
-    let resultBox = document.getElementById("portResult");
-    resultBox.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing scan...</div><div id="scanResults"></div>`;
-
-    eventSource = new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`);
-    eventSource.onmessage = function(event){
-        if(event.data === "done"){ resultBox.innerHTML += `<br><div style="color:var(--green);padding:8px;background:var(--green-dim);border-radius:6px;">✅ Scan Complete</div>`; stopScan(true); return; }
-        let port = parseInt(event.data);
-        appendPort(port);
-    };
-    eventSource.onerror = function(){ document.getElementById("scanStatus").innerHTML = "❌ Scan Error"; stopScan(); };
+    if(isScanning){stopScan();return;} isScanning=true;
+    let btn=document.getElementById("quickScanBtn"),advBtn=document.getElementById("advancedScanBtn");
+    btn.textContent="⬛ Stop Scan"; btn.className="btn btn-stop"; advBtn.disabled=true;
+    let rb=document.getElementById("portResult");
+    rb.innerHTML=`<div id="scanStatus" class="scan-status">⚡ Initializing...</div><div id="scanResults"></div>`;
+    eventSource=new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`);
+    eventSource.onmessage=function(e){ if(e.data==="done"){rb.innerHTML+=`<br><div style="color:var(--green);padding:8px;background:var(--green-dim);border-radius:6px;">✅ Scan Complete</div>`;stopScan(true);return;} appendPort(parseInt(e.data)); };
+    eventSource.onerror=function(){ document.getElementById("scanStatus").innerHTML="❌ Scan Error"; stopScan(); };
 }
 
 function runAdvancedScan(){
-    if(isScanning){ stopScan(); return; }
-    isScanning = true;
-    let quickBtn = document.getElementById("quickScanBtn");
-    let advBtn   = document.getElementById("advancedScanBtn");
-    quickBtn.disabled = true;
-    advBtn.textContent = "⬛ Stop Scan";
-    advBtn.className = "btn btn-stop";
-
-    let portRange = document.getElementById("portRange").value || "1-1024";
-    let threads   = document.getElementById("threads").value;
-    let speed     = document.getElementById("speed").value;
-
-    let resultBox = document.getElementById("portResult");
-    resultBox.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing scan...</div><div id="scanResults"></div>`;
-
-    eventSource = new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`);
-    eventSource.onmessage = function(event){
-        if(event.data === "done"){ document.getElementById("scanStatus").innerHTML = "✅ Scan Complete"; stopScan(true); return; }
-        let port = parseInt(event.data);
-        document.getElementById("scanStatus").innerHTML = `⚡ Scanning... Found: Port ${port}`;
-        appendPort(port);
-    };
-    eventSource.onerror = function(){ document.getElementById("portResult").innerHTML += "<br>❌ Scan Error"; stopScan(); };
+    if(isScanning){stopScan();return;} isScanning=true;
+    let qb=document.getElementById("quickScanBtn"),ab=document.getElementById("advancedScanBtn");
+    qb.disabled=true; ab.textContent="⬛ Stop Scan"; ab.className="btn btn-stop";
+    let portRange=document.getElementById("portRange").value||"1-1024";
+    let threads=document.getElementById("threads").value, speed=document.getElementById("speed").value;
+    let rb=document.getElementById("portResult");
+    rb.innerHTML=`<div id="scanStatus" class="scan-status">⚡ Initializing...</div><div id="scanResults"></div>`;
+    eventSource=new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`);
+    eventSource.onmessage=function(e){ if(e.data==="done"){document.getElementById("scanStatus").innerHTML="✅ Scan Complete";stopScan(true);return;} let p=parseInt(e.data); document.getElementById("scanStatus").innerHTML=`⚡ Found: Port ${p}`; appendPort(p); };
+    eventSource.onerror=function(){ rb.innerHTML+="<br>❌ Scan Error"; stopScan(); };
 }
 
 function appendPort(port){
-    let service = getServiceName(port);
-    let risk    = getRiskLevel(port);
-    let color   = risk === "HIGH" ? "var(--red)" : risk === "MEDIUM" ? "var(--amber)" : "var(--green)";
-    let bg      = risk === "HIGH" ? "var(--red-dim)" : risk === "MEDIUM" ? "var(--amber-dim)" : "var(--green-dim)";
-    document.getElementById("scanResults").innerHTML += `
-        <div class="port-entry" style="background:${bg};border-color:${color}40;">
-            🔓 <span style="color:var(--cyan);">Port ${port}</span>
-            <span style="color:var(--text-secondary);">(${service})</span>
-            <span style="color:${color};font-weight:600;margin-left:auto;">[${risk}]</span>
-        </div>`;
+    let service=getServiceName(port),risk=getRiskLevel(port);
+    let color=risk==="HIGH"?"var(--red)":risk==="MEDIUM"?"var(--amber)":"var(--green)";
+    let bg=risk==="HIGH"?"var(--red-dim)":risk==="MEDIUM"?"var(--amber-dim)":"var(--green-dim)";
+    document.getElementById("scanResults").innerHTML+=`<div class="port-entry" style="background:${bg};border-color:${color}40;">🔓 <span style="color:var(--cyan);">Port ${port}</span> <span style="color:var(--text-secondary);">(${service})</span> <span style="color:${color};font-weight:600;margin-left:auto;">[${risk}]</span></div>`;
 }
 
-function stopScan(isCompleted=false){
-    if(scanController) scanController.abort();
-    if(eventSource){ eventSource.close(); eventSource = null; }
-    if(!isCompleted) document.getElementById("scanStatus").innerHTML = "⛔ Scan Stopped";
+function stopScan(done=false){
+    if(scanController)scanController.abort();
+    if(eventSource){eventSource.close();eventSource=null;}
+    if(!done)document.getElementById("scanStatus").innerHTML="⛔ Scan Stopped";
     resetScanButtons();
 }
-
 function resetScanButtons(){
-    isScanning = false;
-    let q = document.getElementById("quickScanBtn");
-    let a = document.getElementById("advancedScanBtn");
-    q.textContent = "▶ Run Default Scan";   q.className = "btn btn-primary"; q.disabled = false;
-    a.textContent = "▶ Run Advanced Scan";  a.className = "btn btn-primary"; a.disabled = false;
-    scanController = null;
+    isScanning=false; scanController=null;
+    let q=document.getElementById("quickScanBtn"),a=document.getElementById("advancedScanBtn");
+    q.textContent="▶ Run Default Scan"; q.className="btn btn-primary"; q.disabled=false;
+    a.textContent="▶ Run Advanced Scan"; a.className="btn btn-primary"; a.disabled=false;
 }
-
-function getServiceName(port){
-    const s = {21:"FTP",22:"SSH",23:"Telnet",25:"SMTP",53:"DNS",80:"HTTP",110:"POP3",135:"RPC",139:"NetBIOS",143:"IMAP",443:"HTTPS",445:"SMB",3389:"RDP"};
-    return s[port] || "Unknown";
-}
-
-function getRiskLevel(port){
-    if([21,23,445,3389].includes(port)) return "HIGH";
-    if([22,25,110,139].includes(port))  return "MEDIUM";
-    return "LOW";
-}
-
-function showResults(data){
-    let resultBox = document.getElementById("portResult");
-    if(!data.open_ports){ resultBox.innerHTML = "❌ No response from server"; return; }
-    if(data.open_ports.length === 0){ resultBox.innerHTML = `<div style="color:var(--green);padding:10px;background:var(--green-dim);border-radius:6px;">✅ No open ports found</div>`; return; }
-    data.open_ports.forEach(p => appendPort(p));
-}
+function getServiceName(port){ const s={21:"FTP",22:"SSH",23:"Telnet",25:"SMTP",53:"DNS",80:"HTTP",110:"POP3",135:"RPC",139:"NetBIOS",143:"IMAP",443:"HTTPS",445:"SMB",3389:"RDP"}; return s[port]||"Unknown"; }
+function getRiskLevel(port){ if([21,23,445,3389].includes(port))return"HIGH"; if([22,25,110,139].includes(port))return"MEDIUM"; return"LOW"; }
 </script>
 
 </body>
