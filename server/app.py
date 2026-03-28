@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify, session, redirect, render_template, Response, stream_with_context
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3, os, subprocess, threading, time, socket
+import sqlite3, os, threading, time, socket
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
 from datetime import datetime
