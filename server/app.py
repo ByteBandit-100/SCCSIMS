@@ -175,10 +175,17 @@ def background_scanner():
                 avg_cpu = sum(cpu_values) / len(cpu_values) if cpu_values else 0
 
                 # rogue detection
-                trusted_macs = set()
-                trusted_ips = set()
-                rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
+                conn = get_db()
+                cursor = conn.cursor()
 
+                cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+                trusted_rows = cursor.fetchall()
+                conn.close()
+
+                trusted_ips = set(r[0] for r in trusted_rows)
+                trusted_macs = set(r[1] for r in trusted_rows)
+
+                rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
                 timestamp = datetime.now().strftime("%H:%M:%S")
 
                 # LIMIT HISTORY SIZE (prevent memory leak)
@@ -279,25 +286,35 @@ def dashboard():
     with lock:
         arp_results = list(network_cache["arp"])
     arp_map = {d["ip"]: d["mac"] for d in arp_results}
-
-    final_devices = []
-
     arp_ips = set(arp_map.keys())
     db_ips = set([d["ip_address"] for d in devices])
 
-    all_ips = arp_ips.union(db_ips)
+    trusted_ip_set = set([d["ip"] for d in trusted_devices])
+
+    all_ips = arp_ips.union(db_ips).union(trusted_ip_set)
 
     device_map = {d["ip_address"]: d for d in devices}
 
+    final_devices = []
+    # Build MAC map for trusted
+    trusted_mac_map = {normalize_mac(m): ip for ip, m in trusted_rows}
+
     for ip in all_ips:
 
-        # ✅ PRIORITY 1 → ARP = REAL NETWORK PRESENCE
+        arp_mac = normalize_mac(arp_map.get(ip))
+        db_device = device_map.get(ip)
+
+        # ✅ RULE 1: ARP = REAL NETWORK (HIGHEST PRIORITY)
         if ip in arp_ips:
             status = "ONLINE"
 
-        # ✅ PRIORITY 2 → DB fallback
-        elif ip in device_map:
-            status = device_map[ip]["status"]
+        # ✅ RULE 2: If agent reported recently
+        elif db_device:
+            status = db_device["status"]
+
+        # ✅ RULE 3: Trusted but not seen anywhere
+        elif arp_mac in trusted_mac_map:
+            status = "OFFLINE"
 
         else:
             status = "OFFLINE"
@@ -307,10 +324,19 @@ def dashboard():
             "status": status
         })
 
-    total_devices = len(final_devices)
-    online_devices = sum(1 for d in final_devices if d["status"] == "ONLINE")
-    offline_devices = sum(1 for d in final_devices if d["status"] == "OFFLINE")
+    # ✅ REMOVE DUPLICATES
+    unique = {}
+    for d in final_devices:
+        unique[d["ip"]] = d
 
+    final_devices = list(unique.values())
+    total_devices = len(final_devices)
+
+    online_devices = sum(
+        1 for d in final_devices if d["status"] == "ONLINE"
+    )
+
+    offline_devices = total_devices - online_devices
     rogue_unique_ips = set(d["ip"] for d in rogue_devices)
     rogue_count = len(rogue_unique_ips)
 
@@ -623,25 +649,35 @@ def live_data():
     trusted_macs = set([r[1] for r in trusted_rows])
 
     rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
-
-    rogue = rogue_devices  # send full objects
+    rogue = rogue_devices
 
     trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
 
-    all_ips = set([d["ip"] for d in devices]) | set([r["ip"] for r in rogue])
+    # ✅ FIX: Pull ARP cache to know which trusted devices are online
+    with lock:
+        arp_results = list(network_cache["arp"])
+    arp_ips = set(d["ip"] for d in arp_results)
+
+    # ✅ FIX: Include trusted IPs in the total pool (was missing before)
+    all_ips = (
+        set([d["ip"] for d in devices])
+        | set([r["ip"] for r in rogue])
+        | set([t["ip"] for t in trusted_list])   # ← THIS was the missing line
+    )
 
     final = []
-
     for ip in all_ips:
         status = "OFFLINE"
 
-        for d in devices:
-            if d["ip"] == ip:
-                status = d["status"]
-
-        for r in rogue:
-            if r["ip"] == ip:
-                status = "ONLINE"
+        # ARP = ground truth for online status
+        if ip in arp_ips:
+            status = "ONLINE"
+        else:
+            # Fall back to agent-reported status
+            for d in devices:
+                if d["ip"] == ip:
+                    status = d["status"]
+                    break
 
         final.append({"ip": ip, "status": status})
 
@@ -659,7 +695,7 @@ def log_rogue_attack(ip, mac, attack_type):
     conn = get_db()
     cursor = conn.cursor()
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now().isoformat()
 
     # Check if already exists
     cursor.execute("""
@@ -759,6 +795,9 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
         if status_list:
             status = " | ".join(status_list)
 
+            print("🚨 ROGUE DETECTED:", ip, mac, status)  # DEBUG
+
+            # 🔥 ALWAYS LOG
             log_rogue_attack(ip, mac, status)
 
             rogue_devices.append({
@@ -777,7 +816,7 @@ def last_attacker():
     cursor.execute("""
         SELECT ip, mac, attack_type, last_seen
         FROM rogue_history
-        ORDER BY last_seen DESC
+        ORDER BY datetime(last_seen) DESC
         LIMIT 1
     """)
 
@@ -792,7 +831,7 @@ def last_attacker():
             "last_seen": row[3]
         })
 
-    return jsonify({})
+    return jsonify({"message": "No attacks yet"})
 
 @app.route("/api/analytics")
 def analytics():
