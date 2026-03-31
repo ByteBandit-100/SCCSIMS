@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+﻿from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify, session, redirect, render_template, Response, stream_with_context
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3, os, threading, time, socket
@@ -21,7 +21,7 @@ API_KEY = os.getenv("SCCSIMS_API_KEY", "fallback_dev_key")
 scan_control = {"stop": False}
 mac_ip_history = {}   # {mac: ip}
 ip_mac_history = {}   # {ip: (mac, time)}
-rogue_cache = []
+
 analytics_history = {
     "timestamps":    [],
     "cpu_avg":       [],
@@ -35,9 +35,9 @@ network_cache = {
 }
 
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # HELPERS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
@@ -64,9 +64,9 @@ def fmt_timestamp(ts_str):
         return ts_str
 
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DATABASE INIT
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def init_db():
     conn = get_db()
@@ -130,9 +130,9 @@ def init_db():
     conn.close()
 
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # BACKGROUND SCANNER
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def background_scanner():
     global network_cache
@@ -140,7 +140,7 @@ def background_scanner():
     while True:
         start_time = time.time()
         try:
-            print("🔍 Scanning network...")
+            print("ðŸ” Scanning network...")
 
             with ThreadPoolExecutor(max_workers=2) as executor:
                 ping_future = executor.submit(scan_network)
@@ -177,13 +177,7 @@ def background_scanner():
                 trusted_ips  = set(r[0] for r in trusted_rows)
                 trusted_macs = set(r[1] for r in trusted_rows)
 
-                global rogue_cache
-
                 rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
-
-                with lock:
-                    rogue_cache = rogue_devices.copy()
-
                 timestamp     = datetime.now().strftime("%H:%M:%S")
 
                 MAX_POINTS = 20
@@ -199,10 +193,10 @@ def background_scanner():
             except Exception as e:
                 print("Analytics Error:", e)
 
-            print(f"✅ Scan done — {len(all_devices)} devices found")
+            print(f"âœ… Scan done â€” {len(all_devices)} devices found")
 
         except Exception as e:
-            print("❌ Scan error:", e)
+            print("âŒ Scan error:", e)
 
         elapsed    = time.time() - start_time
         sleep_time = max(5, 10 - elapsed)
@@ -213,13 +207,13 @@ def safe_background():
         try:
             background_scanner()
         except Exception as e:
-            print("🔥 Scanner crashed, restarting in 3s...", e)
+            print("ðŸ”¥ Scanner crashed, restarting in 3s...", e)
             time.sleep(3)
 
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # ROGUE DETECTION
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def log_rogue_attack(ip, mac, attack_type):
     try:
@@ -248,65 +242,107 @@ def log_rogue_attack(ip, mac, attack_type):
 
 
 def detect_rogue_logic(trusted_macs, trusted_ips):
-    current_time  = datetime.now()
-    trusted_macs  = set(normalize_mac(m) for m in trusted_macs)
+    current_time = datetime.now()
+
+    trusted_macs = set(normalize_mac(m) for m in trusted_macs)
+    trusted_ips  = set(trusted_ips)
 
     with lock:
         arp_results = list(network_cache["arp"])
 
-    arp_table    = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
-    rogue_devices = []
-    ip_seen       = {}
-    mac_seen      = {}
+    arp_table = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
 
+    rogue_devices = []
+    ip_seen  = {}
+    mac_seen = {}
+
+    # â± CONFIG (IMPORTANT)
+    SPOOF_TIME_WINDOW = 120   # seconds (increase stability)
+    CLEANUP_TIME      = 300   # seconds (cleanup old history)
+
+    # ðŸ§¹ CLEAN OLD HISTORY
+    for ip in list(ip_mac_history.keys()):
+        _, t = ip_mac_history[ip]
+        if (current_time - t).total_seconds() > CLEANUP_TIME:
+            del ip_mac_history[ip]
+
+    for mac in list(mac_ip_history.keys()):
+        t_ip = mac_ip_history[mac]
+        # We don't store time here, so safe cleanup not possible â†’ keep simple
+
+    # ðŸ” DETECTION LOOP
     for ip, mac in arp_table.items():
+
         if not mac or mac == "unknown":
             continue
 
         status_list = []
 
-        # 1. Unauthorized device
-        if mac not in trusted_macs:
+        is_trusted_mac = mac in trusted_macs
+        is_trusted_ip  = ip in trusted_ips
+
+        # 1ï¸âƒ£ Unauthorized Device
+        if not is_trusted_mac:
             status_list.append("Unauthorized Device")
 
-        # 2. MAC spoofing — IP changed MAC within 60s
+        # 2ï¸âƒ£ MAC Spoofing (IP changed MAC quickly)
         if ip in ip_mac_history:
             old_mac, last_time = ip_mac_history[ip]
-            if old_mac != mac and (current_time - last_time).total_seconds() < 60:
-                status_list.append("⚠ MAC Spoofing Detected")
+
+            if old_mac != mac:
+                time_diff = (current_time - last_time).total_seconds()
+
+                # ðŸš¨ Only trigger if FAST change (real spoof behavior)
+                if time_diff < SPOOF_TIME_WINDOW:
+                    # Ignore if both MACs are trusted (DHCP scenario)
+                    if not (old_mac in trusted_macs and mac in trusted_macs):
+                        status_list.append("âš  MAC Spoofing Detected")
+
         ip_mac_history[ip] = (mac, current_time)
 
-        # 3. IP spoofing — MAC using different IP
+        # 3ï¸âƒ£ IP Spoofing (MAC using multiple IPs quickly)
         if mac in mac_ip_history:
             old_ip = mac_ip_history[mac]
+
             if old_ip != ip:
-                status_list.append("⚠ IP Spoofing Detected")
+                # Only flag if NOT trusted OR rapid change
+                if not is_trusted_mac:
+                    status_list.append("âš  IP Spoofing Detected")
+
         mac_ip_history[mac] = ip
 
-        # 4. Duplicate IP — two MACs share same IP
+        # 4ï¸âƒ£ Duplicate IP
         if ip in ip_seen and ip_seen[ip] != mac:
-            status_list.append("⚠ Duplicate IP Conflict")
+            status_list.append("âš  Duplicate IP Conflict")
+
         ip_seen[ip] = mac
 
-        # 5. Duplicate MAC — same MAC on two IPs
+        # 5ï¸âƒ£ Duplicate MAC
         if mac in mac_seen and mac_seen[mac] != ip:
-            status_list.append("⚠ Duplicate MAC Detected")
+            status_list.append("âš  Duplicate MAC Detected")
+
         mac_seen[mac] = ip
 
+        # ðŸš¨ FINAL FLAG
         if status_list:
             status = " | ".join(status_list)
-            print(f"🚨 ROGUE: {ip} {mac} → {status}")
-            if ip not in [r["ip"] for r in rogue_devices]:
-                log_rogue_attack(ip, mac, status)
 
-            rogue_devices.append({"ip": ip, "mac": mac, "status": status})
+            print(f"ðŸš¨ ROGUE: {ip} {mac} â†’ {status}")
+
+            log_rogue_attack(ip, mac, status)
+
+            rogue_devices.append({
+                "ip": ip,
+                "mac": mac,
+                "status": status
+            })
 
     return rogue_devices
 
 
-# ─────────────────────────────────────────────
-# ROUTES — AUTH
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” AUTH
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -334,9 +370,9 @@ def logout():
     return redirect("/login")
 
 
-# ─────────────────────────────────────────────
-# ROUTES — DASHBOARD
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” DASHBOARD
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/")
 def dashboard():
@@ -379,8 +415,7 @@ def dashboard():
             "status":      status
         })
 
-    with lock:
-        rogue_devices = list(rogue_cache)
+    rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
     with lock:
         arp_results = list(network_cache["arp"])
@@ -427,9 +462,9 @@ def dashboard():
     )
 
 
-# ─────────────────────────────────────────────
-# ROUTES — AGENT API
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” AGENT API
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/api/device", methods=["POST"])
 def receive_device_data():
@@ -500,9 +535,9 @@ def get_devices():
     } for row in rows])
 
 
-# ─────────────────────────────────────────────
-# ROUTES — DEVICE MANAGEMENT
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” DEVICE MANAGEMENT
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/approve-device", methods=["POST"])
 def approve_device():
@@ -523,11 +558,11 @@ def approve_device():
             INSERT INTO trusted_devices (ip_address, mac_address, device_name, location)
             VALUES (?, ?, ?, ?)
         """, (ip, mac, "Approved Device", "Network"))
-        print(f"✅ Approved: {ip} ({mac})")
+        print(f"âœ… Approved: {ip} ({mac})")
     else:
         # Update IP in case it changed (DHCP)
         cursor.execute("UPDATE trusted_devices SET ip_address=? WHERE mac_address=?", (ip, mac))
-        print(f"ℹ️  Already trusted, updated IP: {ip} ({mac})")
+        print(f"â„¹ï¸  Already trusted, updated IP: {ip} ({mac})")
 
     conn.commit()
     conn.close()
@@ -547,9 +582,9 @@ def disapprove_device():
     return jsonify({"status": "success"})
 
 
-# ─────────────────────────────────────────────
-# ROUTES — LIVE DATA (for dashboard polling)
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” LIVE DATA (for dashboard polling)
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/api/live-data")
 def live_data():
@@ -584,8 +619,7 @@ def live_data():
     trusted_macs = set(r[1] for r in trusted_rows)
     trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
 
-    with lock:
-        rogue = list(rogue_cache)
+    rogue = detect_rogue_logic(trusted_macs, trusted_ips)
 
     with lock:
         arp_results = list(network_cache["arp"])
@@ -622,9 +656,9 @@ def live_data():
     })
 
 
-# ─────────────────────────────────────────────
-# ROUTES — ANALYTICS & ATTACKER
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” ANALYTICS & ATTACKER
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/api/analytics")
 def analytics():
@@ -655,9 +689,9 @@ def last_attacker():
     return jsonify({"ip": None, "message": "No attacks yet"})
 
 
-# ─────────────────────────────────────────────
-# ROUTES — NETWORK SCAN
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” NETWORK SCAN
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/scan-network")
 def scan_network_route():
@@ -680,9 +714,9 @@ def detect_rogue_devices():
     return jsonify({"rogue_devices": detect_rogue_logic(trusted_macs, trusted_ips)})
 
 
-# ─────────────────────────────────────────────
-# ROUTES — PORT SCANNER
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ROUTES â€” PORT SCANNER
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def scan_ports(ip, ports=None):
     if ports is None:
@@ -800,9 +834,9 @@ def stop_scan():
     return jsonify({"status": "stopped"})
 
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # STARTUP
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 if __name__ == "__main__":
     init_db()
