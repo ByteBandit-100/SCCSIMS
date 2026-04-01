@@ -723,12 +723,14 @@ def generate_report():
     doc.build(elements)
 
     buffer.seek(0)
-    filename = f"SCCSIMS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    now = datetime.now()
+    filename = f"SCCSIMS_Report_{now.strftime('%Y%m%d_%H%M%S_%f')}.pdf"
     return Response(
         buffer,
         mimetype='application/pdf',
-        headers = {"Content-Disposition": f"attachment;filename={filename}"}
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
+
 
 # ─────────────────────────────────────────────
 # ROUTES — ANALYTICS & ATTACKER
