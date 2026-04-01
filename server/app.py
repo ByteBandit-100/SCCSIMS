@@ -5,6 +5,11 @@ import sqlite3, os, threading, time, socket
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
 from datetime import datetime
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
+
 
 app = Flask(__name__)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -621,6 +626,109 @@ def live_data():
         "rogue_count": len(set(r["ip"] for r in rogue))
     })
 
+@app.route("/generate-report")
+def generate_report():
+    if "user" not in session:
+        return redirect("/login")
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer)
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Title
+    elements.append(Paragraph("SCCSIMS Security Report", styles['Title']))
+    elements.append(Spacer(1, 10))
+
+    # Timestamp
+    now = datetime.now().strftime("%d %B %Y %H:%M:%S")
+    elements.append(Paragraph(f"Generated on: {now}", styles['Normal']))
+    elements.append(Spacer(1, 15))
+
+    # Fetch data
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT hostname, ip_address, os, cpu_usage, ram_usage, location FROM devices")
+    devices = cursor.fetchall()
+
+    cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+    trusted = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT ip, mac, attack_type, last_seen 
+        FROM rogue_history ORDER BY datetime(last_seen) DESC LIMIT 5
+    """)
+    attacks = cursor.fetchall()
+
+    conn.close()
+
+    # ───────── SUMMARY ─────────
+    elements.append(Paragraph("Network Summary", styles['Heading2']))
+
+    summary_data = [
+        ["Total Devices", str(len(devices))],
+        ["Trusted Devices", str(len(trusted))],
+        ["Recent Attacks", str(len(attacks))]
+    ]
+
+    summary_table = Table(summary_data)
+    summary_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.grey),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.black)
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 20))
+
+    # ───────── DEVICES TABLE ─────────
+    elements.append(Paragraph("Devices", styles['Heading2']))
+
+    device_data = [["Hostname", "IP", "OS", "CPU%", "RAM%", "Location"]]
+
+    for d in devices:
+        device_data.append([
+            d[0], d[1], d[2],
+            str(d[3]), str(d[4]), d[5]
+        ])
+
+    device_table = Table(device_data)
+    device_table.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.25, colors.black),
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey)
+    ]))
+    elements.append(device_table)
+    elements.append(Spacer(1, 20))
+
+    # ───────── TRUSTED ─────────
+    elements.append(Paragraph("Trusted Devices", styles['Heading2']))
+
+    trusted_data = [["IP", "MAC"]]
+    for t in trusted:
+        trusted_data.append([t[0], t[1]])
+
+    elements.append(Table(trusted_data))
+    elements.append(Spacer(1, 20))
+
+    # ───────── ATTACKS ─────────
+    elements.append(Paragraph("Recent Attacks", styles['Heading2']))
+
+    attack_data = [["IP", "MAC", "Type", "Last Seen"]]
+    for a in attacks:
+        attack_data.append([a[0], a[1], a[2], fmt_timestamp(a[3])])
+
+    elements.append(Table(attack_data))
+
+    # Build PDF
+    doc.build(elements)
+
+    buffer.seek(0)
+    filename = f"SCCSIMS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return Response(
+        buffer,
+        mimetype='application/pdf',
+        headers = {"Content-Disposition": f"attachment;filename={filename}"}
+    )
 
 # ─────────────────────────────────────────────
 # ROUTES — ANALYTICS & ATTACKER
