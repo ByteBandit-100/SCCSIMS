@@ -227,7 +227,22 @@
         <div class="section-title">Device Monitoring</div>
         <div class="section-line"></div>
     </div>
+    <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
 
+    <!-- Search -->
+    <input type="text" id="deviceSearch" placeholder="🔍 Search IP / Hostname"
+        class="form-control" style="max-width:260px;"
+        onkeyup="filterDeviceTable()">
+
+    <!-- Status Filter -->
+    <select id="deviceFilter" class="form-control" style="max-width:180px;"
+        onchange="filterDeviceTable()">
+        <option value="ALL">All Devices</option>
+        <option value="ONLINE">Online</option>
+        <option value="OFFLINE">Offline</option>
+    </select>
+
+</div>
     <div class="table-wrapper">
         <table id="deviceTable">
             <thead>
@@ -269,7 +284,16 @@
         </div>
         <div class="section-line"></div>
     </div>
+    <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
 
+    <!-- Search -->
+    <input type="text" id="rogueSearch" placeholder="🔍 Search IP / MAC"
+        class="form-control" style="max-width:260px;"
+        onkeyup="filterRogueTable()">
+
+
+
+</div>
     <div class="table-wrapper" style="border-color:rgba(255,61,90,0.18);">
         <table id="rogueTable">
             <thead><tr><th>IP Address</th><th>MAC Address</th><th>Status</th><th>Approve</th><th>Scan</th></tr></thead>
@@ -395,6 +419,40 @@ function updateLastAttacker(){
     }).catch(()=>{});
 }
 
+/* ───────── DEVICE TABLE FILTER ───────── */
+function filterDeviceTable(){
+    let search = document.getElementById("deviceSearch").value.toLowerCase();
+    let filter = document.getElementById("deviceFilter").value;
+
+    let rows = document.querySelectorAll("#deviceTable tbody tr");
+
+    rows.forEach(row=>{
+        let ip = row.cells[2].innerText.toLowerCase();
+        let host = row.cells[1].innerText.toLowerCase();
+        let status = row.querySelector(".cell-status").innerText.trim();
+
+        let matchSearch = ip.includes(search) || host.includes(search);
+        let matchFilter = (filter === "ALL" || status === filter);
+
+        row.style.display = (matchSearch && matchFilter) ? "" : "none";
+    });
+}
+
+function filterRogueTable(){
+    let search = document.getElementById("rogueSearch").value.toLowerCase();
+    let rows = document.querySelectorAll("#rogueTable tbody tr");
+
+    rows.forEach(row=>{
+        let ip = row.cells[0].innerText.toLowerCase();
+        let mac = row.cells[1].innerText.toLowerCase();
+        let status = row.cells[2].innerText.toLowerCase();
+
+        let match = ip.includes(search) || mac.includes(search) || status.includes(search);
+
+        row.style.display = match ? "" : "none";
+    });
+}
+
 function toggleAnalytics(){
     analyticsVisible=!analyticsVisible;
     document.getElementById("analyticsSection").style.display=analyticsVisible?"block":"none";
@@ -509,14 +567,16 @@ function updateLiveData(){
         localStorage.setItem("rogueIPs",JSON.stringify([...knownRogueIPs]));
 
         if(analyticsVisible) fetch("/api/analytics").then(r=>r.json()).then(d=>drawAnalytics(d));
-        updateLastAttacker();
+       updateLastAttacker();
+filterRogueTable();
 
     }).catch(err=>console.warn("Live data error:",err));
 }
 
 setInterval(updateLiveData,5000);
 updateLiveData(); // immediate first call
-
+filterDeviceTable();
+filterRogueTable();
 /* ── Port Scanner ── */
 function scanPorts(ip){ currentScanIP=ip; document.getElementById("scanIP").innerText=ip; document.getElementById("portResult").innerHTML=""; portModal.style.display="block"; }
 
