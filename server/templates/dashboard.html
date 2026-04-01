@@ -368,15 +368,55 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 /* ── Clock ── */
-setInterval(()=>{ document.getElementById("liveClock").innerText=new Date().toLocaleTimeString(); },1000);
+setInterval(()=>{
+    document.getElementById("liveClock").innerText =
+        new Date().toLocaleTimeString();
+},1000);
 
 Chart.defaults.color='#7a9bb5';
 Chart.defaults.font.family="'JetBrains Mono',monospace";
 
+let mainChart=null;
+
 function drawChart(data){
     let ctx=document.getElementById('deviceChart').getContext('2d');
-    if(window.chart){ window.chart.data.datasets[0].data=[data.online,data.offline,data.rogue_count]; window.chart.update(); return; }
-    window.chart=new Chart(ctx,{type:'doughnut',data:{labels:['Online','Offline','Rogue'],datasets:[{data:[data.online,data.offline,data.rogue_count],backgroundColor:['#00e676','#ff3d5a','#ffab00'],borderWidth:2,borderColor:"#0a1628"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"72%",plugins:{legend:{position:'bottom',labels:{color:"#7a9bb5",padding:14,boxWidth:10,font:{size:11}}}}}});
+
+    if(mainChart){
+        mainChart.data.datasets[0].data=[
+            data.online,data.offline,data.rogue_count
+        ];
+        mainChart.update();
+        return;
+    }
+
+    mainChart=new Chart(ctx,{
+        type:'doughnut',
+        data:{
+            labels:['Online','Offline','Rogue'],
+            datasets:[{
+                data:[data.online,data.offline,data.rogue_count],
+                backgroundColor:['#00e676','#ff3d5a','#ffab00'],
+                borderWidth:2,
+                borderColor:"#0a1628"
+            }]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            cutout:"72%",
+            animation:{duration:800},
+            plugins:{
+                legend:{
+                    position:'bottom',
+                    labels:{
+                        padding:14,
+                        boxWidth:10,
+                        font:{size:11}
+                    }
+                }
+            }
+        }
+    });
 }
 </script>
 
@@ -409,14 +449,27 @@ let alertSound=new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
 let knownRogueIPs=new Set(JSON.parse(localStorage.getItem("rogueIPs")||"[]"));
 
 document.addEventListener("click",()=>{ alertSound.play().then(()=>{alertSound.pause();alertSound.currentTime=0;}).catch(()=>{}); },{once:true});
-
 function updateLastAttacker(){
-    fetch("/api/last-attacker").then(r=>r.json()).then(data=>{
+    fetch("/api/last-attacker")
+    .then(r=>r.json())
+    .then(data=>{
         let box=document.getElementById("attackerInfo");
-        if(!data.ip){ box.innerText="No recent attacks"; return; }
-        // app.py now returns clean formatted timestamp
-        box.innerHTML=`IP: ${data.ip}<br>MAC: ${data.mac}<br>Type: ${data.type}<br>⏱ ${data.last_seen}`;
-    }).catch(()=>{});
+
+        if(!data || !data.ip){
+            box.innerHTML="No recent attacks";
+            return;
+        }
+
+        box.innerHTML=`
+            <span style="color:#00c8ff;">IP:</span> ${data.ip}<br>
+            <span style="color:#00c8ff;">MAC:</span> ${data.mac}<br>
+            <span style="color:#ff3d5a;">Type:</span> ${data.type}<br>
+            <span style="color:#7a9bb5;">⏱ ${data.last_seen}</span>
+        `;
+    })
+    .catch(()=>{
+        document.getElementById("attackerInfo").innerText="Error loading";
+    });
 }
 
 /* ───────── DEVICE TABLE FILTER ───────── */
