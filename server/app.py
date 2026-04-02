@@ -5,11 +5,11 @@ import sqlite3, os, threading, time, socket
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
 from datetime import datetime
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
-
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -626,6 +626,70 @@ def live_data():
         "rogue_count": len(set(r["ip"] for r in rogue))
     })
 
+def generate_graphs():
+    cpu = analytics_history["cpu_avg"]
+    rogue = analytics_history["rogue_count"]
+    time_labels = analytics_history["timestamps"]
+
+    cpu_path = "cpu_graph.png"
+    rogue_path = "rogue_graph.png"
+
+    # CPU Graph
+    plt.figure()
+    plt.plot(time_labels, cpu)
+    plt.title("CPU Usage Trend")
+    plt.xlabel("Time")
+    plt.ylabel("CPU %")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(cpu_path)
+    plt.close()
+
+    # Rogue Graph
+    plt.figure()
+    plt.plot(time_labels, rogue)
+    plt.title("Rogue Activity Trend")
+    plt.xlabel("Time")
+    plt.ylabel("Rogue Count")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(rogue_path)
+    plt.close()
+
+    return cpu_path, rogue_path
+
+def generate_graphs():
+    cpu = analytics_history["cpu_avg"]
+    rogue = analytics_history["rogue_count"]
+    time_labels = analytics_history["timestamps"]
+
+    cpu_path = "cpu_graph.png"
+    rogue_path = "rogue_graph.png"
+
+    # CPU Graph
+    plt.figure()
+    plt.plot(time_labels, cpu)
+    plt.title("CPU Usage Trend")
+    plt.xlabel("Time")
+    plt.ylabel("CPU %")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(cpu_path)
+    plt.close()
+
+    # Rogue Graph
+    plt.figure()
+    plt.plot(time_labels, rogue)
+    plt.title("Rogue Activity Trend")
+    plt.xlabel("Time")
+    plt.ylabel("Rogue Count")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(rogue_path)
+    plt.close()
+
+    return cpu_path, rogue_path
+
 @app.route("/generate-report")
 def generate_report():
     if "user" not in session:
@@ -636,7 +700,8 @@ def generate_report():
 
     styles = getSampleStyleSheet()
     elements = []
-
+    elements.append(Image("static/logo.png", width=120, height=60))
+    elements.append(Spacer(1, 10))
     # Title
     elements.append(Paragraph("SCCSIMS Security Report", styles['Title']))
     elements.append(Spacer(1, 10))
@@ -645,6 +710,9 @@ def generate_report():
     now = datetime.now().strftime("%d %B %Y %H:%M:%S")
     elements.append(Paragraph(f"Generated on: {now}", styles['Normal']))
     elements.append(Spacer(1, 15))
+
+    #graph
+    cpu_graph, rogue_graph = generate_graphs()
 
     # Fetch data
     conn = get_db()
@@ -718,9 +786,20 @@ def generate_report():
         attack_data.append([a[0], a[1], a[2], fmt_timestamp(a[3])])
 
     elements.append(Table(attack_data))
+    # ───────── GRAPHS ─────────
+    elements.append(Paragraph("Analytics Graphs", styles['Heading2']))
+    elements.append(Spacer(1, 10))
+
+    if cpu_graph:
+        elements.append(Image(cpu_graph, width=400, height=200))
+        elements.append(Spacer(1, 10))
+
+    if rogue_graph:
+        elements.append(Image(rogue_graph, width=400, height=200))
+        elements.append(Spacer(1, 20))
 
     # Build PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=add_watermark, onLaterPages=add_watermark)
 
     buffer.seek(0)
     now = datetime.now()
@@ -909,6 +988,12 @@ def stop_scan():
     scan_control["stop"] = True
     return jsonify({"status": "stopped"})
 
+def add_watermark(canvas, doc):
+    canvas.saveState()
+    canvas.setFont("Helvetica", 40)
+    canvas.setFillGray(0.9)
+    canvas.drawCentredString(300, 400, "SCCSIMS")
+    canvas.restoreState()
 
 # ─────────────────────────────────────────────
 # STARTUP
