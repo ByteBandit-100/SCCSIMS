@@ -20,7 +20,7 @@ import numpy as np
 import tempfile
 
 # ─────────────────────────────────────────────
-# REPORTLAB IMPORTS (expanded for professional report)
+# REPORTLAB IMPORTS
 # ─────────────────────────────────────────────
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
@@ -29,7 +29,7 @@ from reportlab.platypus import (
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4
 
@@ -37,7 +37,7 @@ app = Flask(__name__)
 app.config.update({
     "SESSION_COOKIE_HTTPONLY": True,
     "SESSION_COOKIE_SAMESITE": "Lax",
-    "SESSION_COOKIE_SECURE": False,  # True if HTTPS
+    "SESSION_COOKIE_SECURE": False,
     "PERMANENT_SESSION_LIFETIME": timedelta(minutes=15)
 })
 
@@ -57,6 +57,7 @@ rogue_cache = []
 analytics_history = {
     "timestamps":    [],
     "cpu_avg":       [],
+    "ram_avg":       [],
     "total_devices": [],
     "rogue_count":   []
 }
@@ -172,11 +173,11 @@ def background_scanner():
     while True:
         start_time = time.time()
         try:
-            print("🔍 Scanning network...")
+            print("Scanning network...")
 
             with ThreadPoolExecutor(max_workers=2) as executor:
-                ping_future = executor.submit(scan_network)
-                arp_future  = executor.submit(scan_network_arp)
+                ping_future  = executor.submit(scan_network)
+                arp_future   = executor.submit(scan_network_arp)
                 ping_devices = set(ping_future.result())
                 arp_results  = arp_future.result()
 
@@ -193,11 +194,14 @@ def background_scanner():
             try:
                 conn   = get_db()
                 cursor = conn.cursor()
-                cursor.execute("SELECT cpu_usage FROM devices")
-                cpu_values = [safe_float(r[0]) for r in cursor.fetchall()]
+                cursor.execute("SELECT cpu_usage, ram_usage FROM devices")
+                rows = cursor.fetchall()
                 conn.close()
 
+                cpu_values = [safe_float(r[0]) for r in rows]
+                ram_values = [safe_float(r[1]) for r in rows]
                 avg_cpu = sum(cpu_values) / len(cpu_values) if cpu_values else 0
+                avg_ram = sum(ram_values) / len(ram_values) if ram_values else 0
 
                 conn   = get_db()
                 cursor = conn.cursor()
@@ -205,11 +209,10 @@ def background_scanner():
                 trusted_rows = cursor.fetchall()
                 conn.close()
 
-                trusted_ips  = set(r[0] for r in trusted_rows)
                 trusted_macs = set(r[1] for r in trusted_rows)
+                trusted_ips  = set(r[0] for r in trusted_rows)
 
                 global rogue_cache
-
                 rogue_devices = detect_rogue_logic(trusted_macs, trusted_ips)
 
                 with lock:
@@ -220,6 +223,7 @@ def background_scanner():
                 MAX_POINTS = 20
                 analytics_history["timestamps"].append(timestamp)
                 analytics_history["cpu_avg"].append(round(avg_cpu, 2))
+                analytics_history["ram_avg"].append(round(avg_ram, 2))
                 analytics_history["total_devices"].append(len(all_devices))
                 analytics_history["rogue_count"].append(len(rogue_devices))
 
@@ -230,10 +234,10 @@ def background_scanner():
             except Exception as e:
                 print("Analytics Error:", e)
 
-            print(f"✅ Scan done — {len(all_devices)} devices found")
+            print(f"Scan done - {len(all_devices)} devices found")
 
         except Exception as e:
-            print("❌ Scan error:", e)
+            print("Scan error:", e)
 
         elapsed    = time.time() - start_time
         sleep_time = max(5, 10 - elapsed)
@@ -244,7 +248,7 @@ def safe_background():
         try:
             background_scanner()
         except Exception as e:
-            print("🔥 Scanner crashed, restarting in 3s...", e)
+            print("Scanner crashed, restarting in 3s...", e)
             time.sleep(3)
 
 
@@ -285,7 +289,7 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
     with lock:
         arp_results = list(network_cache["arp"])
 
-    arp_table    = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
+    arp_table     = {d["ip"]: normalize_mac(d["mac"]) for d in arp_results}
     rogue_devices = []
     ip_seen       = {}
     mac_seen      = {}
@@ -302,29 +306,28 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
         if ip in ip_mac_history:
             old_mac, last_time = ip_mac_history[ip]
             if old_mac != mac and (current_time - last_time).total_seconds() < 60:
-                status_list.append("⚠ MAC Spoofing Detected")
+                status_list.append("MAC Spoofing Detected")
         ip_mac_history[ip] = (mac, current_time)
 
         if mac in mac_ip_history:
             old_ip = mac_ip_history[mac]
             if old_ip != ip:
-                status_list.append("⚠ IP Spoofing Detected")
+                status_list.append("IP Spoofing Detected")
         mac_ip_history[mac] = ip
 
         if ip in ip_seen and ip_seen[ip] != mac:
-            status_list.append("⚠ Duplicate IP Conflict")
+            status_list.append("Duplicate IP Conflict")
         ip_seen[ip] = mac
 
         if mac in mac_seen and mac_seen[mac] != ip:
-            status_list.append("⚠ Duplicate MAC Detected")
+            status_list.append("Duplicate MAC Detected")
         mac_seen[mac] = ip
 
         if status_list:
             status = " | ".join(status_list)
-            print(f"🚨 ROGUE: {ip} {mac} → {status}")
+            print(f"ROGUE: {ip} {mac} -> {status}")
             if ip not in [r["ip"] for r in rogue_devices]:
                 log_rogue_attack(ip, mac, status)
-
             rogue_devices.append({"ip": ip, "mac": mac, "status": status})
 
     return rogue_devices
@@ -347,9 +350,9 @@ def login():
         conn.close()
 
         if user and check_password_hash(user[2], password):
-            session["user"] = username
+            session["user"]        = username
             session["last_active"] = datetime.now().timestamp()
-            session.permanent = True
+            session.permanent      = True
             return redirect("/")
 
         return render_template("login.html", error="Invalid Credentials")
@@ -380,9 +383,9 @@ def dashboard():
     trusted_rows = cursor.fetchall()
     conn.close()
 
-    current_time = datetime.now()
-    trusted_ips  = set(r[0] for r in trusted_rows)
-    trusted_macs = set(r[1] for r in trusted_rows)
+    current_time    = datetime.now()
+    trusted_ips     = set(r[0] for r in trusted_rows)
+    trusted_macs    = set(r[1] for r in trusted_rows)
     trusted_devices = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
 
     devices = []
@@ -410,7 +413,6 @@ def dashboard():
 
     with lock:
         rogue_devices = list(rogue_cache)
-
     with lock:
         arp_results = list(network_cache["arp"])
 
@@ -418,9 +420,8 @@ def dashboard():
     arp_ips        = set(arp_map.keys())
     db_ips         = set(d["ip_address"] for d in devices)
     trusted_ip_set = set(d["ip"] for d in trusted_devices)
-
-    all_ips    = arp_ips | db_ips | trusted_ip_set
-    device_map = {d["ip_address"]: d for d in devices}
+    all_ips        = arp_ips | db_ips | trusted_ip_set
+    device_map     = {d["ip_address"]: d for d in devices}
 
     final_devices = []
     for ip in all_ips:
@@ -435,11 +436,11 @@ def dashboard():
     unique        = {d["ip"]: d for d in final_devices}
     final_devices = list(unique.values())
 
-    total_devices  = len(final_devices)
-    online_devices = sum(1 for d in final_devices if d["status"] == "ONLINE")
-    offline_devices= total_devices - online_devices
-    rogue_count    = len(set(d["ip"] for d in rogue_devices))
-    trusted_count  = len(trusted_ips)
+    total_devices   = len(final_devices)
+    online_devices  = sum(1 for d in final_devices if d["status"] == "ONLINE")
+    offline_devices = total_devices - online_devices
+    rogue_count     = len(set(d["ip"] for d in rogue_devices))
+    trusted_count   = len(trusted_ips)
 
     return render_template(
         "dashboard.html",
@@ -541,7 +542,6 @@ def approve_device():
 
     conn   = get_db()
     cursor = conn.cursor()
-
     cursor.execute("SELECT id FROM trusted_devices WHERE mac_address=?", (mac,))
     exists = cursor.fetchone()
 
@@ -550,10 +550,8 @@ def approve_device():
             INSERT INTO trusted_devices (ip_address, mac_address, device_name, location)
             VALUES (?, ?, ?, ?)
         """, (ip, mac, "Approved Device", "Network"))
-        print(f"✅ Approved: {ip} ({mac})")
     else:
         cursor.execute("UPDATE trusted_devices SET ip_address=? WHERE mac_address=?", (ip, mac))
-        print(f"ℹ️  Already trusted, updated IP: {ip} ({mac})")
 
     conn.commit()
     conn.close()
@@ -563,13 +561,11 @@ def approve_device():
 @app.route("/disapprove-device", methods=["POST"])
 def disapprove_device():
     mac = request.form.get("mac")
-
     conn   = get_db()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM trusted_devices WHERE mac_address=?", (mac,))
     conn.commit()
     conn.close()
-
     return jsonify({"status": "success"})
 
 
@@ -606,13 +602,10 @@ def live_data():
             "status":   status
         })
 
-    trusted_ips  = set(r[0] for r in trusted_rows)
-    trusted_macs = set(r[1] for r in trusted_rows)
     trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
 
     with lock:
         rogue = list(rogue_cache)
-
     with lock:
         arp_results = list(network_cache["arp"])
     arp_ips = set(d["ip"] for d in arp_results)
@@ -633,7 +626,6 @@ def live_data():
                 if d["ip"] == ip:
                     status = d["status"]
                     break
-
         final.append({"ip": ip, "status": status})
 
     return jsonify({
@@ -647,39 +639,52 @@ def live_data():
     })
 
 
+@app.before_request
+def manage_session():
+    session.permanent = True
+    if "user" in session:
+        now         = datetime.now().timestamp()
+        last_active = session.get("last_active", now)
+        if now - last_active > 900:
+            session.clear()
+            return redirect("/login")
+        session["last_active"] = now
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# ██████████████████  REPORT GENERATION — FULLY IMPROVED  ██████████████████████
+# ██████████████████  REPORT GENERATION — FIXED & COMPLETE  ████████████████════
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ── Report colour palette ──────────────────────────────────────────────────────
-RPT_DARK_BLUE   = HexColor("#1a237e")
-RPT_MED_BLUE    = HexColor("#283593")
-RPT_ACCENT_BLUE = HexColor("#1565c0")
-RPT_LIGHT_BLUE  = HexColor("#e8eaf6")
-RPT_PALE_BLUE   = HexColor("#f5f7ff")
-RPT_GREEN       = HexColor("#1b5e20")
-RPT_LIGHT_GREEN = HexColor("#e8f5e9")
-RPT_RED         = HexColor("#b71c1c")
-RPT_LIGHT_RED   = HexColor("#ffebee")
-RPT_ORANGE      = HexColor("#e65100")
-RPT_LIGHT_ORANGE= HexColor("#fff3e0")
-RPT_GREY        = HexColor("#616161")
-RPT_LIGHT_GREY  = HexColor("#f5f5f5")
-RPT_MID_GREY    = HexColor("#e0e0e0")
-RPT_WHITE       = colors.white
-RPT_BLACK       = colors.black
+# ── Palette ───────────────────────────────────────────────────────────────────
+RPT_DARK_BLUE    = HexColor("#1a237e")
+RPT_MED_BLUE     = HexColor("#283593")
+RPT_ACCENT_BLUE  = HexColor("#1565c0")
+RPT_LIGHT_BLUE   = HexColor("#e8eaf6")
+RPT_PALE_BLUE    = HexColor("#f5f7ff")
+RPT_GREEN        = HexColor("#1b5e20")
+RPT_LIGHT_GREEN  = HexColor("#e8f5e9")
+RPT_RED          = HexColor("#b71c1c")
+RPT_LIGHT_RED    = HexColor("#ffebee")
+RPT_ORANGE       = HexColor("#e65100")
+RPT_LIGHT_ORANGE = HexColor("#fff3e0")
+RPT_GREY         = HexColor("#616161")
+RPT_LIGHT_GREY   = HexColor("#f5f5f5")
+RPT_MID_GREY     = HexColor("#e0e0e0")
+RPT_WHITE        = colors.white
+RPT_BLACK        = colors.black
 
-# ── Health-level config ────────────────────────────────────────────────────────
 HEALTH_CONFIG = {
-    "LOW RISK":    {"color": RPT_GREEN,  "bg": RPT_LIGHT_GREEN,  "icon": "✔"},
-    "MEDIUM RISK": {"color": RPT_ORANGE, "bg": RPT_LIGHT_ORANGE, "icon": "⚠"},
-    "HIGH RISK":   {"color": RPT_RED,    "bg": RPT_LIGHT_RED,    "icon": "✖"},
-    "UNKNOWN":     {"color": RPT_GREY,   "bg": RPT_LIGHT_GREY,   "icon": "?"},
+    "LOW RISK":    {"color": RPT_GREEN,  "bg": RPT_LIGHT_GREEN,  "label": "GOOD"},
+    "MEDIUM RISK": {"color": RPT_ORANGE, "bg": RPT_LIGHT_ORANGE, "label": "CAUTION"},
+    "HIGH RISK":   {"color": RPT_RED,    "bg": RPT_LIGHT_RED,    "label": "CRITICAL"},
+    "UNKNOWN":     {"color": RPT_GREY,   "bg": RPT_LIGHT_GREY,   "label": "UNKNOWN"},
 }
+
+# Header stripe height in points — must match topMargin
+_HEADER_H = 82
 
 
 def calculate_system_health(total, rogue):
-    """Return health string based on rogue-to-total ratio."""
     if total == 0:
         return "UNKNOWN"
     ratio = rogue / total
@@ -690,421 +695,450 @@ def calculate_system_health(total, rogue):
     return "LOW RISK"
 
 
-# ── Diagonal watermark ─────────────────────────────────────────────────────────
-def add_watermark(canvas, doc):
-    """Render a diagonal 'SCCSIMS' watermark across every page."""
+# ── Mutable context passed into canvas callbacks ───────────────────────────────
+_rpt_ctx = {}
+
+
+# ── Canvas: diagonal watermark ────────────────────────────────────────────────
+def _draw_watermark(canvas, doc):
+    pw, ph = doc.pagesize
     canvas.saveState()
-    page_w, page_h = doc.pagesize
-    canvas.translate(page_w / 2, page_h / 2)
+    canvas.translate(pw / 2, ph / 2)
     canvas.rotate(45)
     canvas.setFont("Helvetica-Bold", 80)
-    canvas.setFillGray(0.90)          # very light — won't compete with content
+    canvas.setFillGray(0.92)
     canvas.drawCentredString(0, 0, "SCCSIMS")
     canvas.restoreState()
 
 
-# ── Custom first-page callback (header stripe + watermark) ────────────────────
+# ── Canvas: page 1 header — drawn ON CANVAS so white text is visible ─────────
+def _draw_page1_header(canvas, doc):
+    """
+    FIX: title, logo, timestamp rendered directly onto the blue stripe
+    via the canvas API — NOT as flowable elements.
+    This guarantees white text always appears on the dark background.
+    """
+    pw, ph = doc.pagesize
+
+    canvas.saveState()
+
+    # Blue stripe
+    canvas.setFillColor(RPT_DARK_BLUE)
+    canvas.rect(0, ph - _HEADER_H, pw, _HEADER_H, stroke=0, fill=1)
+
+    # Amber accent line below stripe
+    canvas.setFillColor(HexColor("#ffd600"))
+    canvas.rect(0, ph - _HEADER_H - 3, pw, 3, stroke=0, fill=1)
+
+    # Logo (left of stripe)
+    logo_path = _rpt_ctx.get("logo_path", "")
+    logo_drawn = False
+    if logo_path and os.path.exists(logo_path):
+        try:
+            from reportlab.lib.utils import ImageReader
+            ir = ImageReader(logo_path)
+            lw, lh = 52, 26
+            ly = ph - _HEADER_H + (_HEADER_H - lh) / 2
+            canvas.drawImage(ir, 16, ly, width=lw, height=lh,
+                             preserveAspectRatio=True, mask="auto")
+            logo_drawn = True
+        except Exception:
+            pass
+
+    tx = 76 if logo_drawn else 16   # text x start
+
+    # Title
+    canvas.setFillColor(colors.white)
+    canvas.setFont("Helvetica-Bold", 19)
+    canvas.drawString(tx, ph - _HEADER_H + 40, "SCCSIMS Security Report")
+
+    # Generated timestamp + operator
+    canvas.setFont("Helvetica", 8.5)
+    canvas.setFillColor(HexColor("#bbdefb"))
+    canvas.drawString(
+        tx, ph - _HEADER_H + 20,
+        f"Generated: {_rpt_ctx.get('now_str', '')}   |   Operator: {_rpt_ctx.get('operator', 'admin')}"
+    )
+
+    canvas.restoreState()
+
+
+# ── Canvas: thin header bar for pages 2+ ──────────────────────────────────────
+def _draw_page_header(canvas, doc):
+    pw, ph = doc.pagesize
+    canvas.saveState()
+    canvas.setFillColor(RPT_DARK_BLUE)
+    canvas.rect(0, ph - 22, pw, 22, stroke=0, fill=1)
+    canvas.setFillColor(colors.white)
+    canvas.setFont("Helvetica-Bold", 8)
+    canvas.drawString(16, ph - 15, "SCCSIMS Security Report")
+    canvas.setFont("Helvetica", 8)
+    canvas.drawRightString(pw - 16, ph - 15, _rpt_ctx.get("now_str", ""))
+    canvas.restoreState()
+
+
+# ── Canvas: footer ────────────────────────────────────────────────────────────
+def _draw_footer(canvas, doc):
+    pw, _ = doc.pagesize
+    canvas.saveState()
+    canvas.setStrokeColor(RPT_MID_GREY)
+    canvas.setLineWidth(0.5)
+    canvas.line(36, 30, pw - 36, 30)
+    canvas.setFont("Helvetica", 7.5)
+    canvas.setFillColor(RPT_GREY)
+    canvas.drawString(36, 14,
+        "SCCSIMS — Smart Campus & Corporate Security Infrastructure Monitoring System")
+    canvas.drawRightString(pw - 36, 14, f"Page {doc.page}")
+    canvas.restoreState()
+
+
 def _on_first_page(canvas, doc):
-    add_watermark(canvas, doc)
-    _draw_header_stripe(canvas, doc)
-
-
-def _on_later_pages(canvas, doc):
-    add_watermark(canvas, doc)
+    _draw_watermark(canvas, doc)
+    _draw_page1_header(canvas, doc)
     _draw_footer(canvas, doc)
 
 
-def _draw_header_stripe(canvas, doc):
-    """Paint a dark-blue top stripe with a subtle accent line on page 1."""
-    page_w, page_h = doc.pagesize
-    canvas.saveState()
-    canvas.setFillColor(RPT_DARK_BLUE)
-    canvas.rect(0, page_h - 72, page_w, 72, stroke=0, fill=1)
-    canvas.setFillColor(HexColor("#ffd600"))   # amber accent
-    canvas.rect(0, page_h - 75, page_w, 3, stroke=0, fill=1)
-    canvas.restoreState()
+def _on_later_pages(canvas, doc):
+    _draw_watermark(canvas, doc)
+    _draw_page_header(canvas, doc)
+    _draw_footer(canvas, doc)
 
 
-def _draw_footer(canvas, doc):
-    """Page number footer on every page except the first."""
-    page_w, _ = doc.pagesize
-    canvas.saveState()
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(RPT_GREY)
-    canvas.drawCentredString(page_w / 2, 20, f"SCCSIMS Security Report  •  Page {doc.page}")
-    canvas.setStrokeColor(RPT_MID_GREY)
-    canvas.line(40, 30, page_w - 40, 30)
-    canvas.restoreState()
-
-
-# ── Graph generation ───────────────────────────────────────────────────────────
-def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_count=0):
-    """
-    Generate four analytics graphs and return their file paths.
-
-    Returns
-    -------
-    cpu_path, rogue_path, pie_path, combined_path
-    """
-
-    timestamps  = analytics_history["timestamps"]
-    cpu_data    = analytics_history["cpu_avg"]
-    rogue_data  = analytics_history["rogue_count"]
-    total_data  = analytics_history["total_devices"]
-
-    # ── helper: apply consistent style ──────────────────────────────────────
-    def _style_axes(ax, title, xlabel, ylabel):
-        ax.set_title(title, fontsize=11, fontweight="bold", color="#1a237e", pad=10)
-        ax.set_xlabel(xlabel, fontsize=8, color="#616161")
-        ax.set_ylabel(ylabel, fontsize=8, color="#616161")
-        ax.tick_params(axis="both", labelsize=7, colors="#616161")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_color("#bdbdbd")
-        ax.spines["bottom"].set_color("#bdbdbd")
-        ax.set_facecolor("#fafafa")
-        ax.grid(True, linestyle="--", linewidth=0.5, color="#e0e0e0", alpha=0.8)
-
-    tmpdir = tempfile.gettempdir()
-
-    # ── 1. CPU Usage Trend ───────────────────────────────────────────────────
-    cpu_path = os.path.join(tmpdir, "sccsims_cpu.png")
-    fig, ax = plt.subplots(figsize=(7.5, 3))
-    fig.patch.set_facecolor("#ffffff")
-    if timestamps and cpu_data:
-        xs = list(range(len(timestamps)))
-        ax.plot(xs, cpu_data, color="#1565c0", linewidth=2, marker="o",
-                markersize=4, zorder=3)
-        ax.fill_between(xs, cpu_data, alpha=0.12, color="#1565c0")
-        step = max(1, len(timestamps) // 8)
-        ax.set_xticks(xs[::step])
-        ax.set_xticklabels(timestamps[::step], rotation=35, ha="right", fontsize=7)
-        ax.set_ylim(0, 105)
-        # highlight danger zone
-        ax.axhspan(80, 105, alpha=0.06, color="red")
-        ax.axhline(80, color="#e53935", linewidth=0.8, linestyle="--", alpha=0.6)
-        ax.text(0, 81, "High  ", fontsize=6, color="#e53935", va="bottom", ha="left")
-    else:
-        ax.text(0.5, 0.5, "Insufficient data", ha="center", va="center",
-                transform=ax.transAxes, color="#9e9e9e", fontsize=10)
-    _style_axes(ax, "CPU Usage Trend (%)", "Time", "CPU %")
-    plt.tight_layout(pad=1.2)
-    plt.savefig(cpu_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
-    plt.close()
-
-    # ── 2. Rogue Activity Trend ──────────────────────────────────────────────
-    rogue_path = os.path.join(tmpdir, "sccsims_rogue.png")
-    fig, ax = plt.subplots(figsize=(7.5, 3))
-    fig.patch.set_facecolor("#ffffff")
-    if timestamps and rogue_data:
-        xs = list(range(len(timestamps)))
-        ax.plot(xs, rogue_data, color="#c62828", linewidth=2, marker="s",
-                markersize=4, zorder=3)
-        ax.fill_between(xs, rogue_data, alpha=0.12, color="#c62828")
-        step = max(1, len(timestamps) // 8)
-        ax.set_xticks(xs[::step])
-        ax.set_xticklabels(timestamps[::step], rotation=35, ha="right", fontsize=7)
-        ax.yaxis.get_major_locator().set_params(integer=True)
-    else:
-        ax.text(0.5, 0.5, "No rogue activity recorded", ha="center", va="center",
-                transform=ax.transAxes, color="#9e9e9e", fontsize=10)
-    _style_axes(ax, "Rogue Device Activity Trend", "Time", "Rogue Count")
-    plt.tight_layout(pad=1.2)
-    plt.savefig(rogue_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
-    plt.close()
-
-    # ── 3. Device Distribution Pie Chart ────────────────────────────────────
-    pie_path = os.path.join(tmpdir, "sccsims_pie.png")
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3.5))
-    fig.patch.set_facecolor("#ffffff")
-
-    # Pie 1 — Online / Offline / Rogue
-    online_clean  = max(0, online_count - rogue_count)
-    pie1_vals  = [online_clean, offline_count, rogue_count]
-    pie1_labels= ["Online", "Offline", "Rogue"]
-    pie1_colors= ["#43a047", "#78909c", "#e53935"]
-    pie1_vals_f = [v for v in pie1_vals if v > 0]
-    pie1_labels_f = [pie1_labels[i] for i, v in enumerate(pie1_vals) if v > 0]
-    pie1_colors_f = [pie1_colors[i] for i, v in enumerate(pie1_vals) if v > 0]
-
-    if sum(pie1_vals_f) > 0:
-        wedges, texts, autotexts = axes[0].pie(
-            pie1_vals_f, labels=None,
-            colors=pie1_colors_f,
-            autopct="%1.1f%%", startangle=140,
-            wedgeprops={"edgecolor": "white", "linewidth": 1.5},
-            pctdistance=0.78
-        )
-        for at in autotexts:
-            at.set_fontsize(8)
-            at.set_color("white")
-            at.set_fontweight("bold")
-        axes[0].legend(wedges, pie1_labels_f, loc="lower center",
-                       bbox_to_anchor=(0.5, -0.18), ncol=3, fontsize=7,
-                       frameon=False)
-    else:
-        axes[0].text(0, 0, "No data", ha="center", va="center", color="#9e9e9e")
-    axes[0].set_title("Device Status Distribution", fontsize=9, fontweight="bold",
-                      color="#1a237e", pad=8)
-
-    # Pie 2 — Trusted vs Unauthorized
-    unauth = max(0, (online_count + offline_count) - trusted_count)
-    pie2_vals  = [trusted_count, unauth]
-    pie2_labels= ["Trusted", "Unauthorized"]
-    pie2_colors= ["#1565c0", "#ef6c00"]
-    pie2_vals_f = [v for v in pie2_vals if v > 0]
-    pie2_labels_f = [pie2_labels[i] for i, v in enumerate(pie2_vals) if v > 0]
-    pie2_colors_f = [pie2_colors[i] for i, v in enumerate(pie2_vals) if v > 0]
-
-    if sum(pie2_vals_f) > 0:
-        wedges2, texts2, autotexts2 = axes[1].pie(
-            pie2_vals_f, labels=None,
-            colors=pie2_colors_f,
-            autopct="%1.1f%%", startangle=90,
-            wedgeprops={"edgecolor": "white", "linewidth": 1.5},
-            pctdistance=0.78
-        )
-        for at in autotexts2:
-            at.set_fontsize(8)
-            at.set_color("white")
-            at.set_fontweight("bold")
-        axes[1].legend(wedges2, pie2_labels_f, loc="lower center",
-                       bbox_to_anchor=(0.5, -0.18), ncol=2, fontsize=7,
-                       frameon=False)
-    else:
-        axes[1].text(0, 0, "No data", ha="center", va="center", color="#9e9e9e")
-    axes[1].set_title("Trust Distribution", fontsize=9, fontweight="bold",
-                      color="#1a237e", pad=8)
-
-    plt.tight_layout(pad=1.5)
-    plt.savefig(pie_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
-    plt.close()
-
-    # ── 4. Combined Timeline Bar Chart (total / online / rogue stacked) ──────
-    combined_path = os.path.join(tmpdir, "sccsims_combined.png")
-    fig, ax = plt.subplots(figsize=(7.5, 3))
-    fig.patch.set_facecolor("#ffffff")
-    if timestamps and total_data:
-        xs   = np.arange(len(timestamps))
-        w    = 0.28
-        step = max(1, len(timestamps) // 8)
-
-        bar_total  = ax.bar(xs - w, total_data,  w*0.9, label="Total",  color="#90caf9", zorder=2)
-        bar_rogue  = ax.bar(xs,     rogue_data,  w*0.9, label="Rogue",  color="#ef9a9a", zorder=2)
-
-        # Add value labels on bars
-        for rect in list(bar_total) + list(bar_rogue):
-            h = rect.get_height()
-            if h > 0:
-                ax.text(rect.get_x() + rect.get_width() / 2, h + 0.1,
-                        str(int(h)), ha="center", va="bottom", fontsize=6, color="#424242")
-
-        ax.set_xticks(xs[::step])
-        ax.set_xticklabels(timestamps[::step], rotation=35, ha="right", fontsize=7)
-        ax.yaxis.get_major_locator().set_params(integer=True)
-        ax.legend(fontsize=7, frameon=False)
-    else:
-        ax.text(0.5, 0.5, "Insufficient data", ha="center", va="center",
-                transform=ax.transAxes, color="#9e9e9e", fontsize=10)
-    _style_axes(ax, "Network Activity Overview (Total vs Rogue)", "Time", "Count")
-    plt.tight_layout(pad=1.2)
-    plt.savefig(combined_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
-    plt.close()
-
-    return cpu_path, rogue_path, pie_path, combined_path
-
-
-# ── Report helper — build custom styles ───────────────────────────────────────
+# ── Style builder ─────────────────────────────────────────────────────────────
 def _build_styles():
     base = getSampleStyleSheet()
-    styles = {}
+    st   = {}
 
-    styles["report_title"] = ParagraphStyle(
-        "ReportTitle",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=22,
-        textColor=RPT_WHITE,
-        alignment=TA_CENTER,
-        spaceAfter=2,
-        leading=26,
+    st["section_heading"] = ParagraphStyle(
+        "SH", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=11,
+        textColor=RPT_DARK_BLUE, spaceBefore=8, spaceAfter=3,
     )
-    styles["report_subtitle"] = ParagraphStyle(
-        "ReportSubtitle",
-        parent=base["Normal"],
-        fontName="Helvetica",
-        fontSize=10,
-        textColor=HexColor("#bbdefb"),
-        alignment=TA_CENTER,
-        spaceAfter=4,
+    st["kpi_label"] = ParagraphStyle(
+        "KL", parent=base["Normal"],
+        fontName="Helvetica", fontSize=7.5,
+        textColor=RPT_GREY, alignment=TA_CENTER, leading=9,
     )
-    styles["section_heading"] = ParagraphStyle(
-        "SectionHeading",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=12,
-        textColor=RPT_DARK_BLUE,
-        spaceBefore=14,
-        spaceAfter=5,
-        borderPad=4,
+    st["kpi_value"] = ParagraphStyle(
+        "KVB", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=18,
+        textColor=RPT_DARK_BLUE, alignment=TA_CENTER, leading=22,
     )
-    styles["kpi_label"] = ParagraphStyle(
-        "KpiLabel",
-        parent=base["Normal"],
-        fontName="Helvetica",
-        fontSize=8,
-        textColor=RPT_GREY,
-        alignment=TA_CENTER,
-        leading=10,
+    st["health_text"] = ParagraphStyle(
+        "HT", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=12,
+        alignment=TA_CENTER, leading=16,
     )
-    styles["kpi_value"] = ParagraphStyle(
-        "KpiValue",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=20,
-        textColor=RPT_DARK_BLUE,
-        alignment=TA_CENTER,
-        leading=24,
+    st["normal_sm"] = ParagraphStyle(
+        "NS", parent=base["Normal"],
+        fontName="Helvetica", fontSize=7.5,
+        textColor=RPT_GREY, spaceAfter=2, leading=10,
     )
-    styles["health_text"] = ParagraphStyle(
-        "HealthText",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=13,
-        alignment=TA_CENTER,
-        leading=18,
+    st["note"] = ParagraphStyle(
+        "NO", parent=base["Normal"],
+        fontName="Helvetica-Oblique", fontSize=7.5,
+        textColor=RPT_GREY, spaceBefore=3, leading=10,
     )
-    styles["normal_sm"] = ParagraphStyle(
-        "NormalSm",
-        parent=base["Normal"],
-        fontName="Helvetica",
-        fontSize=8,
-        textColor=RPT_GREY,
-        spaceAfter=2,
+    # word-wrapping cell styles
+    st["wrap"] = ParagraphStyle(
+        "WR", parent=base["Normal"],
+        fontName="Helvetica", fontSize=7,
+        textColor=RPT_BLACK, leading=9, wordWrap="LTR",
     )
-    styles["note"] = ParagraphStyle(
-        "Note",
-        parent=base["Normal"],
-        fontName="Helvetica-Oblique",
-        fontSize=7.5,
-        textColor=RPT_GREY,
-        spaceBefore=4,
+    st["wrap_bold"] = ParagraphStyle(
+        "WRB", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=7,
+        textColor=RPT_BLACK, leading=9, wordWrap="LTR",
     )
-
-    return styles
+    st["wrap_red"] = ParagraphStyle(
+        "WRR", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=7,
+        textColor=RPT_RED, leading=9, wordWrap="LTR",
+    )
+    st["wrap_green"] = ParagraphStyle(
+        "WRG", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=7,
+        textColor=RPT_GREEN, leading=9, wordWrap="LTR",
+    )
+    return st
 
 
-# ── Table style factories ──────────────────────────────────────────────────────
-def _header_table_style(header_bg=None):
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def _tbl_style(header_bg=None):
     if header_bg is None:
         header_bg = RPT_MED_BLUE
     return TableStyle([
-        # Header row
-        ("BACKGROUND",   (0, 0), (-1, 0), header_bg),
-        ("TEXTCOLOR",    (0, 0), (-1, 0), RPT_WHITE),
-        ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE",     (0, 0), (-1, 0), 8),
-        ("ALIGN",        (0, 0), (-1, 0), "CENTER"),
-        ("BOTTOMPADDING",(0, 0), (-1, 0), 7),
-        ("TOPPADDING",   (0, 0), (-1, 0), 7),
-        # Data rows
-        ("FONTNAME",     (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE",     (0, 1), (-1, -1), 7.5),
-        ("ALIGN",        (0, 1), (-1, -1), "CENTER"),
-        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",   (0, 1), (-1, -1), 5),
-        ("BOTTOMPADDING",(0, 1), (-1, -1), 5),
-        # Alternating rows
+        ("BACKGROUND",    (0, 0), (-1,  0), header_bg),
+        ("TEXTCOLOR",     (0, 0), (-1,  0), RPT_WHITE),
+        ("FONTNAME",      (0, 0), (-1,  0), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1,  0), 7.5),
+        ("ALIGN",         (0, 0), (-1,  0), "CENTER"),
+        ("TOPPADDING",    (0, 0), (-1,  0), 6),
+        ("BOTTOMPADDING", (0, 0), (-1,  0), 6),
+        ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE",      (0, 1), (-1, -1), 7),
+        ("ALIGN",         (0, 1), (-1, -1), "CENTER"),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 1), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
         ("ROWBACKGROUNDS",(0, 1), (-1, -1), [RPT_WHITE, RPT_PALE_BLUE]),
-        # Grid
-        ("GRID",         (0, 0), (-1, -1), 0.4, HexColor("#c5cae9")),
-        ("LINEBELOW",    (0, 0), (-1, 0), 1.2, RPT_DARK_BLUE),
-        ("LINEABOVE",    (0, 0), (-1, 0), 1.2, RPT_DARK_BLUE),
-        ("ROUNDEDCORNERS", [3]),
+        ("GRID",          (0, 0), (-1, -1), 0.35, HexColor("#c5cae9")),
+        ("LINEBELOW",     (0, 0), (-1,  0), 1.5, RPT_DARK_BLUE),
     ])
 
 
-def _section_divider(label, st):
-    """Return a tinted heading bar element."""
+def _section_bar(label, st):
     tbl = Table([[Paragraph(f"  {label}", st["section_heading"])]], colWidths=["100%"])
     tbl.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, -1), RPT_LIGHT_BLUE),
-        ("LINEBELOW",     (0, 0), (-1, -1), 2, RPT_ACCENT_BLUE),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ("TOPPADDING",    (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LINEBELOW",     (0, 0), (-1, -1), 2,   RPT_ACCENT_BLUE),
+        ("LINEABOVE",     (0, 0), (-1, -1), 0.5, RPT_ACCENT_BLUE),
+        ("TOPPADDING",    (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
     ]))
     return tbl
 
 
-# ── Status pill helper ─────────────────────────────────────────────────────────
-def _status_pill(status_str, st):
-    """Return a coloured Paragraph acting as a status badge."""
-    s = (status_str or "").upper()
-    if s == "ONLINE":
-        color = "#1b5e20"
-        bg    = "#c8e6c9"
-    elif s == "OFFLINE":
-        color = "#b71c1c"
-        bg    = "#ffcdd2"
+def _cell(text, st, key="wrap", color=None):
+    """Return a word-wrapping Paragraph for table cells. Never returns plain dash."""
+    val = str(text) if (text is not None and str(text).strip() not in ("", "None")) else "—"
+    if color:
+        sty = ParagraphStyle(f"cc_{key}", parent=st[key], textColor=color)
     else:
-        color = "#e65100"
-        bg    = "#ffe0b2"
+        sty = st[key]
+    return Paragraph(val, sty)
 
-    pill_style = ParagraphStyle(
-        "Pill",
-        parent=st["normal_sm"],
-        fontName="Helvetica-Bold",
-        fontSize=7,
-        textColor=HexColor(color),
-        backColor=HexColor(bg),
-        alignment=TA_CENTER,
-        borderRadius=4,
-        borderPad=3,
+
+def _status_pill(status_str, st):
+    """
+    FIX: ARP-only devices had status='' or '—'. Now we always resolve to
+    ONLINE or OFFLINE — never a dash.
+    """
+    s = (status_str or "").strip().upper()
+    if s not in ("ONLINE", "OFFLINE"):
+        # ARP-only devices responded to ARP scan → they are ONLINE
+        s = "ONLINE"
+
+    fg = "#1b5e20" if s == "ONLINE" else "#b71c1c"
+    bg = "#c8e6c9" if s == "ONLINE" else "#ffcdd2"
+
+    pill = ParagraphStyle(
+        f"Pill{s}", parent=st["normal_sm"],
+        fontName="Helvetica-Bold", fontSize=6.5,
+        textColor=HexColor(fg), backColor=HexColor(bg),
+        alignment=TA_CENTER, borderPad=2,
     )
-    return Paragraph(s, pill_style)
+    return Paragraph(s, pill)
 
-@app.before_request
-def manage_session():
-    session.permanent = True
 
-    if "user" in session:
-        now = datetime.now().timestamp()
+# ── Graph generation ──────────────────────────────────────────────────────────
+def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_count=0):
+    """
+    Returns: cpu_path, ram_path, rogue_path, pie_path, combined_path
+    FIX: added RAM graph; improved tick handling; no crashes on empty data.
+    """
+    timestamps = analytics_history["timestamps"]
+    cpu_data   = analytics_history["cpu_avg"]
+    ram_data   = analytics_history.get("ram_avg", [])
+    rogue_data = analytics_history["rogue_count"]
+    total_data = analytics_history["total_devices"]
+    tmpdir     = tempfile.gettempdir()
 
-        last_active = session.get("last_active", now)
+    def _ax_style(ax, title, xlabel, ylabel):
+        ax.set_title(title, fontsize=10, fontweight="bold", color="#1a237e", pad=8)
+        ax.set_xlabel(xlabel, fontsize=7.5, color="#616161")
+        ax.set_ylabel(ylabel, fontsize=7.5, color="#616161")
+        ax.tick_params(axis="both", labelsize=6.5, colors="#616161")
+        for sp in ["top", "right"]:
+            ax.spines[sp].set_visible(False)
+        ax.spines["left"].set_color("#bdbdbd")
+        ax.spines["bottom"].set_color("#bdbdbd")
+        ax.set_facecolor("#fafafa")
+        ax.grid(True, ls="--", lw=0.4, color="#e0e0e0", alpha=0.8)
 
-        # 15 min timeout
-        if now - last_active > 900:
-            session.clear()
-            return redirect("/login")
+    def _set_xticks(ax, xs, labels):
+        step = max(1, len(xs) // 8)
+        ax.set_xticks(xs[::step])
+        ax.set_xticklabels(labels[::step], rotation=35, ha="right", fontsize=6.5)
 
-        session["last_active"] = now
+    def _no_data_text(ax, msg="No data collected yet"):
+        ax.text(0.5, 0.5, msg, ha="center", va="center",
+                transform=ax.transAxes, color="#9e9e9e", fontsize=9)
 
-# ── Main report route ──────────────────────────────────────────────────────────
+    # ── 1. CPU Trend ─────────────────────────────────────────────────────────
+    cpu_path = os.path.join(tmpdir, "sccsims_cpu.png")
+    fig, ax = plt.subplots(figsize=(7.2, 2.8))
+    fig.patch.set_facecolor("#ffffff")
+    if timestamps and cpu_data:
+        xs = np.arange(len(timestamps))
+        ax.plot(xs, cpu_data, color="#1565c0", lw=2, marker="o", ms=3.5, zorder=3)
+        ax.fill_between(xs, cpu_data, alpha=0.10, color="#1565c0")
+        ax.axhspan(80, 105, alpha=0.06, color="red")
+        ax.axhline(80, color="#e53935", lw=0.8, ls="--", alpha=0.55)
+        ax.text(xs[0], 82, "High (80%)", fontsize=5.5, color="#e53935")
+        ax.set_ylim(0, 105)
+        _set_xticks(ax, xs, timestamps)
+    else:
+        _no_data_text(ax, "No CPU data collected yet")
+    _ax_style(ax, "Average CPU Usage Trend (%)", "Time", "CPU %")
+    plt.tight_layout(pad=1.1)
+    plt.savefig(cpu_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
+    plt.close()
+
+    # ── 2. RAM Trend (NEW) ───────────────────────────────────────────────────
+    ram_path = os.path.join(tmpdir, "sccsims_ram.png")
+    fig, ax = plt.subplots(figsize=(7.2, 2.8))
+    fig.patch.set_facecolor("#ffffff")
+    if timestamps and ram_data and any(v > 0 for v in ram_data):
+        xs = np.arange(len(timestamps))
+        ax.plot(xs, ram_data, color="#6a1b9a", lw=2, marker="D", ms=3.5, zorder=3)
+        ax.fill_between(xs, ram_data, alpha=0.10, color="#6a1b9a")
+        ax.axhspan(85, 105, alpha=0.06, color="red")
+        ax.axhline(85, color="#e53935", lw=0.8, ls="--", alpha=0.55)
+        ax.text(xs[0], 87, "High (85%)", fontsize=5.5, color="#e53935")
+        ax.set_ylim(0, 105)
+        _set_xticks(ax, xs, timestamps)
+    else:
+        _no_data_text(ax, "No RAM data collected yet")
+    _ax_style(ax, "Average RAM Usage Trend (%)", "Time", "RAM %")
+    plt.tight_layout(pad=1.1)
+    plt.savefig(ram_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
+    plt.close()
+
+    # ── 3. Rogue Trend ───────────────────────────────────────────────────────
+    rogue_path = os.path.join(tmpdir, "sccsims_rogue.png")
+    fig, ax = plt.subplots(figsize=(7.2, 2.8))
+    fig.patch.set_facecolor("#ffffff")
+    if timestamps and rogue_data:
+        xs = np.arange(len(timestamps))
+        ax.plot(xs, rogue_data, color="#c62828", lw=2, marker="s", ms=3.5, zorder=3)
+        ax.fill_between(xs, rogue_data, alpha=0.12, color="#c62828")
+        ax.yaxis.get_major_locator().set_params(integer=True)
+        _set_xticks(ax, xs, timestamps)
+    else:
+        _no_data_text(ax, "No rogue activity recorded")
+    _ax_style(ax, "Rogue Device Activity Trend", "Time", "Rogue Count")
+    plt.tight_layout(pad=1.1)
+    plt.savefig(rogue_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
+    plt.close()
+
+    # ── 4. Dual Pie ──────────────────────────────────────────────────────────
+    pie_path = os.path.join(tmpdir, "sccsims_pie.png")
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3.4))
+    fig.patch.set_facecolor("#ffffff")
+
+    online_clean = max(0, online_count - rogue_count)
+    p1 = [(online_clean, "Online",  "#43a047"),
+          (offline_count,"Offline", "#78909c"),
+          (rogue_count,  "Rogue",   "#e53935")]
+    p1 = [(v, l, c) for v, l, c in p1 if v > 0]
+    if p1:
+        ws, _, ats = axes[0].pie(
+            [x[0] for x in p1], labels=None,
+            colors=[x[2] for x in p1],
+            autopct="%1.1f%%", startangle=140,
+            wedgeprops={"edgecolor": "white", "linewidth": 1.5},
+            pctdistance=0.76,
+        )
+        for at in ats:
+            at.set_fontsize(7.5); at.set_color("white"); at.set_fontweight("bold")
+        axes[0].legend(ws, [x[1] for x in p1], loc="lower center",
+                       bbox_to_anchor=(0.5, -0.22), ncol=3, fontsize=7, frameon=False)
+    else:
+        axes[0].text(0, 0, "No data", ha="center", va="center", color="#9e9e9e")
+    axes[0].set_title("Device Status Distribution", fontsize=8.5,
+                      fontweight="bold", color="#1a237e", pad=6)
+
+    total_seen = online_count + offline_count
+    unauth     = max(0, total_seen - trusted_count)
+    p2 = [(min(trusted_count, total_seen), "Trusted",      "#1565c0"),
+          (unauth,                          "Unauthorized", "#ef6c00")]
+    p2 = [(v, l, c) for v, l, c in p2 if v > 0]
+    if p2:
+        ws2, _, ats2 = axes[1].pie(
+            [x[0] for x in p2], labels=None,
+            colors=[x[2] for x in p2],
+            autopct="%1.1f%%", startangle=90,
+            wedgeprops={"edgecolor": "white", "linewidth": 1.5},
+            pctdistance=0.76,
+        )
+        for at in ats2:
+            at.set_fontsize(7.5); at.set_color("white"); at.set_fontweight("bold")
+        axes[1].legend(ws2, [x[1] for x in p2], loc="lower center",
+                       bbox_to_anchor=(0.5, -0.22), ncol=2, fontsize=7, frameon=False)
+    else:
+        axes[1].text(0, 0, "No data", ha="center", va="center", color="#9e9e9e")
+    axes[1].set_title("Trust Distribution", fontsize=8.5,
+                      fontweight="bold", color="#1a237e", pad=6)
+
+    plt.tight_layout(pad=1.4)
+    plt.savefig(pie_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
+    plt.close()
+
+    # ── 5. Combined Bar ──────────────────────────────────────────────────────
+    combined_path = os.path.join(tmpdir, "sccsims_combined.png")
+    fig, ax = plt.subplots(figsize=(7.2, 2.8))
+    fig.patch.set_facecolor("#ffffff")
+    if timestamps and total_data:
+        xs = np.arange(len(timestamps))
+        w  = 0.30
+        b1 = ax.bar(xs - w / 2, total_data, w, label="Total", color="#90caf9", zorder=2)
+        b2 = ax.bar(xs + w / 2, rogue_data, w, label="Rogue", color="#ef9a9a", zorder=2)
+        for rect in list(b1) + list(b2):
+            h = rect.get_height()
+            if h > 0:
+                ax.text(rect.get_x() + rect.get_width() / 2, h + 0.05,
+                        str(int(h)), ha="center", va="bottom", fontsize=5.5, color="#424242")
+        ax.yaxis.get_major_locator().set_params(integer=True)
+        ax.legend(fontsize=7, frameon=False, loc="upper right")
+        _set_xticks(ax, xs, timestamps)
+    else:
+        _no_data_text(ax, "Insufficient scan data")
+    _ax_style(ax, "Network Overview — Total vs Rogue Devices", "Time", "Count")
+    plt.tight_layout(pad=1.1)
+    plt.savefig(combined_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
+    plt.close()
+
+    return cpu_path, ram_path, rogue_path, pie_path, combined_path
+
+
+# ── Main report route ─────────────────────────────────────────────────────────
 @app.route("/generate-report")
 def generate_report():
     if "user" not in session:
         return redirect("/login")
 
-    st      = _build_styles()
-    buffer  = BytesIO()
-    doc     = SimpleDocTemplate(
+    st     = _build_styles()
+    buffer = BytesIO()
+
+    # FIX: topMargin must accommodate the canvas-drawn header stripe
+    TOP_MARGIN    = _HEADER_H + 8     # ~90 pt
+    BOTTOM_MARGIN = 42                # pt
+
+    doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        leftMargin=1.8 * cm,
-        rightMargin=1.8 * cm,
-        topMargin=2.6 * cm,
-        bottomMargin=1.8 * cm,
+        leftMargin=1.6 * cm,
+        rightMargin=1.6 * cm,
+        topMargin=TOP_MARGIN,
+        bottomMargin=BOTTOM_MARGIN,
         title="SCCSIMS Security Report",
         author="SCCSIMS",
     )
     page_w = A4[0] - doc.leftMargin - doc.rightMargin
     elems  = []
 
-    # ─── FETCH DATA ────────────────────────────────────────────────────────────
+    # Populate canvas callback context
+    _rpt_ctx["now_str"]   = datetime.now().strftime("%A, %d %B %Y  •  %H:%M:%S")
+    _rpt_ctx["operator"]  = session.get("user", "admin")
+    _rpt_ctx["logo_path"] = "static/logo.png"
+
+    # ── Fetch data ────────────────────────────────────────────────────────────
     conn   = get_db()
     cursor = conn.cursor()
-
     cursor.execute(
         "SELECT hostname, ip_address, mac_address, os, cpu_usage, ram_usage, location, last_seen "
         "FROM devices"
@@ -1124,24 +1158,25 @@ def generate_report():
     conn.close()
 
     with lock:
-        rogue_devices_live = list(rogue_cache)
-        arp_results        = list(network_cache["arp"])
+        rogue_live   = list(rogue_cache)
+        arp_results  = list(network_cache["arp"])
 
-    arp_ips     = set(d["ip"] for d in arp_results)
-    trusted_macs= set(normalize_mac(r[1]) for r in trusted_rows)
-    trusted_ips = set(r[0] for r in trusted_rows)
-
-    # ── Determine device statuses ──────────────────────────────────────────────
+    arp_ips      = set(d["ip"] for d in arp_results)
+    trusted_macs = set(normalize_mac(r[1]) for r in trusted_rows)
     current_time = datetime.now()
+
+    # ── Build enriched device list ────────────────────────────────────────────
     devices_enriched = []
+
     for row in db_devices:
         hostname, ip, mac, os_, cpu, ram, loc, last_seen = row
         mac_norm = normalize_mac(mac)
         try:
             ls_time = datetime.strptime(str(last_seen), "%Y-%m-%d %H:%M:%S")
-        except:
+        except Exception:
             ls_time = current_time
 
+        # FIX: ARP presence takes priority for online status
         if ip in arp_ips:
             status = "ONLINE"
         elif (current_time - ls_time).total_seconds() <= 30:
@@ -1150,408 +1185,377 @@ def generate_report():
             status = "OFFLINE"
 
         devices_enriched.append({
-            "hostname":  hostname or "—",
-            "ip":        ip or "—",
-            "mac":       mac_norm,
-            "os":        os_ or "—",
-            "cpu":       safe_float(cpu),
-            "ram":       safe_float(ram),
-            "location":  loc or "—",
-            "last_seen": last_seen or "—",
-            "status":    status,
-            "trusted":   mac_norm in trusted_macs,
+            "hostname":   hostname or "—",
+            "ip":         ip or "—",
+            "mac":        mac_norm,
+            "os":         os_ or "—",
+            "cpu":        safe_float(cpu),     # real value — agent reported
+            "ram":        safe_float(ram),
+            "location":   loc or "—",
+            "last_seen":  last_seen or "—",
+            "status":     status,
+            "trusted":    mac_norm in trusted_macs,
+            "monitored":  True,
         })
 
-    # ── Combine with ARP-only devices (not yet in DB) ─────────────────────────
+    # Add ARP-only devices (no agent)
     db_ips = set(d["ip"] for d in devices_enriched)
     for arp in arp_results:
         if arp["ip"] not in db_ips:
             mac_norm = normalize_mac(arp.get("mac", "unknown"))
             devices_enriched.append({
-                "hostname": "—",
-                "ip":       arp["ip"],
-                "mac":      mac_norm,
-                "os":       "—",
-                "cpu":      0.0,
-                "ram":      0.0,
-                "location": "--",
-                "last_seen":"—",
-                "status":   "—",
-                "trusted":  mac_norm in trusted_macs,
+                "hostname":   "—",
+                "ip":         arp["ip"],
+                "mac":        mac_norm,
+                "os":         "—",
+                # FIX: ARP-only → ONLINE (device responded to ARP)
+                "status":     "ONLINE",
+                # FIX: no agent → None so we display N/A, not 0.0
+                "cpu":        None,
+                "ram":        None,
+                "location":   "—",
+                "last_seen":  "—",
+                "trusted":    mac_norm in trusted_macs,
+                "monitored":  False,
             })
 
     online_count  = sum(1 for d in devices_enriched if d["status"] == "ONLINE")
     offline_count = sum(1 for d in devices_enriched if d["status"] == "OFFLINE")
     total_count   = len(devices_enriched)
-    rogue_count   = len(set(r["ip"] for r in rogue_devices_live))
+    rogue_count   = len(set(r["ip"] for r in rogue_live))
     trusted_count = len(trusted_rows)
-
-    # Unauthorized: in ARP / DB but MAC not trusted
-    unauthorized_devices = [d for d in devices_enriched if not d["trusted"]]
+    unauthorized  = [d for d in devices_enriched if not d["trusted"]]
 
     health     = calculate_system_health(total_count, rogue_count)
     health_cfg = HEALTH_CONFIG.get(health, HEALTH_CONFIG["UNKNOWN"])
 
-    # ── GENERATE GRAPHS ────────────────────────────────────────────────────────
-    cpu_path, rogue_path, pie_path, combined_path = generate_graphs(
+    # ── Generate graphs ───────────────────────────────────────────────────────
+    cpu_path, ram_path, rogue_path, pie_path, combined_path = generate_graphs(
         online_count=online_count,
         offline_count=offline_count,
         rogue_count=rogue_count,
         trusted_count=trusted_count,
     )
 
-    # ╔══════════════════════════════════════════════════════════════════════╗
-    # ║  PAGE 1 — COVER / HEADER                                            ║
-    # ╚══════════════════════════════════════════════════════════════════════╝
+    # ╔══════════════════════════════════════════════════════╗
+    # ║  PAGE 1 — HEALTH BANNER + KPI CARDS + SUMMARY       ║
+    # ╚══════════════════════════════════════════════════════╝
+    elems.append(Spacer(1, 6))
 
-    # Logo + title block (sits inside the blue stripe painted by _on_first_page)
-    try:
-        logo_path = "static/logo.png"
-        if os.path.exists(logo_path):
-            logo_tbl = Table(
-                [[Image(logo_path, width=70, height=35),
-                  Paragraph("SCCSIMS Security Report", st["report_title"]),
-                  ""]],
-                colWidths=[80, page_w - 160, 80],
-            )
-            logo_tbl.setStyle(TableStyle([
-                ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
-                ("ALIGN",       (0, 0), (0, 0),   "LEFT"),
-                ("ALIGN",       (1, 0), (1, 0),   "CENTER"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING",  (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING",(0,0), (-1, -1), 0),
-            ]))
-            elems.append(logo_tbl)
-        else:
-            elems.append(Paragraph("SCCSIMS Security Report", st["report_title"]))
-    except Exception:
-        elems.append(Paragraph("SCCSIMS Security Report", st["report_title"]))
-
-    now_str = datetime.now().strftime("%A, %d %B %Y  •  %H:%M:%S")
-    elems.append(Paragraph(f"Generated: {now_str}  |  Operator: {session.get('user','admin')}",
-                            st["report_subtitle"]))
-    elems.append(Spacer(1, 22))
-
-    # ── SYSTEM HEALTH BANNER ───────────────────────────────────────────────────
-    health_pill = ParagraphStyle(
-        "HealthPill", parent=st["health_text"],
-        textColor=health_cfg["color"],
-        backColor=health_cfg["bg"],
-        borderRadius=6, borderPad=8,
+    # System Health Banner
+    h_sty = ParagraphStyle(
+        "HBan", parent=st["health_text"],
+        textColor=health_cfg["color"], backColor=health_cfg["bg"],
     )
-    health_para = Paragraph(
-        f"{health_cfg['icon']}  System Health: {health}",
-        health_pill
+    htbl = Table(
+        [[Paragraph(
+            f"System Health: {health}   [{health_cfg['label']}]", h_sty
+        )]],
+        colWidths=[page_w],
     )
-    health_tbl = Table([[health_para]], colWidths=[page_w])
-    health_tbl.setStyle(TableStyle([
+    htbl.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, -1), health_cfg["bg"]),
-        ("LINEABOVE",     (0, 0), (-1, -1), 2, health_cfg["color"]),
-        ("LINEBELOW",     (0, 0), (-1, -1), 2, health_cfg["color"]),
+        ("LINEABOVE",     (0, 0), (-1, -1), 2.5, health_cfg["color"]),
+        ("LINEBELOW",     (0, 0), (-1, -1), 2.5, health_cfg["color"]),
         ("TOPPADDING",    (0, 0), (-1, -1), 10),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
         ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
     ]))
-    elems.append(health_tbl)
-    elems.append(Spacer(1, 16))
+    elems.append(htbl)
+    elems.append(Spacer(1, 12))
 
-    # ── KPI STAT CARDS ─────────────────────────────────────────────────────────
-    kpi_items = [
-        ("Total Devices",  str(total_count),   RPT_ACCENT_BLUE,  RPT_LIGHT_BLUE),
-        ("Online",         str(online_count),  RPT_GREEN,        RPT_LIGHT_GREEN),
-        ("Offline",        str(offline_count), RPT_RED,          RPT_LIGHT_RED),
-        ("Trusted",        str(trusted_count), HexColor("#006064"), HexColor("#e0f7fa")),
-        ("Unauthorized",   str(len(unauthorized_devices)), RPT_ORANGE, RPT_LIGHT_ORANGE),
-        ("Rogue Events",   str(rogue_count),   RPT_RED,          HexColor("#fce4ec")),
+    # KPI Cards
+    kpi_defs = [
+        ("Total Devices", str(total_count),   RPT_ACCENT_BLUE,       RPT_LIGHT_BLUE),
+        ("Online",        str(online_count),  RPT_GREEN,             RPT_LIGHT_GREEN),
+        ("Offline",       str(offline_count), RPT_RED,               RPT_LIGHT_RED),
+        ("Trusted",       str(trusted_count), HexColor("#006064"),   HexColor("#e0f7fa")),
+        ("Unauthorized",  str(len(unauthorized)), RPT_ORANGE,        RPT_LIGHT_ORANGE),
+        ("Rogue Events",  str(rogue_count),   RPT_RED,               HexColor("#fce4ec")),
     ]
-
+    card_w    = page_w / len(kpi_defs)
     kpi_cells = []
-    for label, value, txt_color, bg_color in kpi_items:
-        val_style = ParagraphStyle("KV", parent=st["kpi_value"], textColor=txt_color)
-        cell = Table(
-            [[Paragraph(value, val_style)],
-             [Paragraph(label, st["kpi_label"])]],
-            colWidths=[(page_w - 50) / 6]
+    for lbl, val, tc, bc in kpi_defs:
+        vs = ParagraphStyle(f"KV_{lbl}", parent=st["kpi_value"], textColor=tc)
+        card = Table(
+            [[Paragraph(val, vs)], [Paragraph(lbl, st["kpi_label"])]],
+            colWidths=[card_w - 6],
         )
-        cell.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, -1), bg_color),
-            ("TOPPADDING",    (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        card.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), bc),
+            ("TOPPADDING",    (0, 0), (-1, -1), 9),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
             ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-            ("LINEBELOW",     (0, 0), (-1, -1), 3, txt_color),
+            ("LINEBELOW",     (0, 0), (-1, -1), 3, tc),
         ]))
-        kpi_cells.append(cell)
+        kpi_cells.append(card)
 
-    kpi_row = Table([kpi_cells], colWidths=[(page_w) / 6] * 6)
+    kpi_row = Table([kpi_cells], colWidths=[card_w] * len(kpi_defs))
     kpi_row.setStyle(TableStyle([
-        ("LEFTPADDING",  (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("ALIGN",        (0, 0), (-1, -1), "CENTER"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
     ]))
     elems.append(kpi_row)
-    elems.append(Spacer(1, 20))
+    elems.append(Spacer(1, 14))
 
-    # ── EXECUTIVE SUMMARY TABLE ────────────────────────────────────────────────
-    elems.append(_section_divider("Executive Summary", st))
-    elems.append(Spacer(1, 6))
+    # Executive Summary
+    elems.append(_section_bar("Executive Summary", st))
+    elems.append(Spacer(1, 5))
 
-    summary_data = [
-        ["Metric", "Value", "Notes"],
-        ["Total Devices Detected", str(total_count),
-         "All devices observed via ARP & DB"],
-        ["Online Devices", str(online_count),
-         "Seen in current or recent ARP scan"],
-        ["Offline Devices", str(offline_count),
-         "Not found in ARP; last-seen timeout exceeded"],
-        ["Trusted Devices", str(trusted_count),
-         "Manually approved in the system"],
-        ["Unauthorized Devices", str(len(unauthorized_devices)),
-         "MAC not present in trusted list"],
-        ["Active Rogue Events", str(rogue_count),
-         "Detected during current scan cycle"],
-        ["Total Attack Records", str(len(attacks)),
-         "Cumulative history (last 20 shown)"],
-        ["System Health Status", health,
-         f"Based on rogue-to-total ratio ({rogue_count}/{total_count if total_count else 1})"],
+    sum_rows = [
+        [_cell("Metric", st, "wrap_bold"),    _cell("Value", st, "wrap_bold"),  _cell("Notes", st, "wrap_bold")],
+        [_cell("Total Devices", st),          _cell(total_count, st, "wrap_bold"), _cell("ARP + agent reports", st)],
+        [_cell("Online", st),                 _cell(online_count, st, "wrap_bold", RPT_GREEN), _cell("Active in current ARP scan", st)],
+        [_cell("Offline", st),                _cell(offline_count, st, "wrap_bold", RPT_RED), _cell("Timed-out since last scan", st)],
+        [_cell("Trusted Devices", st),        _cell(trusted_count, st, "wrap_bold"), _cell("Manually approved MACs", st)],
+        [_cell("Unauthorized Devices", st),   _cell(len(unauthorized), st, "wrap_bold", RPT_ORANGE), _cell("MAC not in trusted list", st)],
+        [_cell("Active Rogue Events", st),    _cell(rogue_count, st, "wrap_bold", RPT_RED), _cell("Current scan cycle", st)],
+        [_cell("Attack Records (DB)", st),    _cell(len(attacks), st, "wrap_bold"), _cell("Cumulative history, last 20 shown", st)],
+        [_cell("System Health", st),          _cell(health, st, "wrap_bold", health_cfg["color"]), _cell(f"Rogue ratio {rogue_count}/{max(total_count,1)}", st)],
     ]
 
-    summary_tbl = Table(summary_data, colWidths=[page_w * 0.38, page_w * 0.18, page_w * 0.44])
-    ts = _header_table_style()
-    ts.add("ALIGN", (1, 1), (1, -1), "CENTER")
-    ts.add("ALIGN", (2, 1), (2, -1), "LEFT")
-    ts.add("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold")
-    summary_tbl.setStyle(ts)
-    elems.append(summary_tbl)
+    sum_tbl = Table(sum_rows, colWidths=[page_w*0.35, page_w*0.18, page_w*0.47])
+    ts = _tbl_style()
+    ts.add("ALIGN",    (1, 1), (1, -1), "CENTER")
+    ts.add("ALIGN",    (2, 1), (2, -1), "LEFT")
+    sum_tbl.setStyle(ts)
+    elems.append(sum_tbl)
 
-    # ╔══════════════════════════════════════════════════════════════════════╗
-    # ║  PAGE 2 — ALL DEVICES TABLE (online + offline, with status)         ║
-    # ╚══════════════════════════════════════════════════════════════════════╝
+    # ╔══════════════════════════════════════════════════════╗
+    # ║  PAGE 2 — ALL DEVICES                               ║
+    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
-    elems.append(_section_divider(f"All Devices  ({total_count} total)", st))
-    elems.append(Spacer(1, 6))
+    elems.append(_section_bar(f"All Devices  ({total_count} total)", st))
+    elems.append(Spacer(1, 4))
     elems.append(Paragraph(
-        "Devices discovered via ARP scan and agent reports.  "
-        "<b>Green = ONLINE</b> | <b>Red = OFFLINE</b>.",
+        "All devices found via ARP scan and agent reports.  "
+        "<b>ONLINE</b> = seen in ARP.  <b>OFFLINE</b> = timed out.  "
+        "<b>CPU/RAM = N/A</b> for ARP-only (unmonitored) devices.",
         st["note"]
     ))
-    elems.append(Spacer(1, 6))
+    elems.append(Spacer(1, 5))
 
-    dev_header = ["#", "Hostname", "IP Address", "MAC Address",
-                  "OS", "CPU%", "RAM%", "Location", "Last Seen", "Status"]
-    dev_col_w  = [
-        page_w * 0.035, page_w * 0.10, page_w * 0.09, page_w * 0.12,
-        page_w * 0.09,  page_w * 0.055,page_w * 0.055,page_w * 0.085,
-        page_w * 0.14,  page_w * 0.13,
+    # FIX: wider columns + Paragraph cells prevent overflow
+    dev_cw = [
+        page_w * 0.038,  # #
+        page_w * 0.105,  # Hostname
+        page_w * 0.095,  # IP
+        page_w * 0.130,  # MAC
+        page_w * 0.075,  # OS
+        page_w * 0.055,  # CPU%
+        page_w * 0.055,  # RAM%
+        page_w * 0.085,  # Location
+        page_w * 0.150,  # Last Seen
+        page_w * 0.097,  # Status
+        page_w * 0.115,  # Agent
     ]
-    dev_data = [dev_header]
+    dev_hdr  = ["#", "Hostname", "IP Address", "MAC Address",
+                "OS", "CPU%", "RAM%", "Location", "Last Seen", "Status", "Agent"]
+    dev_data = [[_cell(h, st, "wrap_bold") for h in dev_hdr]]
+
     for idx, d in enumerate(devices_enriched, 1):
-        ls_display = d["last_seen"]
         try:
-            ls_display = fmt_timestamp(d["last_seen"])
-        except:
-            pass
+            ls_disp = fmt_timestamp(d["last_seen"])
+        except Exception:
+            ls_disp = d["last_seen"]
+
+        # FIX: unmonitored devices → N/A instead of 0.0
+        cpu_disp = f"{d['cpu']:.1f}" if d["cpu"] is not None else "N/A"
+        ram_disp = f"{d['ram']:.1f}" if d["ram"] is not None else "N/A"
+        mon_text = "Monitored" if d["monitored"] else "ARP only"
+
         dev_data.append([
-            str(idx),
-            d["hostname"],
-            d["ip"],
-            d["mac"],
-            d["os"],
-            f"{d['cpu']:.1f}",
-            f"{d['ram']:.1f}",
-            d["location"],
-            ls_display,
-            _status_pill(d["status"], st),
+            _cell(idx,           st),
+            _cell(d["hostname"], st),
+            _cell(d["ip"],       st),
+            _cell(d["mac"],      st),
+            _cell(d["os"],       st),
+            _cell(cpu_disp,      st),
+            _cell(ram_disp,      st),
+            _cell(d["location"], st),
+            _cell(ls_disp,       st),
+            _status_pill(d["status"], st),   # FIX: never "—"
+            _cell(mon_text,      st),
         ])
 
-    dev_tbl = Table(dev_data, colWidths=dev_col_w, repeatRows=1)
-    dev_ts  = _header_table_style()
-    # colour offline rows
+    dev_tbl = Table(dev_data, colWidths=dev_cw, repeatRows=1)
+    dev_ts  = _tbl_style()
     for i, d in enumerate(devices_enriched, 1):
-        if d["status"] == "OFFLINE":
-            dev_ts.add("BACKGROUND", (0, i), (-2, i), HexColor("#fff8f8"))
-        else:
-            dev_ts.add("BACKGROUND", (0, i), (-2, i), RPT_WHITE)
+        bg = HexColor("#fff5f5") if d["status"] == "OFFLINE" else RPT_WHITE
+        dev_ts.add("BACKGROUND", (0, i), (-2, i), bg)
     dev_tbl.setStyle(dev_ts)
     elems.append(dev_tbl)
 
-    # ╔══════════════════════════════════════════════════════════════════════╗
-    # ║  PAGE 3 — TRUSTED DEVICES                                           ║
-    # ╚══════════════════════════════════════════════════════════════════════╝
+    # ╔══════════════════════════════════════════════════════╗
+    # ║  PAGE 3 — TRUSTED + UNAUTHORIZED                    ║
+    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
-    elems.append(_section_divider(f"Trusted Devices  ({trusted_count})", st))
-    elems.append(Spacer(1, 6))
 
+    # Trusted Devices
+    elems.append(_section_bar(f"Trusted Devices  ({trusted_count})", st))
+    elems.append(Spacer(1, 5))
     if trusted_rows:
-        tr_header = ["#", "IP Address", "MAC Address", "Device Name", "Location"]
-        tr_col_w  = [
-            page_w * 0.05, page_w * 0.22,
-            page_w * 0.26, page_w * 0.25, page_w * 0.22,
-        ]
-        tr_data = [tr_header]
+        tr_cw   = [page_w*0.05, page_w*0.22, page_w*0.27, page_w*0.24, page_w*0.22]
+        tr_data = [[_cell(h, st, "wrap_bold")
+                    for h in ["#", "IP Address", "MAC Address", "Device Name", "Location"]]]
         for idx, r in enumerate(trusted_rows, 1):
-            tr_data.append([str(idx), r[0] or "—", r[1] or "—",
-                            r[2] or "Approved Device", r[3] or "—"])
-        tr_tbl = Table(tr_data, colWidths=tr_col_w, repeatRows=1)
-        tr_tbl.setStyle(_header_table_style(HexColor("#006064")))
+            tr_data.append([
+                _cell(idx,              st),
+                _cell(r[0],             st),
+                _cell(r[1],             st),
+                _cell(r[2] or "Approved Device", st),
+                _cell(r[3],             st),
+            ])
+        tr_tbl = Table(tr_data, colWidths=tr_cw, repeatRows=1)
+        tr_tbl.setStyle(_tbl_style(HexColor("#00695c")))
         elems.append(tr_tbl)
     else:
         elems.append(Paragraph("No trusted devices registered.", st["note"]))
 
-    elems.append(Spacer(1, 18))
+    elems.append(Spacer(1, 16))
 
-    # ── UNAUTHORIZED DEVICES ───────────────────────────────────────────────────
-    elems.append(_section_divider(
-        f"Unauthorized Devices  ({len(unauthorized_devices)})", st))
-    elems.append(Spacer(1, 6))
-
-    if unauthorized_devices:
-        ua_header = ["#", "Hostname", "IP Address", "MAC Address",
-                     "OS", "Location", "Status"]
-        ua_col_w  = [
-            page_w * 0.04, page_w * 0.14, page_w * 0.14,
-            page_w * 0.20, page_w * 0.13, page_w * 0.18, page_w * 0.17,
-        ]
-        ua_data = [ua_header]
-        for idx, d in enumerate(unauthorized_devices, 1):
+    # Unauthorized Devices
+    elems.append(_section_bar(f"Unauthorized Devices  ({len(unauthorized)})", st))
+    elems.append(Spacer(1, 5))
+    if unauthorized:
+        ua_cw   = [page_w*0.04, page_w*0.12, page_w*0.12,
+                   page_w*0.20, page_w*0.09, page_w*0.16, page_w*0.12, page_w*0.15]
+        ua_data = [[_cell(h, st, "wrap_bold")
+                    for h in ["#", "Hostname", "IP Address", "MAC Address",
+                               "OS", "Location", "Status", "Agent"]]]
+        for idx, d in enumerate(unauthorized, 1):
             ua_data.append([
-                str(idx),
-                d["hostname"], d["ip"], d["mac"],
-                d["os"], d["location"],
-                _status_pill(d["status"], st),
+                _cell(idx,           st),
+                _cell(d["hostname"], st),
+                _cell(d["ip"],       st),
+                _cell(d["mac"],      st),
+                _cell(d["os"],       st),
+                _cell(d["location"], st),
+                _status_pill(d["status"], st),   # FIX: never "—"
+                _cell("Monitored" if d["monitored"] else "ARP only", st),
             ])
-        ua_tbl = Table(ua_data, colWidths=ua_col_w, repeatRows=1)
-        ua_ts  = _header_table_style(HexColor("#bf360c"))
-        # tint every row in light orange
+        ua_tbl = Table(ua_data, colWidths=ua_cw, repeatRows=1)
+        ua_ts  = _tbl_style(HexColor("#bf360c"))
         for i in range(1, len(ua_data)):
-            ua_ts.add("BACKGROUND", (0, i), (-2, i),
-                      RPT_LIGHT_ORANGE if i % 2 == 1 else RPT_WHITE)
+            bg = RPT_LIGHT_ORANGE if i % 2 == 1 else RPT_WHITE
+            ua_ts.add("BACKGROUND", (0, i), (-2, i), bg)
         ua_tbl.setStyle(ua_ts)
         elems.append(ua_tbl)
     else:
         elems.append(Paragraph(
-            "No unauthorized devices detected — all observed MACs are trusted.",
-            st["note"]))
+            "All observed MACs are present in the trusted list.", st["note"]))
 
-    # ╔══════════════════════════════════════════════════════════════════════╗
-    # ║  PAGE 4 — ATTACK / ROGUE HISTORY                                    ║
-    # ╚══════════════════════════════════════════════════════════════════════╝
+    # ╔══════════════════════════════════════════════════════╗
+    # ║  PAGE 4 — ATTACK / ROGUE HISTORY                    ║
+    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
-    elems.append(_section_divider(f"Attack & Rogue Event History  (last {len(attacks)})", st))
-    elems.append(Spacer(1, 6))
+    elems.append(_section_bar(f"Attack & Rogue Event History  (last {len(attacks)})", st))
+    elems.append(Spacer(1, 5))
 
     if attacks:
-        atk_header = ["#", "IP Address", "MAC Address", "Attack Type",
-                      "First Seen", "Last Seen"]
-        atk_col_w  = [
-            page_w * 0.04, page_w * 0.14, page_w * 0.18,
-            page_w * 0.28, page_w * 0.18, page_w * 0.18,
+        # FIX: Attack Type column is a Paragraph so long compound types wrap
+        atk_cw = [
+            page_w * 0.040,   # #
+            page_w * 0.115,   # IP
+            page_w * 0.160,   # MAC
+            page_w * 0.315,   # Attack Type (wide — compound strings)
+            page_w * 0.185,   # First Seen
+            page_w * 0.185,   # Last Seen
         ]
-        atk_data = [atk_header]
+        atk_data = [[_cell(h, st, "wrap_bold")
+                     for h in ["#", "IP Address", "MAC Address", "Attack Type",
+                                "First Seen", "Last Seen"]]]
         for idx, a in enumerate(attacks, 1):
+            atype    = str(a[2] or "—")
+            is_bad   = any(k in atype.lower()
+                           for k in ("spoofing", "duplicate", "conflict"))
+            atype_p  = _cell(atype, st, "wrap_red" if is_bad else "wrap")
+
             atk_data.append([
-                str(idx),
-                a[0] or "—",
-                a[1] or "—",
-                a[2] or "—",
-                fmt_timestamp(a[3]) if a[3] else "—",
-                fmt_timestamp(a[4]) if a[4] else "—",
+                _cell(idx,                                           st),
+                _cell(a[0],                                          st),
+                _cell(a[1],                                          st),
+                atype_p,
+                _cell(fmt_timestamp(a[3]) if a[3] else "—",         st),
+                _cell(fmt_timestamp(a[4]) if a[4] else "—",         st),
             ])
-        atk_tbl = Table(atk_data, colWidths=atk_col_w, repeatRows=1)
-        atk_ts  = _header_table_style(RPT_DARK_BLUE)
-        # highlight spoofing / high-risk rows
+        atk_tbl = Table(atk_data, colWidths=atk_cw, repeatRows=1)
+        atk_ts  = _tbl_style(RPT_DARK_BLUE)
         for i, a in enumerate(attacks, 1):
-            atype = str(a[2] or "").lower()
-            if "spoofing" in atype or "duplicate" in atype:
+            if any(k in str(a[2] or "").lower()
+                   for k in ("spoofing", "duplicate", "conflict")):
                 atk_ts.add("BACKGROUND", (0, i), (-1, i), HexColor("#ffebee"))
-                atk_ts.add("TEXTCOLOR",  (3, i), (3, i),  RPT_RED)
-                atk_ts.add("FONTNAME",   (3, i), (3, i),  "Helvetica-Bold")
         atk_tbl.setStyle(atk_ts)
         elems.append(atk_tbl)
     else:
         elems.append(Paragraph("No attack records found in the database.", st["note"]))
 
-    # ╔══════════════════════════════════════════════════════════════════════╗
-    # ║  PAGE 5 — ANALYTICS & GRAPHS                                        ║
-    # ╚══════════════════════════════════════════════════════════════════════╝
+    # ╔══════════════════════════════════════════════════════╗
+    # ║  PAGE 5 — ANALYTICS GRAPHS (5 graphs incl. RAM)     ║
+    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
-    elems.append(_section_divider("Network Analytics & Trend Graphs", st))
+    elems.append(_section_bar("Network Analytics & Trend Graphs", st))
     elems.append(Spacer(1, 8))
 
-    def _graph_block(img_path, caption_text, width=page_w, height=3 * inch):
-        items = []
-        if img_path and os.path.exists(img_path):
-            # Bordered image frame
-            img_tbl = Table(
-                [[Image(img_path, width=width - 16, height=height)]],
-                colWidths=[width]
-            )
-            img_tbl.setStyle(TableStyle([
-                ("BOX",           (0, 0), (-1, -1), 0.8, HexColor("#c5cae9")),
-                ("BACKGROUND",    (0, 0), (-1, -1), RPT_PALE_BLUE),
-                ("TOPPADDING",    (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
-            ]))
-            items.append(img_tbl)
-        else:
-            items.append(Paragraph("Graph not available.", st["note"]))
-
-        cap_style = ParagraphStyle(
-            "GraphCaption", parent=st["note"],
-            alignment=TA_CENTER, fontSize=7.5,
-            textColor=RPT_GREY, spaceBefore=3
-        )
-        items.append(Paragraph(caption_text, cap_style))
-        items.append(Spacer(1, 12))
-        return items
-
-    # CPU graph
-    elems.extend(_graph_block(
-        cpu_path,
-        "Figure 1 — Average CPU usage across all monitored agents over the last 20 scan cycles.",
-        height=2.5 * inch
-    ))
-
-    # Rogue graph
-    elems.extend(_graph_block(
-        rogue_path,
-        "Figure 2 — Rogue device count detected per scan cycle. "
-        "Spikes indicate new unauthorized MAC addresses appearing on the network.",
-        height=2.5 * inch
-    ))
-
-    # Pie charts (side-by-side)
-    elems.extend(_graph_block(
-        pie_path,
-        "Figure 3 — Left: Device status distribution (Online / Offline / Rogue).  "
-        "Right: Trust distribution (Trusted vs Unauthorized).",
-        height=3.0 * inch
-    ))
-
-    # Combined bar chart
-    elems.extend(_graph_block(
-        combined_path,
-        "Figure 4 — Network activity bar chart comparing total devices vs rogue count "
-        "across the last 20 scan cycles.",
-        height=2.5 * inch
-    ))
-
-    # ── BUILD PDF ──────────────────────────────────────────────────────────────
-    doc.build(
-        elems,
-        onFirstPage=_on_first_page,
-        onLaterPages=_on_later_pages,
+    cap_sty = ParagraphStyle(
+        "Cap", parent=st["note"],
+        alignment=TA_CENTER, fontSize=7.5, spaceBefore=3,
     )
 
+    def _graph_block(img_path, caption, height=2.5 * inch):
+        items = []
+        if img_path and os.path.exists(img_path):
+            frame = Table(
+                [[Image(img_path, width=page_w - 18, height=height)]],
+                colWidths=[page_w],
+            )
+            frame.setStyle(TableStyle([
+                ("BOX",           (0, 0), (-1, -1), 0.7, HexColor("#c5cae9")),
+                ("BACKGROUND",    (0, 0), (-1, -1), RPT_PALE_BLUE),
+                ("TOPPADDING",    (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 9),
+            ]))
+            items.append(frame)
+        else:
+            items.append(Paragraph("Graph not available.", st["note"]))
+        items.append(Paragraph(caption, cap_sty))
+        items.append(Spacer(1, 10))
+        return items
+
+    elems.extend(_graph_block(
+        cpu_path,
+        "Figure 1 — Average CPU usage across agent-monitored devices (last 20 scan cycles).",
+    ))
+    elems.extend(_graph_block(
+        ram_path,
+        "Figure 2 — Average RAM usage across agent-monitored devices (last 20 scan cycles).",
+    ))
+    elems.extend(_graph_block(
+        rogue_path,
+        "Figure 3 — Rogue device count per cycle. Spikes indicate new unauthorized MACs.",
+    ))
+    elems.extend(_graph_block(
+        pie_path,
+        "Figure 4 — Left: Device status breakdown (Online/Offline/Rogue).  "
+        "Right: Trust breakdown (Trusted vs Unauthorized).",
+        height=3.0 * inch,
+    ))
+    elems.extend(_graph_block(
+        combined_path,
+        "Figure 5 — Total devices vs rogue count across the last 20 scan cycles.",
+    ))
+
+    # ── Build PDF ─────────────────────────────────────────────────────────────
+    doc.build(elems, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
+
     buffer.seek(0)
-    ts_str   = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"SCCSIMS_Report_{ts_str}.pdf"
+    fname = f"SCCSIMS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return Response(
         buffer,
         mimetype="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
     )
 
 
@@ -1746,5 +1750,4 @@ if __name__ == "__main__":
     init_db()
     scanner_thread = threading.Thread(target=safe_background, daemon=True)
     scanner_thread.start()
-
     app.run(host="0.0.0.0", port=5000, debug=True)
