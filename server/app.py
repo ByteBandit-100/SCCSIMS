@@ -4,7 +4,7 @@ import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 
 import matplotlib
@@ -34,9 +34,14 @@ from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4
 
 app = Flask(__name__)
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.secret_key = os.urandom(24)
+app.config.update({
+    "SESSION_COOKIE_HTTPONLY": True,
+    "SESSION_COOKIE_SAMESITE": "Lax",
+    "SESSION_COOKIE_SECURE": False,  # True if HTTPS
+    "PERMANENT_SESSION_LIFETIME": timedelta(minutes=15)
+})
+
+app.secret_key = "secret456"
 
 DATABASE = "sccsims.db"
 last_seen_devices = {}
@@ -343,7 +348,10 @@ def login():
 
         if user and check_password_hash(user[2], password):
             session["user"] = username
+            session["last_active"] = datetime.now().timestamp()
+            session.permanent = True
             return redirect("/")
+
         return render_template("login.html", error="Invalid Credentials")
 
     return render_template("login.html")
@@ -1056,6 +1064,21 @@ def _status_pill(status_str, st):
     )
     return Paragraph(s, pill_style)
 
+@app.before_request
+def manage_session():
+    session.permanent = True
+
+    if "user" in session:
+        now = datetime.now().timestamp()
+
+        last_active = session.get("last_active", now)
+
+        # 15 min timeout
+        if now - last_active > 900:
+            session.clear()
+            return redirect("/login")
+
+        session["last_active"] = now
 
 # ── Main report route ──────────────────────────────────────────────────────────
 @app.route("/generate-report")
