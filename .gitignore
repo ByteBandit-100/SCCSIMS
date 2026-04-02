@@ -33,4 +33,9 @@ dist/
 *.tmp
 *.bak
 
+#tmp files
+cpu_graph.png
+rogue_graph.png
+tmp_app_snapshot.txt
+
 .idea/
