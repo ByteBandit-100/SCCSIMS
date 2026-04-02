@@ -120,6 +120,7 @@
         @keyframes modalIn{from{opacity:0;transform:translateY(-20px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
         .modal-content::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(to right,transparent,var(--cyan),transparent);}
         .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+
         .modal-title{font-size:16px;font-weight:700;letter-spacing:2px;color:var(--cyan);}
         .close{width:32px;height:32px;background:var(--red-dim);border:1px solid rgba(255,61,90,0.3);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:var(--red);transition:all 0.2s ease;line-height:1;}
         .close:hover{background:rgba(255,61,90,0.25);box-shadow:0 0 10px rgba(255,61,90,0.2);}
@@ -131,7 +132,7 @@
         .form-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);font-weight:400;}
         .form-control{background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s ease;caret-color:var(--cyan);}
         .form-control:focus{border-color:var(--border-glow);box-shadow:0 0 10px rgba(0,200,255,0.1);}
-        .target-badge{display:inline-flex;align-items:center;gap:8px;background:var(--cyan-dim);border:1px solid var(--border-glow);border-radius:var(--radius-sm);padding:8px 16px;font-family:var(--font-mono);font-size:14px;color:var(--cyan);margin-bottom:16px;}
+        .target-badge{display:inline-flex;align-items:center;gap:8px;background:var(--cyan-dim);border-bottom:5px solid var(--border-glow);border-radius:var(--radius-sm);padding:8px 16px;font-family:var(--font-mono);font-size:14px;color:var(--cyan);}
         #portResult{margin-top:14px;font-family:var(--font-mono);font-size:13px;}
         #portResult .scan-status{display:flex;align-items:center;gap:8px;color:var(--cyan);font-weight:500;margin-bottom:10px;padding:8px 12px;background:var(--cyan-dim);border-radius:var(--radius-sm);}
         #portResult .port-entry{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--radius-sm);margin-bottom:4px;border:1px solid transparent;}
@@ -348,7 +349,16 @@
             <div class="modal-title">⌖ Port Scanner</div>
             <div id="closePortModal" class="close">✕</div>
         </div>
-        <div class="target-badge">🎯 <span id="scanIP">--</span></div>
+        <div class="modal-header">
+            <div class="target-badge">🎯 <span id="scanIP">--</span></div>
+        <div style="text-align:right;">
+
+            <button class="btn btn-primary" id="generateReportBtn"
+        onclick="generatePortReport()" disabled>
+        📄 Generate Scan Report
+           </button>
+        </div>
+</div>
         <div class="scan-section">
             <div class="scan-section-title">⚡ Quick Scan · Default 1–1024</div>
             <button class="btn btn-primary" id="quickScanBtn" onclick="runQuickScan()">▶ Run Default Scan</button>
@@ -441,6 +451,7 @@ function drawAnalytics(data){
 </script>
 
 <script>
+    let scannedPorts = [];
 var modal=document.getElementById("trustedModal");
 var portModal=document.getElementById("portModal");
 document.getElementById("trustedBtn").onclick=()=>modal.style.display="block";
@@ -531,7 +542,27 @@ function disapproveDevice(ip,mac){
         }
     });
 }
+function appendPort(port){
+    let service = getServiceName(port);
+    let risk = getRiskLevel(port);
 
+    // ✅ store full data
+    scannedPorts.push({
+        port: port,
+        service: service,
+        risk: risk
+    });
+
+    let color = risk==="HIGH"?"var(--red)":risk==="MEDIUM"?"var(--amber)":"var(--green)";
+    let bg = risk==="HIGH"?"var(--red-dim)":risk==="MEDIUM"?"var(--amber-dim)":"var(--green-dim)";
+
+    document.getElementById("scanResults").innerHTML += `
+    <div class="port-entry" style="background:${bg};border-color:${color}40;">
+        🔓 <span style="color:var(--cyan);">Port ${port}</span>
+        <span style="color:var(--text-secondary);">(${service})</span>
+        <span style="color:${color};font-weight:600;margin-left:auto;">[${risk}]</span>
+    </div>`;
+}
 function approveDevice(ip,mac,btn){
     fetch("/approve-device",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"ip="+ip+"&mac="+mac})
     .then(r=>r.json()).then(data=>{
@@ -638,17 +669,41 @@ filterRogueTable();
 function scanPorts(ip){ currentScanIP=ip; document.getElementById("scanIP").innerText=ip; document.getElementById("portResult").innerHTML=""; portModal.style.display="block"; }
 
 function runQuickScan(){
+scannedPorts = [];
+document.getElementById("generateReportBtn").disabled = true;
     if(isScanning){stopScan();return;} isScanning=true;
     let btn=document.getElementById("quickScanBtn"),advBtn=document.getElementById("advancedScanBtn");
     btn.textContent="⬛ Stop Scan"; btn.className="btn btn-stop"; advBtn.disabled=true;
     let rb=document.getElementById("portResult");
     rb.innerHTML=`<div id="scanStatus" class="scan-status">⚡ Initializing...</div><div id="scanResults"></div>`;
     eventSource=new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`);
-    eventSource.onmessage=function(e){ if(e.data==="done"){rb.innerHTML+=`<br><div style="color:var(--green);padding:8px;background:var(--green-dim);border-radius:6px;">✅ Scan Complete</div>`;stopScan(true);return;} appendPort(parseInt(e.data)); };
+    eventSource.onmessage = function(e){
+    if(e.data === "done"){
+    document.getElementById("generateReportBtn").disabled = false;
+
+    // ✅ Stop scan FIRST
+    stopScan(true);
+
+    // ✅ Then update UI
+    document.getElementById("scanStatus").innerHTML =
+        "✅ Scan Completed";
+
+    return;
+}
+
+    let port = parseInt(e.data);
+
+    if(!isNaN(port)){
+        document.getElementById("scanStatus").innerHTML = `⚡ Found: Port ${port}`;
+        appendPort(port);
+    }
+};
     eventSource.onerror=function(){ document.getElementById("scanStatus").innerHTML="❌ Scan Error"; stopScan(); };
 }
 
 function runAdvancedScan(){
+scannedPorts = [];
+document.getElementById("generateReportBtn").disabled = true;
     if(isScanning){stopScan();return;} isScanning=true;
     let qb=document.getElementById("quickScanBtn"),ab=document.getElementById("advancedScanBtn");
     qb.disabled=true; ab.textContent="⬛ Stop Scan"; ab.className="btn btn-stop";
@@ -657,15 +712,49 @@ function runAdvancedScan(){
     let rb=document.getElementById("portResult");
     rb.innerHTML=`<div id="scanStatus" class="scan-status">⚡ Initializing...</div><div id="scanResults"></div>`;
     eventSource=new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`);
-    eventSource.onmessage=function(e){ if(e.data==="done"){document.getElementById("scanStatus").innerHTML="✅ Scan Complete";stopScan(true);return;} let p=parseInt(e.data); document.getElementById("scanStatus").innerHTML=`⚡ Found: Port ${p}`; appendPort(p); };
+    eventSource.onmessage=function(e){
+     if(e.data === "done"){
+    document.getElementById("generateReportBtn").disabled = false;
+
+    stopScan(true);
+
+    document.getElementById("scanStatus").innerHTML =
+        "✅ Scan Completed";
+
+    return;
+}
+let p=parseInt(e.data); document.getElementById("scanStatus").innerHTML=`⚡ Found: Port ${p}`; appendPort(p); };
     eventSource.onerror=function(){ rb.innerHTML+="<br>❌ Scan Error"; stopScan(); };
 }
+function generatePortReport(){
+    if(scannedPorts.length === 0){
+        alert("No scan data available!");
+        return;
+    }
 
-function appendPort(port){
-    let service=getServiceName(port),risk=getRiskLevel(port);
-    let color=risk==="HIGH"?"var(--red)":risk==="MEDIUM"?"var(--amber)":"var(--green)";
-    let bg=risk==="HIGH"?"var(--red-dim)":risk==="MEDIUM"?"var(--amber-dim)":"var(--green-dim)";
-    document.getElementById("scanResults").innerHTML+=`<div class="port-entry" style="background:${bg};border-color:${color}40;">🔓 <span style="color:var(--cyan);">Port ${port}</span> <span style="color:var(--text-secondary);">(${service})</span> <span style="color:${color};font-weight:600;margin-left:auto;">[${risk}]</span></div>`;
+    fetch("/generate-port-report", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+    ip: currentScanIP,
+    ports: scannedPorts,   // now includes port + service + risk
+    timestamp: new Date().toLocaleString()
+})
+    })
+    .then(res => res.blob())
+    .then(blob => {
+        let url = window.URL.createObjectURL(blob);
+        let a = document.createElement("a");
+        a.href = url;
+        a.download = "Port_Scan_Report.pdf";
+        a.click();
+    })
+    .catch(err => {
+        alert("Report generation failed!");
+        console.error(err);
+    });
 }
 
 function stopScan(done=false){

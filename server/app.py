@@ -3,17 +3,15 @@ import socket
 import sqlite3
 import threading
 import time
+import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from io import BytesIO
-
 import matplotlib
-from flask import Flask, request, jsonify, session, redirect, render_template, Response, stream_with_context
+from flask import Flask,send_file, request, jsonify, session, redirect, render_template, Response, stream_with_context
 from werkzeug.security import generate_password_hash, check_password_hash
-
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
-
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1741,6 +1739,73 @@ def stop_scan():
     scan_control["stop"] = True
     return jsonify({"status": "stopped"})
 
+@app.route("/generate-port-report", methods=["POST"])
+def generate_port_report():
+    data = request.get_json()
+
+    ip = data.get("ip")
+    ports = data.get("ports")  # now list of dicts
+    timestamp = data.get("timestamp")
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer)
+    styles = getSampleStyleSheet()
+
+    content = []
+
+    # Title
+    content.append(Paragraph("🔐 Port Scan Security Report", styles['Title']))
+    content.append(Spacer(1, 10))
+
+    # Basic Info
+    content.append(Paragraph(f"<b>Target IP:</b> {ip}", styles['Normal']))
+    content.append(Paragraph(f"<b>Scan Time:</b> {timestamp}", styles['Normal']))
+    content.append(Spacer(1, 15))
+
+    # Table Header
+    table_data = [["Port", "Service", "Risk Level"]]
+
+    high_count = 0
+
+    for p in ports:
+        port = p.get("port")
+        service = p.get("service")
+        risk = p.get("risk")
+
+        if risk == "HIGH":
+            high_count += 1
+
+        table_data.append([str(port), service, risk])
+
+    # Table styling
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.grey),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("GRID", (0,0), (-1,-1), 1, colors.black),
+    ]))
+
+    content.append(table)
+    content.append(Spacer(1, 15))
+
+    # 🔥 Smart Risk Summary (VERY IMPORTANT FOR PROJECT)
+    if high_count > 0:
+        summary = f"<font color='red'><b>⚠ HIGH RISK DETECTED:</b> {high_count} critical ports open!</font>"
+    else:
+        summary = "<font color='green'><b>✔ System appears secure (no critical ports)</b></font>"
+
+    content.append(Paragraph(summary, styles['Normal']))
+
+    doc.build(content)
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="Port_Scan_Report.pdf",
+        mimetype="application/pdf"
+    )
 
 # ─────────────────────────────────────────────
 # STARTUP
