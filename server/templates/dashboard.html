@@ -1045,6 +1045,55 @@ body {
       .app-footer {
     box-shadow: 0 -2px 10px rgba(0,255,204,0.2);
 }
+      .app-footer {
+    background: #0d1117;
+    color: #aaa;
+    padding: 15px 20px;
+    border-top: 1px solid #222;
+    margin-top: 30px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: auto;
+    font-size: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.footer-content strong {
+    color: #00ffcc;
+}
+
+/* GitHub link */
+.github-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #aaa;
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+/* Icon */
+.github-icon {
+    width: 20px;
+    height: 20px;
+    filter: invert(1); /* white icon for dark theme */
+}
+
+/* Hover effect */
+.github-link:hover {
+    color: #00ffcc;
+    transform: scale(1.05);
+}
+      .github-link:hover {
+    color: #00ffcc;
+    text-shadow: 0 0 5px #00ffcc;
+}
     </style>
   </head>
 
@@ -1582,10 +1631,21 @@ body {
     </div>
 
     <div id="rogueAlert"></div>
-  <footer class="app-footer">
+ <footer class="app-footer">
     <div class="footer-content">
+
         <span>© 2026 SCCSIMS</span>
-        <span>Developed by <strong>Mohit</strong> (ByteBandit-100)</span>
+
+        <span>
+            Developed by <strong>Mohit</strong> (ByteBandit-100)
+        </span>
+
+        <a href="https://github.com/ByteBandit-100" target="_blank" class="github-link">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
+                 alt="GitHub" class="github-icon">
+            ByteBandit-100
+        </a>
+
     </div>
 </footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
