@@ -1007,10 +1007,49 @@
         color: var(--cyan);
         margin: 1px;
       }
+      /* Make full height layout */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Main content grows */
+.main-content {
+    flex: 1;
+}
+
+/* Footer styling */
+.app-footer {
+    background: #0d1117;
+    color: #aaa;
+    padding: 15px 20px;
+    border-top: 1px solid #222;
+    margin-top: 30px;
+}
+
+/* Footer content layout */
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: auto;
+    font-size: 14px;
+}
+
+/* Highlight name */
+.footer-content strong {
+    color: #00ffcc;
+}
+      .app-footer {
+    box-shadow: 0 -2px 10px rgba(0,255,204,0.2);
+}
     </style>
   </head>
 
   <body class="fade-in">
+  <div class="main-content">
     <div class="page-wrapper">
       <header class="top-bar">
         <div class="brand">
@@ -1250,7 +1289,7 @@
         </table>
       </div>
     </div>
-
+</div>
     <!-- Trusted Modal -->
     <div id="trustedModal" class="modal">
       <div class="modal-content">
@@ -1543,7 +1582,12 @@
     </div>
 
     <div id="rogueAlert"></div>
-
+  <footer class="app-footer">
+    <div class="footer-content">
+        <span>© 2026 SCCSIMS</span>
+        <span>Developed by <strong>Mohit</strong> (ByteBandit-100)</span>
+    </div>
+</footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       /* ── Clock ── */
