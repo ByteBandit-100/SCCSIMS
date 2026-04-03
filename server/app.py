@@ -1780,18 +1780,6 @@ def get_rogue_logs():
         print("get_rogue_logs error:", e)
         return jsonify({"error": str(e)}), 500
 
-# ADD — new route, place after the logout route
-from flask import send_from_directory
-
-@app.route("/favicon.ico")
-def favicon():
-    logo_candidates = ["templates/logo.png", "static/logo.png", "logo.png"]
-    for path in logo_candidates:
-        if os.path.exists(path):
-            directory, filename = os.path.split(os.path.abspath(path))
-            return send_from_directory(directory, filename, mimetype="image/png")
-    return "", 204  # No content if logo not found
-
 # STARTUP
 if __name__ == "__main__":
     init_db()
