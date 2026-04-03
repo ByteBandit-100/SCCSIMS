@@ -4,6 +4,7 @@ import sqlite3
 import threading
 import time
 import io
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -321,6 +322,7 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
         if mac not in trusted_macs:
             status_list.append("Unauthorized Device")
+            log_rogue(ip, mac, "Unauthorized")
 
         if ip in ip_mac_history:
             old_mac, last_time = ip_mac_history[ip]
@@ -1799,9 +1801,14 @@ def scan_history():
 
         return jsonify(data)
 
+
     except Exception as e:
-        print("scan_history ERROR:", e)
-        return jsonify({"error": "Internal server error"}), 500
+        print("\nFULL ERROR TRACE:")
+        traceback.print_exc()
+        return jsonify({
+            "error": "Internal server error",
+            "details": str(e)
+        }), 500
 
 @app.route("/api/rogue-logs")
 def get_rogue_logs():
