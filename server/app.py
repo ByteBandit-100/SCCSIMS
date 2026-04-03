@@ -148,15 +148,23 @@ def init_db():
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS rogue_history (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip          TEXT,
-            mac         TEXT,
-            attack_type TEXT,
-            first_seen  TEXT,
-            last_seen   TEXT
-        )
-    """)
+            CREATE TABLE IF NOT EXISTS rogue_history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip          TEXT,
+                mac         TEXT,
+                attack_type TEXT,
+                first_seen  TEXT,
+                prev_seen   TEXT,
+                last_seen   TEXT,
+                count       INTEGER DEFAULT 1
+            )
+        """)
+    # # Migrate existing table if columns are missing (safe to run every time)
+    # for col, default in [("prev_seen", "NULL"), ("count", "1")]:
+    #     try:
+    #         cursor.execute(f"ALTER TABLE rogue_history ADD COLUMN {col} TEXT DEFAULT {default}")
+    #     except Exception:
+    #         pass
 
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_mac         ON devices(mac_address)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ip          ON devices(ip_address)")
@@ -265,18 +273,24 @@ def log_rogue_attack(ip, mac, attack_type):
         now    = datetime.now().isoformat()
 
         cursor.execute("""
-            SELECT id FROM rogue_history
+            SELECT id, last_seen, count FROM rogue_history
             WHERE ip=? AND mac=? AND attack_type=?
         """, (ip, mac, attack_type))
 
         row = cursor.fetchone()
         if row:
-            cursor.execute("UPDATE rogue_history SET last_seen=? WHERE id=?", (now, row[0]))
+            row_id, current_last, current_count = row
+            prev_count = current_count if current_count else 1
+            cursor.execute("""
+                UPDATE rogue_history
+                SET prev_seen=?, last_seen=?, count=?
+                WHERE id=?
+            """, (current_last, now, prev_count + 1, row_id))
         else:
             cursor.execute("""
-                INSERT INTO rogue_history (ip, mac, attack_type, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?)
-            """, (ip, mac, attack_type, now, now))
+                INSERT INTO rogue_history (ip, mac, attack_type, first_seen, prev_seen, last_seen, count)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (ip, mac, attack_type, now, None, now))
 
         conn.commit()
         conn.close()
@@ -1585,14 +1599,34 @@ def stop_scan():
     scan_control["stop"] = True
     return jsonify({"status": "stopped"})
 
+ROGUE_LOG_COOLDOWN_SECONDS = 60
+
 def log_rogue(ip, mac, attack_type):
     try:
         conn   = get_db()
         cursor = conn.cursor()
+        now    = datetime.now()
+
+        cursor.execute("""
+            SELECT detected_at FROM rogue_logs
+            WHERE ip=? AND mac=? AND attack_type=?
+            ORDER BY id DESC LIMIT 1
+        """, (ip, mac, attack_type))
+
+        last_row = cursor.fetchone()
+        if last_row:
+            try:
+                last_time = datetime.strptime(last_row[0], "%Y-%m-%d %H:%M:%S")
+                if (now - last_time).total_seconds() < ROGUE_LOG_COOLDOWN_SECONDS:
+                    conn.close()
+                    return  # Skip — duplicate within cooldown window
+            except Exception:
+                pass
+
         cursor.execute("""
             INSERT INTO rogue_logs (ip, mac, attack_type, detected_at)
             VALUES (?, ?, ?, ?)
-        """, (ip, mac, attack_type, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        """, (ip, mac, attack_type, now.strftime("%Y-%m-%d %H:%M:%S")))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -1746,6 +1780,17 @@ def get_rogue_logs():
         print("get_rogue_logs error:", e)
         return jsonify({"error": str(e)}), 500
 
+# ADD — new route, place after the logout route
+from flask import send_from_directory
+
+@app.route("/favicon.ico")
+def favicon():
+    logo_candidates = ["templates/logo.png", "static/logo.png", "logo.png"]
+    for path in logo_candidates:
+        if os.path.exists(path):
+            directory, filename = os.path.split(os.path.abspath(path))
+            return send_from_directory(directory, filename, mimetype="image/png")
+    return "", 204  # No content if logo not found
 
 # STARTUP
 if __name__ == "__main__":
