@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from io import BytesIO
 import matplotlib
-from flask import Flask,send_file, request, jsonify, session, redirect, render_template, Response, stream_with_context
+from flask import Flask, send_file, request, jsonify, session, redirect, render_template, Response, stream_with_context
 from werkzeug.security import generate_password_hash, check_password_hash
 from arp_scanner import scan_network_arp
 from network_scanner import scan_network
@@ -17,9 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tempfile
 
-# ─────────────────────────────────────────────
-# REPORTLAB IMPORTS
-# ─────────────────────────────────────────────
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     Image, PageBreak
@@ -74,12 +71,15 @@ def verify_api():
     return request.headers.get("API-KEY") == API_KEY
 
 def get_db():
-    return sqlite3.connect(DATABASE, timeout=10, check_same_thread=False)
+    conn = sqlite3.connect(DATABASE, timeout=10, check_same_thread=False)
+    # ── FIX: enable WAL mode so concurrent reads/writes don't collide ──────
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
 
 def safe_float(val):
     try:
         return float(val)
-    except:
+    except Exception:
         return 0.0
 
 def normalize_mac(mac):
@@ -91,7 +91,7 @@ def fmt_timestamp(ts_str):
     try:
         dt = datetime.fromisoformat(ts_str)
         return dt.strftime("%d %b %Y  %H:%M:%S")
-    except:
+    except Exception:
         return ts_str
 
 
@@ -100,7 +100,7 @@ def fmt_timestamp(ts_str):
 # ─────────────────────────────────────────────
 
 def init_db():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -114,6 +114,26 @@ def init_db():
             ram_usage   REAL,
             location    TEXT,
             last_seen   TEXT
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS scan_history (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip        TEXT,
+            ports     TEXT,
+            high_risk INTEGER,
+            time      TEXT
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS rogue_logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip          TEXT,
+            mac         TEXT,
+            attack_type TEXT,
+            detected_at TEXT
         )
     """)
 
@@ -241,6 +261,7 @@ def background_scanner():
         sleep_time = max(5, 10 - elapsed)
         time.sleep(sleep_time)
 
+
 def safe_background():
     while True:
         try:
@@ -281,8 +302,8 @@ def log_rogue_attack(ip, mac, attack_type):
 
 
 def detect_rogue_logic(trusted_macs, trusted_ips):
-    current_time  = datetime.now()
-    trusted_macs  = set(normalize_mac(m) for m in trusted_macs)
+    current_time = datetime.now()
+    trusted_macs = set(normalize_mac(m) for m in trusted_macs)
 
     with lock:
         arp_results = list(network_cache["arp"])
@@ -305,20 +326,24 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
             old_mac, last_time = ip_mac_history[ip]
             if old_mac != mac and (current_time - last_time).total_seconds() < 60:
                 status_list.append("MAC Spoofing Detected")
+                log_rogue(ip, mac, "MAC Spoofing")
         ip_mac_history[ip] = (mac, current_time)
 
         if mac in mac_ip_history:
             old_ip = mac_ip_history[mac]
             if old_ip != ip:
                 status_list.append("IP Spoofing Detected")
+                log_rogue(ip, mac, "IP Spoofing")
         mac_ip_history[mac] = ip
 
         if ip in ip_seen and ip_seen[ip] != mac:
             status_list.append("Duplicate IP Conflict")
+            log_rogue(ip, mac, "Duplicate IP")
         ip_seen[ip] = mac
 
         if mac in mac_seen and mac_seen[mac] != ip:
             status_list.append("Duplicate MAC Detected")
+            log_rogue(ip, mac, "Duplicate MAC")
         mac_seen[mac] = ip
 
         if status_list:
@@ -390,7 +415,7 @@ def dashboard():
     for row in rows:
         try:
             last_seen_time = datetime.strptime(str(row[8]), "%Y-%m-%d %H:%M:%S") if row[8] else current_time
-        except:
+        except Exception:
             last_seen_time = current_time
 
         time_diff = (current_time - last_seen_time).total_seconds()
@@ -538,33 +563,39 @@ def approve_device():
     if not mac or mac == "unknown":
         return jsonify({"status": "error", "message": "Invalid MAC"})
 
-    conn   = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM trusted_devices WHERE mac_address=?", (mac,))
-    exists = cursor.fetchone()
+    try:
+        conn   = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM trusted_devices WHERE mac_address=?", (mac,))
+        exists = cursor.fetchone()
 
-    if not exists:
-        cursor.execute("""
-            INSERT INTO trusted_devices (ip_address, mac_address, device_name, location)
-            VALUES (?, ?, ?, ?)
-        """, (ip, mac, "Approved Device", "Network"))
-    else:
-        cursor.execute("UPDATE trusted_devices SET ip_address=? WHERE mac_address=?", (ip, mac))
+        if not exists:
+            cursor.execute("""
+                INSERT INTO trusted_devices (ip_address, mac_address, device_name, location)
+                VALUES (?, ?, ?, ?)
+            """, (ip, mac, "Approved Device", "Network"))
+        else:
+            cursor.execute("UPDATE trusted_devices SET ip_address=? WHERE mac_address=?", (ip, mac))
 
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 
 @app.route("/disapprove-device", methods=["POST"])
 def disapprove_device():
-    mac = request.form.get("mac")
-    conn   = get_db()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM trusted_devices WHERE mac_address=?", (mac,))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
+    try:
+        mac    = request.form.get("mac")
+        conn   = get_db()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM trusted_devices WHERE mac_address=?", (mac,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 
 # ─────────────────────────────────────────────
@@ -573,73 +604,85 @@ def disapprove_device():
 
 @app.route("/api/live-data")
 def live_data():
-    conn   = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM devices")
-    rows = cursor.fetchall()
-    cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
-    trusted_rows = cursor.fetchall()
-    conn.close()
+    try:
+        conn   = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM devices")
+        rows = cursor.fetchall()
+        cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+        trusted_rows = cursor.fetchall()
+        conn.close()
 
-    current_time = datetime.now()
-    devices = []
+        current_time = datetime.now()
+        devices = []
 
-    for row in rows:
-        try:
-            last_seen_time = datetime.strptime(str(row[8]), "%Y-%m-%d %H:%M:%S")
-        except:
-            last_seen_time = current_time
+        for row in rows:
+            try:
+                last_seen_time = datetime.strptime(str(row[8]), "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                last_seen_time = current_time
 
-        status = "ONLINE" if (current_time - last_seen_time).total_seconds() <= 30 else "OFFLINE"
+            status = "ONLINE" if (current_time - last_seen_time).total_seconds() <= 30 else "OFFLINE"
 
-        devices.append({
-            "hostname": row[1],
-            "ip":       row[2],
-            "cpu":      safe_float(row[5]),
-            "ram":      safe_float(row[6]),
-            "status":   status
+            devices.append({
+                "hostname": row[1],
+                "ip":       row[2],
+                "cpu":      safe_float(row[5]),
+                "ram":      safe_float(row[6]),
+                "status":   status
+            })
+
+        trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
+
+        with lock:
+            rogue = list(rogue_cache)
+        with lock:
+            arp_results = list(network_cache["arp"])
+        arp_ips = set(d["ip"] for d in arp_results)
+
+        all_ips = (
+            set(d["ip"] for d in devices)
+            | set(r["ip"] for r in rogue)
+            | set(t["ip"] for t in trusted_list)
+        )
+
+        final = []
+        for ip in all_ips:
+            if ip in arp_ips:
+                status = "ONLINE"
+            else:
+                status = "OFFLINE"
+                for d in devices:
+                    if d["ip"] == ip:
+                        status = d["status"]
+                        break
+            final.append({"ip": ip, "status": status})
+
+        return jsonify({
+            "devices":     devices,
+            "rogue":       rogue,
+            "trusted":     trusted_list,
+            "total":       len(final),
+            "online":      sum(1 for d in final if d["status"] == "ONLINE"),
+            "offline":     sum(1 for d in final if d["status"] == "OFFLINE"),
+            "rogue_count": len(set(r["ip"] for r in rogue))
         })
-
-    trusted_list = [{"ip": r[0], "mac": r[1]} for r in trusted_rows]
-
-    with lock:
-        rogue = list(rogue_cache)
-    with lock:
-        arp_results = list(network_cache["arp"])
-    arp_ips = set(d["ip"] for d in arp_results)
-
-    all_ips = (
-        set(d["ip"] for d in devices)
-        | set(r["ip"] for r in rogue)
-        | set(t["ip"] for t in trusted_list)
-    )
-
-    final = []
-    for ip in all_ips:
-        if ip in arp_ips:
-            status = "ONLINE"
-        else:
-            status = "OFFLINE"
-            for d in devices:
-                if d["ip"] == ip:
-                    status = d["status"]
-                    break
-        final.append({"ip": ip, "status": status})
-
-    return jsonify({
-        "devices":     devices,
-        "rogue":       rogue,
-        "trusted":     trusted_list,
-        "total":       len(final),
-        "online":      sum(1 for d in final if d["status"] == "ONLINE"),
-        "offline":     sum(1 for d in final if d["status"] == "OFFLINE"),
-        "rogue_count": len(set(r["ip"] for r in rogue))
-    })
+    except Exception as e:
+        print("live_data error:", e)
+        return jsonify({"devices": [], "rogue": [], "trusted": [],
+                        "total": 0, "online": 0, "offline": 0, "rogue_count": 0})
 
 
 @app.before_request
 def manage_session():
     session.permanent = True
+    # ── FIX: skip session check for pure API/data routes so they always
+    #    return JSON and never redirect to the HTML login page ──────────────
+    api_prefixes = ("/api/", "/scan-", "/stop-scan", "/detect-rogue",
+                    "/approve-device", "/disapprove-device", "/generate-")
+    if any(request.path.startswith(p) for p in api_prefixes):
+        return  # let the route handle auth via verify_api() or skip auth
+
     if "user" in session:
         now         = datetime.now().timestamp()
         last_active = session.get("last_active", now)
@@ -650,10 +693,9 @@ def manage_session():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ██████████████████  REPORT GENERATION — FIXED & COMPLETE  ████████████████════
+# REPORT GENERATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ── Palette ───────────────────────────────────────────────────────────────────
 RPT_DARK_BLUE    = HexColor("#1a237e")
 RPT_MED_BLUE     = HexColor("#283593")
 RPT_ACCENT_BLUE  = HexColor("#1565c0")
@@ -678,7 +720,6 @@ HEALTH_CONFIG = {
     "UNKNOWN":     {"color": RPT_GREY,   "bg": RPT_LIGHT_GREY,   "label": "UNKNOWN"},
 }
 
-# Header stripe height in points — must match topMargin
 _HEADER_H = 82
 
 
@@ -693,11 +734,9 @@ def calculate_system_health(total, rogue):
     return "LOW RISK"
 
 
-# ── Mutable context passed into canvas callbacks ───────────────────────────────
 _rpt_ctx = {}
 
 
-# ── Canvas: diagonal watermark ────────────────────────────────────────────────
 def _draw_watermark(canvas, doc):
     pw, ph = doc.pagesize
     canvas.saveState()
@@ -709,27 +748,14 @@ def _draw_watermark(canvas, doc):
     canvas.restoreState()
 
 
-# ── Canvas: page 1 header — drawn ON CANVAS so white text is visible ─────────
 def _draw_page1_header(canvas, doc):
-    """
-    FIX: title, logo, timestamp rendered directly onto the blue stripe
-    via the canvas API — NOT as flowable elements.
-    This guarantees white text always appears on the dark background.
-    """
     pw, ph = doc.pagesize
-
     canvas.saveState()
-
-    # Blue stripe
     canvas.setFillColor(RPT_DARK_BLUE)
     canvas.rect(0, ph - _HEADER_H, pw, _HEADER_H, stroke=0, fill=1)
-
-    # Amber accent line below stripe
     canvas.setFillColor(HexColor("#ffd600"))
     canvas.rect(0, ph - _HEADER_H - 3, pw, 3, stroke=0, fill=1)
-
-    # Logo (left of stripe)
-    logo_path = _rpt_ctx.get("logo_path", "")
+    logo_path  = _rpt_ctx.get("logo_path", "")
     logo_drawn = False
     if logo_path and os.path.exists(logo_path):
         try:
@@ -742,26 +768,19 @@ def _draw_page1_header(canvas, doc):
             logo_drawn = True
         except Exception:
             pass
-
-    tx = 76 if logo_drawn else 16   # text x start
-
-    # Title
+    tx = 76 if logo_drawn else 16
     canvas.setFillColor(colors.white)
     canvas.setFont("Helvetica-Bold", 19)
     canvas.drawString(tx, ph - _HEADER_H + 40, "SCCSIMS Security Report")
-
-    # Generated timestamp + operator
     canvas.setFont("Helvetica", 8.5)
     canvas.setFillColor(HexColor("#bbdefb"))
     canvas.drawString(
         tx, ph - _HEADER_H + 20,
         f"Generated: {_rpt_ctx.get('now_str', '')}   |   Operator: {_rpt_ctx.get('operator', 'admin')}"
     )
-
     canvas.restoreState()
 
 
-# ── Canvas: thin header bar for pages 2+ ──────────────────────────────────────
 def _draw_page_header(canvas, doc):
     pw, ph = doc.pagesize
     canvas.saveState()
@@ -775,7 +794,6 @@ def _draw_page_header(canvas, doc):
     canvas.restoreState()
 
 
-# ── Canvas: footer ────────────────────────────────────────────────────────────
 def _draw_footer(canvas, doc):
     pw, _ = doc.pagesize
     canvas.saveState()
@@ -802,11 +820,9 @@ def _on_later_pages(canvas, doc):
     _draw_footer(canvas, doc)
 
 
-# ── Style builder ─────────────────────────────────────────────────────────────
 def _build_styles():
     base = getSampleStyleSheet()
     st   = {}
-
     st["section_heading"] = ParagraphStyle(
         "SH", parent=base["Normal"],
         fontName="Helvetica-Bold", fontSize=11,
@@ -837,7 +853,6 @@ def _build_styles():
         fontName="Helvetica-Oblique", fontSize=7.5,
         textColor=RPT_GREY, spaceBefore=3, leading=10,
     )
-    # word-wrapping cell styles
     st["wrap"] = ParagraphStyle(
         "WR", parent=base["Normal"],
         fontName="Helvetica", fontSize=7,
@@ -861,7 +876,6 @@ def _build_styles():
     return st
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 def _tbl_style(header_bg=None):
     if header_bg is None:
         header_bg = RPT_MED_BLUE
@@ -901,7 +915,6 @@ def _section_bar(label, st):
 
 
 def _cell(text, st, key="wrap", color=None):
-    """Return a word-wrapping Paragraph for table cells. Never returns plain dash."""
     val = str(text) if (text is not None and str(text).strip() not in ("", "None")) else "—"
     if color:
         sty = ParagraphStyle(f"cc_{key}", parent=st[key], textColor=color)
@@ -911,18 +924,11 @@ def _cell(text, st, key="wrap", color=None):
 
 
 def _status_pill(status_str, st):
-    """
-    FIX: ARP-only devices had status='' or '—'. Now we always resolve to
-    ONLINE or OFFLINE — never a dash.
-    """
     s = (status_str or "").strip().upper()
     if s not in ("ONLINE", "OFFLINE"):
-        # ARP-only devices responded to ARP scan → they are ONLINE
         s = "ONLINE"
-
     fg = "#1b5e20" if s == "ONLINE" else "#b71c1c"
     bg = "#c8e6c9" if s == "ONLINE" else "#ffcdd2"
-
     pill = ParagraphStyle(
         f"Pill{s}", parent=st["normal_sm"],
         fontName="Helvetica-Bold", fontSize=6.5,
@@ -932,12 +938,7 @@ def _status_pill(status_str, st):
     return Paragraph(s, pill)
 
 
-# ── Graph generation ──────────────────────────────────────────────────────────
 def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_count=0):
-    """
-    Returns: cpu_path, ram_path, rogue_path, pie_path, combined_path
-    FIX: added RAM graph; improved tick handling; no crashes on empty data.
-    """
     timestamps = analytics_history["timestamps"]
     cpu_data   = analytics_history["cpu_avg"]
     ram_data   = analytics_history.get("ram_avg", [])
@@ -966,7 +967,6 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
         ax.text(0.5, 0.5, msg, ha="center", va="center",
                 transform=ax.transAxes, color="#9e9e9e", fontsize=9)
 
-    # ── 1. CPU Trend ─────────────────────────────────────────────────────────
     cpu_path = os.path.join(tmpdir, "sccsims_cpu.png")
     fig, ax = plt.subplots(figsize=(7.2, 2.8))
     fig.patch.set_facecolor("#ffffff")
@@ -986,7 +986,6 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
     plt.savefig(cpu_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
     plt.close()
 
-    # ── 2. RAM Trend (NEW) ───────────────────────────────────────────────────
     ram_path = os.path.join(tmpdir, "sccsims_ram.png")
     fig, ax = plt.subplots(figsize=(7.2, 2.8))
     fig.patch.set_facecolor("#ffffff")
@@ -1006,7 +1005,6 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
     plt.savefig(ram_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
     plt.close()
 
-    # ── 3. Rogue Trend ───────────────────────────────────────────────────────
     rogue_path = os.path.join(tmpdir, "sccsims_rogue.png")
     fig, ax = plt.subplots(figsize=(7.2, 2.8))
     fig.patch.set_facecolor("#ffffff")
@@ -1023,11 +1021,9 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
     plt.savefig(rogue_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
     plt.close()
 
-    # ── 4. Dual Pie ──────────────────────────────────────────────────────────
     pie_path = os.path.join(tmpdir, "sccsims_pie.png")
     fig, axes = plt.subplots(1, 2, figsize=(8, 3.4))
     fig.patch.set_facecolor("#ffffff")
-
     online_clean = max(0, online_count - rogue_count)
     p1 = [(online_clean, "Online",  "#43a047"),
           (offline_count,"Offline", "#78909c"),
@@ -1049,7 +1045,6 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
         axes[0].text(0, 0, "No data", ha="center", va="center", color="#9e9e9e")
     axes[0].set_title("Device Status Distribution", fontsize=8.5,
                       fontweight="bold", color="#1a237e", pad=6)
-
     total_seen = online_count + offline_count
     unauth     = max(0, total_seen - trusted_count)
     p2 = [(min(trusted_count, total_seen), "Trusted",      "#1565c0"),
@@ -1071,12 +1066,10 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
         axes[1].text(0, 0, "No data", ha="center", va="center", color="#9e9e9e")
     axes[1].set_title("Trust Distribution", fontsize=8.5,
                       fontweight="bold", color="#1a237e", pad=6)
-
     plt.tight_layout(pad=1.4)
     plt.savefig(pie_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
     plt.close()
 
-    # ── 5. Combined Bar ──────────────────────────────────────────────────────
     combined_path = os.path.join(tmpdir, "sccsims_combined.png")
     fig, ax = plt.subplots(figsize=(7.2, 2.8))
     fig.patch.set_facecolor("#ffffff")
@@ -1103,7 +1096,6 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
     return cpu_path, ram_path, rogue_path, pie_path, combined_path
 
 
-# ── Main report route ─────────────────────────────────────────────────────────
 @app.route("/generate-report")
 def generate_report():
     if "user" not in session:
@@ -1111,10 +1103,8 @@ def generate_report():
 
     st     = _build_styles()
     buffer = BytesIO()
-
-    # FIX: topMargin must accommodate the canvas-drawn header stripe
-    TOP_MARGIN    = _HEADER_H + 8     # ~90 pt
-    BOTTOM_MARGIN = 42                # pt
+    TOP_MARGIN    = _HEADER_H + 8
+    BOTTOM_MARGIN = 42
 
     doc = SimpleDocTemplate(
         buffer,
@@ -1129,12 +1119,10 @@ def generate_report():
     page_w = A4[0] - doc.leftMargin - doc.rightMargin
     elems  = []
 
-    # Populate canvas callback context
     _rpt_ctx["now_str"]   = datetime.now().strftime("%A, %d %B %Y  •  %H:%M:%S")
     _rpt_ctx["operator"]  = session.get("user", "admin")
     _rpt_ctx["logo_path"] = "static/logo.png"
 
-    # ── Fetch data ────────────────────────────────────────────────────────────
     conn   = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -1142,10 +1130,8 @@ def generate_report():
         "FROM devices"
     )
     db_devices = cursor.fetchall()
-
     cursor.execute("SELECT ip_address, mac_address, device_name, location FROM trusted_devices")
     trusted_rows = cursor.fetchall()
-
     cursor.execute("""
         SELECT ip, mac, attack_type, first_seen, last_seen
         FROM rogue_history
@@ -1156,16 +1142,14 @@ def generate_report():
     conn.close()
 
     with lock:
-        rogue_live   = list(rogue_cache)
-        arp_results  = list(network_cache["arp"])
+        rogue_live  = list(rogue_cache)
+        arp_results = list(network_cache["arp"])
 
     arp_ips      = set(d["ip"] for d in arp_results)
     trusted_macs = set(normalize_mac(r[1]) for r in trusted_rows)
     current_time = datetime.now()
 
-    # ── Build enriched device list ────────────────────────────────────────────
     devices_enriched = []
-
     for row in db_devices:
         hostname, ip, mac, os_, cpu, ram, loc, last_seen = row
         mac_norm = normalize_mac(mac)
@@ -1173,48 +1157,42 @@ def generate_report():
             ls_time = datetime.strptime(str(last_seen), "%Y-%m-%d %H:%M:%S")
         except Exception:
             ls_time = current_time
-
-        # FIX: ARP presence takes priority for online status
         if ip in arp_ips:
             status = "ONLINE"
         elif (current_time - ls_time).total_seconds() <= 30:
             status = "ONLINE"
         else:
             status = "OFFLINE"
-
         devices_enriched.append({
-            "hostname":   hostname or "—",
-            "ip":         ip or "—",
-            "mac":        mac_norm,
-            "os":         os_ or "—",
-            "cpu":        safe_float(cpu),     # real value — agent reported
-            "ram":        safe_float(ram),
-            "location":   loc or "—",
-            "last_seen":  last_seen or "—",
-            "status":     status,
-            "trusted":    mac_norm in trusted_macs,
-            "monitored":  True,
+            "hostname":  hostname or "—",
+            "ip":        ip or "—",
+            "mac":       mac_norm,
+            "os":        os_ or "—",
+            "cpu":       safe_float(cpu),
+            "ram":       safe_float(ram),
+            "location":  loc or "—",
+            "last_seen": last_seen or "—",
+            "status":    status,
+            "trusted":   mac_norm in trusted_macs,
+            "monitored": True,
         })
 
-    # Add ARP-only devices (no agent)
     db_ips = set(d["ip"] for d in devices_enriched)
     for arp in arp_results:
         if arp["ip"] not in db_ips:
             mac_norm = normalize_mac(arp.get("mac", "unknown"))
             devices_enriched.append({
-                "hostname":   "—",
-                "ip":         arp["ip"],
-                "mac":        mac_norm,
-                "os":         "—",
-                # FIX: ARP-only → ONLINE (device responded to ARP)
-                "status":     "ONLINE",
-                # FIX: no agent → None so we display N/A, not 0.0
-                "cpu":        None,
-                "ram":        None,
-                "location":   "—",
-                "last_seen":  "—",
-                "trusted":    mac_norm in trusted_macs,
-                "monitored":  False,
+                "hostname":  "—",
+                "ip":        arp["ip"],
+                "mac":       mac_norm,
+                "os":        "—",
+                "status":    "ONLINE",
+                "cpu":       None,
+                "ram":       None,
+                "location":  "—",
+                "last_seen": "—",
+                "trusted":   mac_norm in trusted_macs,
+                "monitored": False,
             })
 
     online_count  = sum(1 for d in devices_enriched if d["status"] == "ONLINE")
@@ -1227,7 +1205,6 @@ def generate_report():
     health     = calculate_system_health(total_count, rogue_count)
     health_cfg = HEALTH_CONFIG.get(health, HEALTH_CONFIG["UNKNOWN"])
 
-    # ── Generate graphs ───────────────────────────────────────────────────────
     cpu_path, ram_path, rogue_path, pie_path, combined_path = generate_graphs(
         online_count=online_count,
         offline_count=offline_count,
@@ -1235,20 +1212,13 @@ def generate_report():
         trusted_count=trusted_count,
     )
 
-    # ╔══════════════════════════════════════════════════════╗
-    # ║  PAGE 1 — HEALTH BANNER + KPI CARDS + SUMMARY       ║
-    # ╚══════════════════════════════════════════════════════╝
     elems.append(Spacer(1, 6))
-
-    # System Health Banner
     h_sty = ParagraphStyle(
         "HBan", parent=st["health_text"],
         textColor=health_cfg["color"], backColor=health_cfg["bg"],
     )
     htbl = Table(
-        [[Paragraph(
-            f"System Health: {health}   [{health_cfg['label']}]", h_sty
-        )]],
+        [[Paragraph(f"System Health: {health}   [{health_cfg['label']}]", h_sty)]],
         colWidths=[page_w],
     )
     htbl.setStyle(TableStyle([
@@ -1262,14 +1232,13 @@ def generate_report():
     elems.append(htbl)
     elems.append(Spacer(1, 12))
 
-    # KPI Cards
     kpi_defs = [
-        ("Total Devices", str(total_count),   RPT_ACCENT_BLUE,       RPT_LIGHT_BLUE),
-        ("Online",        str(online_count),  RPT_GREEN,             RPT_LIGHT_GREEN),
-        ("Offline",       str(offline_count), RPT_RED,               RPT_LIGHT_RED),
-        ("Trusted",       str(trusted_count), HexColor("#006064"),   HexColor("#e0f7fa")),
-        ("Unauthorized",  str(len(unauthorized)), RPT_ORANGE,        RPT_LIGHT_ORANGE),
-        ("Rogue Events",  str(rogue_count),   RPT_RED,               HexColor("#fce4ec")),
+        ("Total Devices", str(total_count),       RPT_ACCENT_BLUE,     RPT_LIGHT_BLUE),
+        ("Online",        str(online_count),       RPT_GREEN,           RPT_LIGHT_GREEN),
+        ("Offline",       str(offline_count),      RPT_RED,             RPT_LIGHT_RED),
+        ("Trusted",       str(trusted_count),      HexColor("#006064"), HexColor("#e0f7fa")),
+        ("Unauthorized",  str(len(unauthorized)),  RPT_ORANGE,          RPT_LIGHT_ORANGE),
+        ("Rogue Events",  str(rogue_count),        RPT_RED,             HexColor("#fce4ec")),
     ]
     card_w    = page_w / len(kpi_defs)
     kpi_cells = []
@@ -1296,22 +1265,19 @@ def generate_report():
     elems.append(kpi_row)
     elems.append(Spacer(1, 14))
 
-    # Executive Summary
     elems.append(_section_bar("Executive Summary", st))
     elems.append(Spacer(1, 5))
-
     sum_rows = [
-        [_cell("Metric", st, "wrap_bold"),    _cell("Value", st, "wrap_bold"),  _cell("Notes", st, "wrap_bold")],
-        [_cell("Total Devices", st),          _cell(total_count, st, "wrap_bold"), _cell("ARP + agent reports", st)],
-        [_cell("Online", st),                 _cell(online_count, st, "wrap_bold", RPT_GREEN), _cell("Active in current ARP scan", st)],
-        [_cell("Offline", st),                _cell(offline_count, st, "wrap_bold", RPT_RED), _cell("Timed-out since last scan", st)],
-        [_cell("Trusted Devices", st),        _cell(trusted_count, st, "wrap_bold"), _cell("Manually approved MACs", st)],
-        [_cell("Unauthorized Devices", st),   _cell(len(unauthorized), st, "wrap_bold", RPT_ORANGE), _cell("MAC not in trusted list", st)],
-        [_cell("Active Rogue Events", st),    _cell(rogue_count, st, "wrap_bold", RPT_RED), _cell("Current scan cycle", st)],
-        [_cell("Attack Records (DB)", st),    _cell(len(attacks), st, "wrap_bold"), _cell("Cumulative history, last 20 shown", st)],
-        [_cell("System Health", st),          _cell(health, st, "wrap_bold", health_cfg["color"]), _cell(f"Rogue ratio {rogue_count}/{max(total_count,1)}", st)],
+        [_cell("Metric", st, "wrap_bold"),  _cell("Value", st, "wrap_bold"), _cell("Notes", st, "wrap_bold")],
+        [_cell("Total Devices", st),        _cell(total_count, st, "wrap_bold"), _cell("ARP + agent reports", st)],
+        [_cell("Online", st),               _cell(online_count, st, "wrap_bold", RPT_GREEN), _cell("Active in current ARP scan", st)],
+        [_cell("Offline", st),              _cell(offline_count, st, "wrap_bold", RPT_RED), _cell("Timed-out since last scan", st)],
+        [_cell("Trusted Devices", st),      _cell(trusted_count, st, "wrap_bold"), _cell("Manually approved MACs", st)],
+        [_cell("Unauthorized Devices", st), _cell(len(unauthorized), st, "wrap_bold", RPT_ORANGE), _cell("MAC not in trusted list", st)],
+        [_cell("Active Rogue Events", st),  _cell(rogue_count, st, "wrap_bold", RPT_RED), _cell("Current scan cycle", st)],
+        [_cell("Attack Records (DB)", st),  _cell(len(attacks), st, "wrap_bold"), _cell("Cumulative history, last 20 shown", st)],
+        [_cell("System Health", st),        _cell(health, st, "wrap_bold", health_cfg["color"]), _cell(f"Rogue ratio {rogue_count}/{max(total_count,1)}", st)],
     ]
-
     sum_tbl = Table(sum_rows, colWidths=[page_w*0.35, page_w*0.18, page_w*0.47])
     ts = _tbl_style()
     ts.add("ALIGN",    (1, 1), (1, -1), "CENTER")
@@ -1319,9 +1285,6 @@ def generate_report():
     sum_tbl.setStyle(ts)
     elems.append(sum_tbl)
 
-    # ╔══════════════════════════════════════════════════════╗
-    # ║  PAGE 2 — ALL DEVICES                               ║
-    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
     elems.append(_section_bar(f"All Devices  ({total_count} total)", st))
     elems.append(Spacer(1, 4))
@@ -1333,49 +1296,28 @@ def generate_report():
     ))
     elems.append(Spacer(1, 5))
 
-    # FIX: wider columns + Paragraph cells prevent overflow
     dev_cw = [
-        page_w * 0.038,  # #
-        page_w * 0.105,  # Hostname
-        page_w * 0.095,  # IP
-        page_w * 0.130,  # MAC
-        page_w * 0.075,  # OS
-        page_w * 0.055,  # CPU%
-        page_w * 0.055,  # RAM%
-        page_w * 0.085,  # Location
-        page_w * 0.150,  # Last Seen
-        page_w * 0.097,  # Status
-        page_w * 0.115,  # Agent
+        page_w * 0.038, page_w * 0.105, page_w * 0.095, page_w * 0.130,
+        page_w * 0.075, page_w * 0.055, page_w * 0.055, page_w * 0.085,
+        page_w * 0.150, page_w * 0.097, page_w * 0.115,
     ]
     dev_hdr  = ["#", "Hostname", "IP Address", "MAC Address",
                 "OS", "CPU%", "RAM%", "Location", "Last Seen", "Status", "Agent"]
     dev_data = [[_cell(h, st, "wrap_bold") for h in dev_hdr]]
-
     for idx, d in enumerate(devices_enriched, 1):
         try:
             ls_disp = fmt_timestamp(d["last_seen"])
         except Exception:
             ls_disp = d["last_seen"]
-
-        # FIX: unmonitored devices → N/A instead of 0.0
         cpu_disp = f"{d['cpu']:.1f}" if d["cpu"] is not None else "N/A"
         ram_disp = f"{d['ram']:.1f}" if d["ram"] is not None else "N/A"
         mon_text = "Monitored" if d["monitored"] else "ARP only"
-
         dev_data.append([
-            _cell(idx,           st),
-            _cell(d["hostname"], st),
-            _cell(d["ip"],       st),
-            _cell(d["mac"],      st),
-            _cell(d["os"],       st),
-            _cell(cpu_disp,      st),
-            _cell(ram_disp,      st),
-            _cell(d["location"], st),
-            _cell(ls_disp,       st),
-            _status_pill(d["status"], st),   # FIX: never "—"
-            _cell(mon_text,      st),
+            _cell(idx, st), _cell(d["hostname"], st), _cell(d["ip"], st),
+            _cell(d["mac"], st), _cell(d["os"], st), _cell(cpu_disp, st),
+            _cell(ram_disp, st), _cell(d["location"], st), _cell(ls_disp, st),
+            _status_pill(d["status"], st), _cell(mon_text, st),
         ])
-
     dev_tbl = Table(dev_data, colWidths=dev_cw, repeatRows=1)
     dev_ts  = _tbl_style()
     for i, d in enumerate(devices_enriched, 1):
@@ -1384,12 +1326,7 @@ def generate_report():
     dev_tbl.setStyle(dev_ts)
     elems.append(dev_tbl)
 
-    # ╔══════════════════════════════════════════════════════╗
-    # ║  PAGE 3 — TRUSTED + UNAUTHORIZED                    ║
-    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
-
-    # Trusted Devices
     elems.append(_section_bar(f"Trusted Devices  ({trusted_count})", st))
     elems.append(Spacer(1, 5))
     if trusted_rows:
@@ -1398,11 +1335,8 @@ def generate_report():
                     for h in ["#", "IP Address", "MAC Address", "Device Name", "Location"]]]
         for idx, r in enumerate(trusted_rows, 1):
             tr_data.append([
-                _cell(idx,              st),
-                _cell(r[0],             st),
-                _cell(r[1],             st),
-                _cell(r[2] or "Approved Device", st),
-                _cell(r[3],             st),
+                _cell(idx, st), _cell(r[0], st), _cell(r[1], st),
+                _cell(r[2] or "Approved Device", st), _cell(r[3], st),
             ])
         tr_tbl = Table(tr_data, colWidths=tr_cw, repeatRows=1)
         tr_tbl.setStyle(_tbl_style(HexColor("#00695c")))
@@ -1411,25 +1345,19 @@ def generate_report():
         elems.append(Paragraph("No trusted devices registered.", st["note"]))
 
     elems.append(Spacer(1, 16))
-
-    # Unauthorized Devices
     elems.append(_section_bar(f"Unauthorized Devices  ({len(unauthorized)})", st))
     elems.append(Spacer(1, 5))
     if unauthorized:
-        ua_cw   = [page_w*0.04, page_w*0.12, page_w*0.12,
-                   page_w*0.20, page_w*0.09, page_w*0.16, page_w*0.12, page_w*0.15]
+        ua_cw = [page_w*0.04, page_w*0.12, page_w*0.12,
+                 page_w*0.20, page_w*0.09, page_w*0.16, page_w*0.12, page_w*0.15]
         ua_data = [[_cell(h, st, "wrap_bold")
                     for h in ["#", "Hostname", "IP Address", "MAC Address",
                                "OS", "Location", "Status", "Agent"]]]
         for idx, d in enumerate(unauthorized, 1):
             ua_data.append([
-                _cell(idx,           st),
-                _cell(d["hostname"], st),
-                _cell(d["ip"],       st),
-                _cell(d["mac"],      st),
-                _cell(d["os"],       st),
-                _cell(d["location"], st),
-                _status_pill(d["status"], st),   # FIX: never "—"
+                _cell(idx, st), _cell(d["hostname"], st), _cell(d["ip"], st),
+                _cell(d["mac"], st), _cell(d["os"], st), _cell(d["location"], st),
+                _status_pill(d["status"], st),
                 _cell("Monitored" if d["monitored"] else "ARP only", st),
             ])
         ua_tbl = Table(ua_data, colWidths=ua_cw, repeatRows=1)
@@ -1440,57 +1368,38 @@ def generate_report():
         ua_tbl.setStyle(ua_ts)
         elems.append(ua_tbl)
     else:
-        elems.append(Paragraph(
-            "All observed MACs are present in the trusted list.", st["note"]))
+        elems.append(Paragraph("All observed MACs are present in the trusted list.", st["note"]))
 
-    # ╔══════════════════════════════════════════════════════╗
-    # ║  PAGE 4 — ATTACK / ROGUE HISTORY                    ║
-    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
     elems.append(_section_bar(f"Attack & Rogue Event History  (last {len(attacks)})", st))
     elems.append(Spacer(1, 5))
-
     if attacks:
-        # FIX: Attack Type column is a Paragraph so long compound types wrap
         atk_cw = [
-            page_w * 0.040,   # #
-            page_w * 0.115,   # IP
-            page_w * 0.160,   # MAC
-            page_w * 0.315,   # Attack Type (wide — compound strings)
-            page_w * 0.185,   # First Seen
-            page_w * 0.185,   # Last Seen
+            page_w * 0.040, page_w * 0.115, page_w * 0.160,
+            page_w * 0.315, page_w * 0.185, page_w * 0.185,
         ]
         atk_data = [[_cell(h, st, "wrap_bold")
                      for h in ["#", "IP Address", "MAC Address", "Attack Type",
                                 "First Seen", "Last Seen"]]]
         for idx, a in enumerate(attacks, 1):
-            atype    = str(a[2] or "—")
-            is_bad   = any(k in atype.lower()
-                           for k in ("spoofing", "duplicate", "conflict"))
-            atype_p  = _cell(atype, st, "wrap_red" if is_bad else "wrap")
-
+            atype   = str(a[2] or "—")
+            is_bad  = any(k in atype.lower() for k in ("spoofing", "duplicate", "conflict"))
+            atype_p = _cell(atype, st, "wrap_red" if is_bad else "wrap")
             atk_data.append([
-                _cell(idx,                                           st),
-                _cell(a[0],                                          st),
-                _cell(a[1],                                          st),
-                atype_p,
-                _cell(fmt_timestamp(a[3]) if a[3] else "—",         st),
-                _cell(fmt_timestamp(a[4]) if a[4] else "—",         st),
+                _cell(idx, st), _cell(a[0], st), _cell(a[1], st), atype_p,
+                _cell(fmt_timestamp(a[3]) if a[3] else "—", st),
+                _cell(fmt_timestamp(a[4]) if a[4] else "—", st),
             ])
         atk_tbl = Table(atk_data, colWidths=atk_cw, repeatRows=1)
         atk_ts  = _tbl_style(RPT_DARK_BLUE)
         for i, a in enumerate(attacks, 1):
-            if any(k in str(a[2] or "").lower()
-                   for k in ("spoofing", "duplicate", "conflict")):
+            if any(k in str(a[2] or "").lower() for k in ("spoofing", "duplicate", "conflict")):
                 atk_ts.add("BACKGROUND", (0, i), (-1, i), HexColor("#ffebee"))
         atk_tbl.setStyle(atk_ts)
         elems.append(atk_tbl)
     else:
         elems.append(Paragraph("No attack records found in the database.", st["note"]))
 
-    # ╔══════════════════════════════════════════════════════╗
-    # ║  PAGE 5 — ANALYTICS GRAPHS (5 graphs incl. RAM)     ║
-    # ╚══════════════════════════════════════════════════════╝
     elems.append(PageBreak())
     elems.append(_section_bar("Network Analytics & Trend Graphs", st))
     elems.append(Spacer(1, 8))
@@ -1522,32 +1431,15 @@ def generate_report():
         items.append(Spacer(1, 10))
         return items
 
-    elems.extend(_graph_block(
-        cpu_path,
-        "Figure 1 — Average CPU usage across agent-monitored devices (last 20 scan cycles).",
-    ))
-    elems.extend(_graph_block(
-        ram_path,
-        "Figure 2 — Average RAM usage across agent-monitored devices (last 20 scan cycles).",
-    ))
-    elems.extend(_graph_block(
-        rogue_path,
-        "Figure 3 — Rogue device count per cycle. Spikes indicate new unauthorized MACs.",
-    ))
-    elems.extend(_graph_block(
-        pie_path,
+    elems.extend(_graph_block(cpu_path, "Figure 1 — Average CPU usage across agent-monitored devices (last 20 scan cycles)."))
+    elems.extend(_graph_block(ram_path, "Figure 2 — Average RAM usage across agent-monitored devices (last 20 scan cycles)."))
+    elems.extend(_graph_block(rogue_path, "Figure 3 — Rogue device count per cycle. Spikes indicate new unauthorized MACs."))
+    elems.extend(_graph_block(pie_path,
         "Figure 4 — Left: Device status breakdown (Online/Offline/Rogue).  "
-        "Right: Trust breakdown (Trusted vs Unauthorized).",
-        height=3.0 * inch,
-    ))
-    elems.extend(_graph_block(
-        combined_path,
-        "Figure 5 — Total devices vs rogue count across the last 20 scan cycles.",
-    ))
+        "Right: Trust breakdown (Trusted vs Unauthorized).", height=3.0 * inch))
+    elems.extend(_graph_block(combined_path, "Figure 5 — Total devices vs rogue count across the last 20 scan cycles."))
 
-    # ── Build PDF ─────────────────────────────────────────────────────────────
     doc.build(elems, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
-
     buffer.seek(0)
     fname = f"SCCSIMS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return Response(
@@ -1573,26 +1465,28 @@ def analytics():
 
 @app.route("/api/last-attacker")
 def last_attacker():
-    conn   = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT ip, mac, attack_type, last_seen
-        FROM rogue_history
-        ORDER BY datetime(last_seen) DESC
-        LIMIT 1
-    """)
-    row = cursor.fetchone()
-    conn.close()
+    try:
+        conn   = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT ip, mac, attack_type, last_seen
+            FROM rogue_history
+            ORDER BY datetime(last_seen) DESC
+            LIMIT 1
+        """)
+        row = cursor.fetchone()
+        conn.close()
 
-    if row:
-        return jsonify({
-            "ip":        row[0],
-            "mac":       row[1],
-            "type":      row[2],
-            "last_seen": fmt_timestamp(row[3])
-        })
-
-    return jsonify({"ip": None, "message": "No attacks yet"})
+        if row:
+            return jsonify({
+                "ip":        row[0],
+                "mac":       row[1],
+                "type":      row[2],
+                "last_seen": fmt_timestamp(row[3])
+            })
+        return jsonify({"ip": None, "message": "No attacks yet"})
+    except Exception as e:
+        return jsonify({"ip": None, "message": str(e)})
 
 
 # ─────────────────────────────────────────────
@@ -1609,15 +1503,17 @@ def scan_arp():
 
 @app.route("/detect-rogue")
 def detect_rogue_devices():
-    conn   = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
-    trusted_rows = cursor.fetchall()
-    conn.close()
-
-    trusted_ips  = set(r[0] for r in trusted_rows)
-    trusted_macs = set(r[1] for r in trusted_rows)
-    return jsonify({"rogue_devices": detect_rogue_logic(trusted_macs, trusted_ips)})
+    try:
+        conn   = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+        trusted_rows = cursor.fetchall()
+        conn.close()
+        trusted_ips  = set(r[0] for r in trusted_rows)
+        trusted_macs = set(r[1] for r in trusted_rows)
+        return jsonify({"rogue_devices": detect_rogue_logic(trusted_macs, trusted_ips)})
+    except Exception as e:
+        return jsonify({"rogue_devices": [], "error": str(e)})
 
 
 # ─────────────────────────────────────────────
@@ -1635,19 +1531,19 @@ def scan_ports(ip, ports=None):
             if sock.connect_ex((ip, port)) == 0:
                 open_ports.append(port)
             sock.close()
-        except:
+        except Exception:
             pass
     return open_ports
 
 
 def scan_single_port(ip, port, timeout):
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock   = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         result = sock.connect_ex((ip, port))
         sock.close()
         return port if result == 0 else None
-    except:
+    except Exception:
         return None
 
 
@@ -1655,15 +1551,12 @@ def scan_single_port(ip, port, timeout):
 def scan_ports_route():
     ip         = request.args.get("ip")
     port_range = request.args.get("range", "")
-
     if not ip:
         return jsonify({"error": "IP required"}), 400
-
     ports = None
     if port_range and "-" in port_range:
         start, end = port_range.split("-")
         ports = list(range(int(start), int(end) + 1))
-
     return jsonify({"ip": ip, "open_ports": scan_ports(ip, ports)})
 
 
@@ -1676,7 +1569,7 @@ def scan_ports_live():
 
     try:
         start, end = map(int, port_range.split("-"))
-    except:
+    except Exception:
         return "data: error\n\n"
 
     if end - start > 5000:
@@ -1687,15 +1580,21 @@ def scan_ports_live():
 
     def generate():
         scan_control["stop"] = False
+        open_ports = []
+
         with ThreadPoolExecutor(max_workers=threads) as executor:
             futures = [executor.submit(scan_single_port, ip, p, timeout)
                        for p in ports if not scan_control["stop"]]
+
             for future in as_completed(futures):
                 if scan_control["stop"]:
                     break
                 result = future.result()
                 if result:
+                    open_ports.append(result)
                     yield f"data: {result}\n\n"
+
+        save_scan_history(ip, open_ports)
         yield "data: done\n\n"
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
@@ -1710,7 +1609,6 @@ def scan_ports_advanced():
         port_range = data.get("port_range", "1-1024")
         threads    = min(int(data.get("threads", 50)), 100)
         timeout    = {"aggressive": 0.3, "stealth": 2}.get(speed, 0.8)
-
         start, end = map(int, port_range.split("-"))
         ports      = list(range(start, end + 1))
 
@@ -1722,16 +1620,49 @@ def scan_ports_advanced():
                 result = sock.connect_ex((ip, port))
                 sock.close()
                 return port if result == 0 else None
-            except:
+            except Exception:
                 return None
 
         with ThreadPoolExecutor(max_workers=threads) as executor:
             results = executor.map(scan_tcp, ports)
 
         return jsonify({"ip": ip, "open_ports": sorted(p for p in results if p)})
-
     except Exception as e:
         return jsonify({"error": "scan failed", "open_ports": []})
+
+
+def save_scan_history(ip, ports):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Normalize ports (handle int OR dict)
+        clean_ports = []
+        for p in ports:
+            if isinstance(p, dict):
+                clean_ports.append(p.get("port"))
+            else:
+                clean_ports.append(p)
+
+        clean_ports = [p for p in clean_ports if p is not None]
+
+        high_risk_ports = [p for p in clean_ports if p in [21, 23, 445, 3389, 4444]]
+
+        cursor.execute("""
+            INSERT INTO scan_history (ip, ports, high_risk, time)
+            VALUES (?, ?, ?, ?)
+        """, (
+            ip,
+            ",".join(str(p) for p in clean_ports),
+            len(high_risk_ports),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        print("save_scan_history ERROR:", e)
 
 
 @app.route("/stop-scan")
@@ -1739,73 +1670,168 @@ def stop_scan():
     scan_control["stop"] = True
     return jsonify({"status": "stopped"})
 
+
+# ── FIX: log_rogue now wrapped in try/except ─────────────────────────────────
+def log_rogue(ip, mac, attack_type):
+    try:
+        conn   = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO rogue_logs (ip, mac, attack_type, detected_at)
+            VALUES (?, ?, ?, ?)
+        """, (ip, mac, attack_type, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("log_rogue error:", e)
+# ── end fix ──────────────────────────────────────────────────────────────────
+
+
 @app.route("/generate-port-report", methods=["POST"])
 def generate_port_report():
-    data = request.get_json()
+    try:
+        data      = request.get_json()
+        ip        = data.get("ip")
+        ports     = data.get("ports", [])
+        timestamp = data.get("timestamp")
 
-    ip = data.get("ip")
-    ports = data.get("ports")  # now list of dicts
-    timestamp = data.get("timestamp")
+        buffer = io.BytesIO()
+        doc    = SimpleDocTemplate(buffer)
+        styles = getSampleStyleSheet()
+        content = []
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer)
-    styles = getSampleStyleSheet()
+        content.append(Paragraph("Port Scan Security Report", styles['Title']))
+        content.append(Spacer(1, 10))
+        content.append(Paragraph(f"<b>Target IP:</b> {ip}", styles['Normal']))
+        content.append(Paragraph(f"<b>Scan Time:</b> {timestamp}", styles['Normal']))
+        content.append(Spacer(1, 15))
 
-    content = []
+        table_data = [["Port", "Service", "Risk Level"]]
+        high_count = 0
+        for p in ports:
+            port    = p.get("port")
+            service = p.get("service")
+            risk    = p.get("risk")
+            if risk == "HIGH":
+                high_count += 1
+            table_data.append([str(port), service, risk])
 
-    # Title
-    content.append(Paragraph("🔐 Port Scan Security Report", styles['Title']))
-    content.append(Spacer(1, 10))
+        table = Table(table_data)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+            ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
+            ("ALIGN",      (0, 0), (-1,-1), "CENTER"),
+            ("GRID",       (0, 0), (-1,-1), 1, colors.black),
+        ]))
+        content.append(table)
+        content.append(Spacer(1, 15))
 
-    # Basic Info
-    content.append(Paragraph(f"<b>Target IP:</b> {ip}", styles['Normal']))
-    content.append(Paragraph(f"<b>Scan Time:</b> {timestamp}", styles['Normal']))
-    content.append(Spacer(1, 15))
+        if high_count > 0:
+            summary = f"<font color='red'><b>HIGH RISK DETECTED: {high_count} critical ports open!</b></font>"
+        else:
+            summary = "<font color='green'><b>System appears secure (no critical ports)</b></font>"
+        content.append(Paragraph(summary, styles['Normal']))
 
-    # Table Header
-    table_data = [["Port", "Service", "Risk Level"]]
+        doc.build(content)
+        buffer.seek(0)
 
-    high_count = 0
+        try:
+            conn   = get_db()
+            cursor = conn.cursor()
+            high_risk = sum(1 for p in ports if p.get("risk") == "HIGH")
+            cursor.execute("""
+                INSERT INTO scan_history (ip, ports, high_risk, time)
+                VALUES (?, ?, ?, ?)
+            """, (
+                ip,
+                ",".join(str(p.get("port")) for p in ports),
+                high_risk,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print("generate_port_report DB error:", e)
 
-    for p in ports:
-        port = p.get("port")
-        service = p.get("service")
-        risk = p.get("risk")
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name="Port_Scan_Report.pdf",
+            mimetype="application/pdf"
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        if risk == "HIGH":
-            high_count += 1
 
-        table_data.append([str(port), service, risk])
+@app.route("/api/scan-history")
+def scan_history():
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
 
-    # Table styling
-    table = Table(table_data)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.grey),
-        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("ALIGN", (0,0), (-1,-1), "CENTER"),
-        ("GRID", (0,0), (-1,-1), 1, colors.black),
-    ]))
+        cursor.execute("""
+            SELECT ip, ports, high_risk, time
+            FROM scan_history
+            ORDER BY id DESC
+            LIMIT 50
+        """)
 
-    content.append(table)
-    content.append(Spacer(1, 15))
+        rows = cursor.fetchall()
+        conn.close()
 
-    # 🔥 Smart Risk Summary (VERY IMPORTANT FOR PROJECT)
-    if high_count > 0:
-        summary = f"<font color='red'><b>⚠ HIGH RISK DETECTED:</b> {high_count} critical ports open!</font>"
-    else:
-        summary = "<font color='green'><b>✔ System appears secure (no critical ports)</b></font>"
+        data = []
 
-    content.append(Paragraph(summary, styles['Normal']))
+        for r in rows:
+            ports_str = r[1] if r[1] else ""
 
-    doc.build(content)
-    buffer.seek(0)
+            try:
+                port_list = [p.strip() for p in ports_str.split(",") if p.strip()]
+            except:
+                port_list = []
 
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name="Port_Scan_Report.pdf",
-        mimetype="application/pdf"
-    )
+            data.append({
+                "ip": r[0],
+                "ports": ports_str,
+                "port_count": len(port_list),
+                "high_risk": r[2] if r[2] else 0,
+                "time": r[3] if r[3] else "-"
+            })
+
+        return jsonify(data)
+
+    except Exception as e:
+        print("scan_history ERROR:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route("/api/rogue-logs")
+def get_rogue_logs():
+    try:
+        conn   = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rogue_logs (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip          TEXT,
+                mac         TEXT,
+                attack_type TEXT,
+                detected_at TEXT
+            )
+        """)
+        cursor.execute("SELECT * FROM rogue_logs ORDER BY id DESC LIMIT 50")
+        rows = cursor.fetchall()
+        conn.commit()
+        conn.close()
+        return jsonify([{
+            "ip":   r[1],
+            "mac":  r[2],
+            "type": r[3],
+            "time": r[4]
+        } for r in rows])
+    except Exception as e:
+        print("get_rogue_logs error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 
 # ─────────────────────────────────────────────
 # STARTUP
@@ -1815,4 +1841,9 @@ if __name__ == "__main__":
     init_db()
     scanner_thread = threading.Thread(target=safe_background, daemon=True)
     scanner_thread.start()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # ── FIX: use_reloader=False prevents the Werkzeug reloader from
+    #    spawning a second process that kills the background scanner thread,
+    #    which was causing ERR_CONNECTION_REFUSED after page load.
+    #    threaded=True lets Flask handle concurrent AJAX calls properly. ──────
+    app.run(host="0.0.0.0", port=5000, debug=True,
+            use_reloader=False, threaded=True)

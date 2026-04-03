@@ -1,933 +1,2413 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
+  <head>
     <title>🛡️ SCCSIMS Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+      <link rel="icon" href="logo.png">
     <style>
-        :root {
-            --bg-base:     #050c17;
-            --bg-panel:    #0a1628;
-            --bg-card:     #0d1e35;
-            --bg-surface:  #111f38;
-            --bg-hover:    #162845;
-            --border:      rgba(0,200,255,0.12);
-            --border-glow: rgba(0,200,255,0.35);
-            --cyan:        #00c8ff;
-            --cyan-dim:    rgba(0,200,255,0.15);
-            --green:       #00e676;
-            --green-dim:   rgba(0,230,118,0.15);
-            --red:         #ff3d5a;
-            --red-dim:     rgba(255,61,90,0.15);
-            --amber:       #ffab00;
-            --amber-dim:   rgba(255,171,0,0.15);
-            --blue:        #448aff;
-            --blue-dim:    rgba(68,138,255,0.15);
-            --text-primary:   #e8f4fd;
-            --text-secondary: #7a9bb5;
-            --text-muted:     #3d5a78;
-            --font-display: 'Oxanium', sans-serif;
-            --font-mono:    'JetBrains Mono', monospace;
-            --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px;
-            --shadow-cyan: 0 0 30px rgba(0,200,255,0.08);
-            --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+      :root {
+        --bg-base: #050c17;
+        --bg-panel: #0a1628;
+        --bg-card: #0d1e35;
+        --bg-surface: #111f38;
+        --bg-hover: #162845;
+        --border: rgba(0, 200, 255, 0.12);
+        --border-glow: rgba(0, 200, 255, 0.35);
+        --cyan: #00c8ff;
+        --cyan-dim: rgba(0, 200, 255, 0.15);
+        --green: #00e676;
+        --green-dim: rgba(0, 230, 118, 0.15);
+        --red: #ff3d5a;
+        --red-dim: rgba(255, 61, 90, 0.15);
+        --amber: #ffab00;
+        --amber-dim: rgba(255, 171, 0, 0.15);
+        --blue: #448aff;
+        --blue-dim: rgba(68, 138, 255, 0.15);
+        --text-primary: #e8f4fd;
+        --text-secondary: #7a9bb5;
+        --text-muted: #3d5a78;
+        --font-display: "Oxanium", sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+        --radius-sm: 6px;
+        --radius-md: 10px;
+        --radius-lg: 16px;
+        --shadow-cyan: 0 0 30px rgba(0, 200, 255, 0.08);
+        --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        outline: none;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font-display);
+        background: var(--bg-base);
+        color: var(--text-primary);
+        min-height: 100vh;
+        user-select: none;
+        caret-color: transparent;
+        overflow-x: hidden;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 200, 255, 0.012) 2px,
+          rgba(0, 200, 255, 0.012) 4px
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(0, 200, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 200, 255, 0.04) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .page-wrapper {
+        position: relative;
+        z-index: 1;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 24px 28px;
+      }
+      .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 28px;
+        background: linear-gradient(
+          135deg,
+          var(--bg-panel),
+          rgba(0, 200, 255, 0.04)
+        );
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-cyan);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .brand-icon {
+        width: 42px;
+        height: 42px;
+        background: var(--cyan-dim);
+        border: 1px solid var(--border-glow);
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        box-shadow: 0 0 15px rgba(0, 200, 255, 0.2);
+      }
+      .brand-text {
+        display: flex;
+        flex-direction: column;
+      }
+      .brand-title {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: 3px;
+        color: var(--cyan);
+        text-shadow: 0 0 20px rgba(0, 200, 255, 0.4);
+      }
+      .brand-sub {
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--text-secondary);
+        font-weight: 300;
+      }
+      .top-bar-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--green-dim);
+        border: 1px solid rgba(0, 230, 118, 0.25);
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: var(--green);
+        transition: all 0.3s ease;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+        animation: pulse-dot 2s infinite;
+        flex-shrink: 0;
+      }
+      @keyframes pulse-dot {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
         }
-        *,*::before,*::after{box-sizing:border-box;outline:none;margin:0;padding:0;}
-        body{font-family:var(--font-display);background:var(--bg-base);color:var(--text-primary);min-height:100vh;user-select:none;caret-color:transparent;overflow-x:hidden;}
-        body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,0.012) 2px,rgba(0,200,255,0.012) 4px);pointer-events:none;z-index:0;}
-        body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-        .page-wrapper{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:24px 28px;}
-        /* TOP BAR */
-        .top-bar{display:flex;justify-content:space-between;align-items:center;padding:18px 28px;background:linear-gradient(135deg,var(--bg-panel),rgba(0,200,255,0.04));border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:20px;box-shadow:var(--shadow-cyan);}
-        .brand{display:flex;align-items:center;gap:14px;}
-        .brand-icon{width:42px;height:42px;background:var(--cyan-dim);border:1px solid var(--border-glow);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 15px rgba(0,200,255,0.2);}
-        .brand-text{display:flex;flex-direction:column;}
-        .brand-title{font-size:20px;font-weight:800;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 20px rgba(0,200,255,0.4);}
-        .brand-sub{font-size:10px;letter-spacing:2px;color:var(--text-secondary);font-weight:300;}
-        .top-bar-right{display:flex;align-items:center;gap:20px;}
-        .status-pill{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--green-dim);border:1px solid rgba(0,230,118,0.25);border-radius:999px;font-size:12px;font-weight:600;letter-spacing:1px;color:var(--green);transition:all 0.3s ease;}
-        .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse-dot 2s infinite;flex-shrink:0;}
-        @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.8);}}
-        .clock{font-family:var(--font-mono);font-size:13px;color:var(--text-secondary);letter-spacing:1px;}
-        .logout-btn{display:flex;align-items:center;gap:8px;padding:9px 18px;background:var(--red-dim);border:1px solid rgba(255,61,90,0.3);border-radius:var(--radius-sm);color:var(--red);text-decoration:none;font-family:var(--font-display);font-size:12px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all 0.2s ease;}
-        .logout-btn:hover{background:rgba(255,61,90,0.25);border-color:var(--red);box-shadow:0 0 15px rgba(255,61,90,0.2);}
-        /* SECTION */
-        .section-header{display:flex;align-items:center;gap:12px;margin:28px 0 16px;}
-        .section-header::before{content:'';width:3px;height:22px;background:linear-gradient(to bottom,var(--cyan),transparent);border-radius:2px;}
-        .section-title{font-size:14px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--text-secondary);}
-        .section-line{flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent);}
-        /* CARDS */
-        .overview-container{display:flex;gap:20px;align-items:stretch;flex-wrap:wrap;}
-        .card-grid{flex:2;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
-        .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px 18px;cursor:default;transition:all 0.25s ease;position:relative;overflow:hidden;}
-        .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
-        .stat-card.s-blue::before{background:linear-gradient(to right,var(--blue),transparent);}
-        .stat-card.s-green::before{background:linear-gradient(to right,var(--green),transparent);}
-        .stat-card.s-red::before{background:linear-gradient(to right,var(--red),transparent);}
-        .stat-card.s-amber::before{background:linear-gradient(to right,var(--amber),transparent);}
-        .stat-card.s-dark::before{background:linear-gradient(to right,var(--cyan),transparent);}
-        .stat-card:hover{border-color:var(--border-glow);background:var(--bg-surface);transform:translateY(-3px);box-shadow:var(--shadow-cyan);}
-        .stat-card.s-dark{cursor:pointer;}
-        .stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:12px;font-weight:400;}
-        .stat-value{font-size:32px;font-weight:800;line-height:1;}
-        .s-blue .stat-value{color:var(--blue);} .s-green .stat-value{color:var(--green);} .s-red .stat-value{color:var(--red);} .s-amber .stat-value{color:var(--amber);} .s-dark .stat-value{color:var(--cyan);}
-        .stat-icon{position:absolute;bottom:12px;right:14px;font-size:28px;opacity:0.1;}
-        .attacker-card{background:var(--bg-card);border:1px solid rgba(255,61,90,0.2);border-radius:var(--radius-md);padding:20px 18px;position:relative;overflow:hidden;}
-        .attacker-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--red),transparent);}
-        .attacker-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#ff3d5a80;margin-bottom:10px;}
-        #attackerInfo{font-family:var(--font-mono);font-size:12px;color:var(--text-primary);line-height:1.8;}
-        /* CHART */
-        .chart-box{flex:1;min-width:280px;max-width:360px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;display:flex;flex-direction:column;align-items:center;box-shadow:var(--shadow-card);position:relative;overflow:hidden;}
-        .chart-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--cyan),transparent);}
-        .chart-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:16px;font-weight:400;}
-        .chart-box canvas{width:100% !important;height:200px !important;}
-        /* ANALYTICS */
-        .analytics-toggle{display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-md);margin:28px 0 16px;transition:all 0.2s ease;user-select:none;}
-        .analytics-toggle:hover{border-color:var(--border-glow);background:var(--bg-surface);}
-        .analytics-toggle-label{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;}
-        .analytics-toggle-icon{margin-left:auto;color:var(--cyan);font-size:14px;transition:transform 0.3s ease;}
-        #analyticsSection{overflow:hidden;transition:all 0.4s ease;}
-        .analytics-grid{display:flex;gap:20px;flex-wrap:wrap;}
-        .analytics-grid .chart-box{max-width:none;flex:1;min-width:250px;}
-        /* TABLES */
-        .table-wrapper{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:8px;}
-        table{width:100%;border-collapse:collapse;}
-        thead tr{background:var(--bg-surface);}
-        th{padding:12px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;text-align:center;border-bottom:1px solid var(--border);}
-        td{padding:11px 16px;text-align:center;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);font-family:var(--font-mono);color:var(--text-primary);font-weight:300;}
-        tbody tr{transition:background 0.15s ease;} tbody tr:hover{background:var(--bg-hover);} tbody tr:last-child td{border-bottom:none;}
-        .val-high{color:var(--red) !important;font-weight:600;} .val-normal{color:var(--green) !important;}
-        .status-online{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-weight:600;}
-        .status-online::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
-        .status-offline{display:inline-flex;align-items:center;gap:6px;color:var(--red);}
-        .status-offline::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--red);}
-        /* BUTTONS */
-        .btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid;border-radius:var(--radius-sm);font-family:var(--font-display);font-size:11px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all 0.2s ease;text-transform:uppercase;}
-        .btn:hover{transform:scale(1.04);}
-        .btn-scan{background:var(--cyan-dim);border-color:rgba(0,200,255,0.3);color:var(--cyan);}
-        .btn-scan:hover{background:rgba(0,200,255,0.2);border-color:var(--cyan);box-shadow:0 0 12px rgba(0,200,255,0.2);}
-        .btn-approve{background:var(--green-dim);border-color:rgba(0,230,118,0.3);color:var(--green);}
-        .btn-approve:hover{background:rgba(0,230,118,0.2);border-color:var(--green);box-shadow:0 0 12px rgba(0,230,118,0.2);}
-        .btn-disapprove{background:var(--red-dim);border-color:rgba(255,61,90,0.3);color:var(--red);}
-        .btn-disapprove:hover{background:rgba(255,61,90,0.2);border-color:var(--red);box-shadow:0 0 12px rgba(255,61,90,0.2);}
-        .btn-primary{background:var(--cyan-dim);border-color:var(--border-glow);color:var(--cyan);padding:9px 20px;font-size:12px;}
-        .btn-primary:hover{background:rgba(0,200,255,0.25);box-shadow:0 0 20px rgba(0,200,255,0.2);}
-        .btn-stop{background:var(--red-dim);border-color:rgba(255,61,90,0.3);color:var(--red);padding:9px 20px;font-size:12px;}
-        .rogue-header{display:flex;align-items:center;gap:10px;}
-        .rogue-badge{background:var(--red-dim);border:1px solid rgba(255,61,90,0.3);border-radius:999px;padding:3px 12px;font-size:10px;letter-spacing:1px;color:var(--red);}
-        /* MODALS */
-        .modal{display:none;position:fixed;z-index:1000;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);}
-        .modal-content{background:var(--bg-panel);border:1px solid var(--border-glow);border-radius:var(--radius-lg);margin:6% auto;padding:28px;width:min(65%,700px);max-height:80vh;overflow-y:auto;box-shadow:0 0 60px rgba(0,200,255,0.1);position:relative;animation:modalIn 0.25s ease;}
-        @keyframes modalIn{from{opacity:0;transform:translateY(-20px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
-        .modal-content::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(to right,transparent,var(--cyan),transparent);}
-        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+        50% {
+          opacity: 0.5;
+          transform: scale(0.8);
+        }
+      }
+      .clock {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--text-secondary);
+        letter-spacing: 1px;
+      }
+      .logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 18px;
+        background: var(--red-dim);
+        border: 1px solid rgba(255, 61, 90, 0.3);
+        border-radius: var(--radius-sm);
+        color: var(--red);
+        text-decoration: none;
+        font-family: var(--font-display);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .logout-btn:hover {
+        background: rgba(255, 61, 90, 0.25);
+        border-color: var(--red);
+        box-shadow: 0 0 15px rgba(255, 61, 90, 0.2);
+      }
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 28px 0 16px;
+      }
+      .section-header::before {
+        content: "";
+        width: 3px;
+        height: 22px;
+        background: linear-gradient(to bottom, var(--cyan), transparent);
+        border-radius: 2px;
+      }
+      .section-title {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+      .section-line {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(to right, var(--border), transparent);
+      }
+      .overview-container {
+        display: flex;
+        gap: 20px;
+        align-items: stretch;
+        flex-wrap: wrap;
+      }
+      .card-grid {
+        flex: 2;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+      }
+      .stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 20px 18px;
+        cursor: default;
+        transition: all 0.25s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+      }
+      .stat-card.s-blue::before {
+        background: linear-gradient(to right, var(--blue), transparent);
+      }
+      .stat-card.s-green::before {
+        background: linear-gradient(to right, var(--green), transparent);
+      }
+      .stat-card.s-red::before {
+        background: linear-gradient(to right, var(--red), transparent);
+      }
+      .stat-card.s-amber::before {
+        background: linear-gradient(to right, var(--amber), transparent);
+      }
+      .stat-card.s-dark::before {
+        background: linear-gradient(to right, var(--cyan), transparent);
+      }
+      .stat-card:hover {
+        border-color: var(--border-glow);
+        background: var(--bg-surface);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-cyan);
+      }
+      .stat-card.s-dark {
+        cursor: pointer;
+      }
+      .stat-label {
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        font-weight: 400;
+      }
+      .stat-value {
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .s-blue .stat-value {
+        color: var(--blue);
+      }
+      .s-green .stat-value {
+        color: var(--green);
+      }
+      .s-red .stat-value {
+        color: var(--red);
+      }
+      .s-amber .stat-value {
+        color: var(--amber);
+      }
+      .s-dark .stat-value {
+        color: var(--cyan);
+      }
+      .stat-icon {
+        position: absolute;
+        bottom: 12px;
+        right: 14px;
+        font-size: 28px;
+        opacity: 0.1;
+      }
+      .attacker-card {
+        background: var(--bg-card);
+        border: 1px solid rgba(255, 61, 90, 0.2);
+        border-radius: var(--radius-md);
+        padding: 20px 18px;
+        position: relative;
+        overflow: hidden;
+      }
+      .attacker-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(to right, var(--red), transparent);
+      }
+      .attacker-label {
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #ff3d5a80;
+        margin-bottom: 10px;
+      }
+      #attackerInfo {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-primary);
+        line-height: 1.8;
+      }
+      .chart-box {
+        flex: 1;
+        min-width: 280px;
+        max-width: 360px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: var(--shadow-card);
+        position: relative;
+        overflow: hidden;
+      }
+      .chart-box::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          var(--cyan),
+          transparent
+        );
+      }
+      .chart-title {
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        font-weight: 400;
+      }
+      .chart-box canvas {
+        width: 100% !important;
+        height: 200px !important;
+      }
+      .analytics-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        padding: 14px 20px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        margin: 28px 0 16px;
+        transition: all 0.2s ease;
+        user-select: none;
+      }
+      .analytics-toggle:hover {
+        border-color: var(--border-glow);
+        background: var(--bg-surface);
+      }
+      .analytics-toggle-label {
+        font-size: 12px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        font-weight: 600;
+      }
+      .analytics-toggle-icon {
+        margin-left: auto;
+        color: var(--cyan);
+        font-size: 14px;
+        transition: transform 0.3s ease;
+      }
+      #analyticsSection {
+        overflow: hidden;
+        transition: all 0.4s ease;
+      }
+      .analytics-grid {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .analytics-grid .chart-box {
+        max-width: none;
+        flex: 1;
+        min-width: 250px;
+      }
+      .table-wrapper {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead tr {
+        background: var(--bg-surface);
+      }
+      th {
+        padding: 12px 16px;
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-align: center;
+        border-bottom: 1px solid var(--border);
+      }
+      td {
+        padding: 11px 16px;
+        text-align: center;
+        font-size: 13px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        font-family: var(--font-mono);
+        color: var(--text-primary);
+        font-weight: 300;
+      }
+      tbody tr {
+        transition: background 0.15s ease;
+      }
+      tbody tr:hover {
+        background: var(--bg-hover);
+      }
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .val-high {
+        color: var(--red) !important;
+        font-weight: 600;
+      }
+      .val-normal {
+        color: var(--green) !important;
+      }
+      .status-online {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--green);
+        font-weight: 600;
+      }
+      .status-online::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+      }
+      .status-offline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--red);
+      }
+      .status-offline::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--red);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border: 1px solid;
+        border-radius: var(--radius-sm);
+        font-family: var(--font-display);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+      }
+      .btn:hover {
+        transform: scale(1.04);
+      }
+      .btn-scan {
+        background: var(--cyan-dim);
+        border-color: rgba(0, 200, 255, 0.3);
+        color: var(--cyan);
+      }
+      .btn-scan:hover {
+        background: rgba(0, 200, 255, 0.2);
+        border-color: var(--cyan);
+        box-shadow: 0 0 12px rgba(0, 200, 255, 0.2);
+      }
+      .btn-approve {
+        background: var(--green-dim);
+        border-color: rgba(0, 230, 118, 0.3);
+        color: var(--green);
+      }
+      .btn-approve:hover {
+        background: rgba(0, 230, 118, 0.2);
+        border-color: var(--green);
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
+      }
+      .btn-disapprove {
+        background: var(--red-dim);
+        border-color: rgba(255, 61, 90, 0.3);
+        color: var(--red);
+      }
+      .btn-disapprove:hover {
+        background: rgba(255, 61, 90, 0.2);
+        border-color: var(--red);
+        box-shadow: 0 0 12px rgba(255, 61, 90, 0.2);
+      }
+      .btn-primary {
+        background: var(--cyan-dim);
+        border-color: var(--border-glow);
+        color: var(--cyan);
+        padding: 9px 20px;
+        font-size: 12px;
+      }
+      .btn-primary:hover {
+        background: rgba(0, 200, 255, 0.25);
+        box-shadow: 0 0 20px rgba(0, 200, 255, 0.2);
+      }
+      .btn-stop {
+        background: var(--red-dim);
+        border-color: rgba(255, 61, 90, 0.3);
+        color: var(--red);
+        padding: 9px 20px;
+        font-size: 12px;
+      }
+      .rogue-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .rogue-badge {
+        background: var(--red-dim);
+        border: 1px solid rgba(255, 61, 90, 0.3);
+        border-radius: 999px;
+        padding: 3px 12px;
+        font-size: 10px;
+        letter-spacing: 1px;
+        color: var(--red);
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(6px);
+      }
+      .modal-content {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-glow);
+        border-radius: var(--radius-lg);
+        margin: 6% auto;
+        padding: 28px;
+        width: min(65%, 700px);
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 0 60px rgba(0, 200, 255, 0.1);
+        position: relative;
+        animation: modalIn 0.25s ease;
+      }
+      @keyframes modalIn {
+        from {
+          opacity: 0;
+          transform: translateY(-20px) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      .modal-content::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 10%;
+        right: 10%;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          var(--cyan),
+          transparent
+        );
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 22px;
+      }
+      .modal-title {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--cyan);
+      }
+      .close {
+        width: 32px;
+        height: 32px;
+        background: var(--red-dim);
+        border: 1px solid rgba(255, 61, 90, 0.3);
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        cursor: pointer;
+        color: var(--red);
+        transition: all 0.2s ease;
+        line-height: 1;
+      }
+      .close:hover {
+        background: rgba(255, 61, 90, 0.25);
+        box-shadow: 0 0 10px rgba(255, 61, 90, 0.2);
+      }
+      .scan-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      .scan-section-title {
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--cyan);
+        margin-bottom: 14px;
+        font-weight: 600;
+      }
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-label {
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        font-weight: 400;
+      }
+      .form-control {
+        background: var(--bg-base);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 9px 12px;
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        transition: border-color 0.2s ease;
+        caret-color: var(--cyan);
+      }
+      .form-control:focus {
+        border-color: var(--border-glow);
+        box-shadow: 0 0 10px rgba(0, 200, 255, 0.1);
+      }
+      .target-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--cyan-dim);
+        border-bottom: 5px solid var(--border-glow);
+        border-radius: var(--radius-sm);
+        padding: 8px 16px;
+        font-family: var(--font-mono);
+        font-size: 14px;
+        color: var(--cyan);
+      }
+      #portResult {
+        margin-top: 14px;
+        font-family: var(--font-mono);
+        font-size: 13px;
+      }
+      #portResult .scan-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--cyan);
+        font-weight: 500;
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        background: var(--cyan-dim);
+        border-radius: var(--radius-sm);
+      }
+      #portResult .port-entry {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        border-radius: var(--radius-sm);
+        margin-bottom: 4px;
+        border: 1px solid transparent;
+      }
+      #portResult .port-entry:hover {
+        background: var(--bg-hover);
+      }
+      #rogueAlert {
+        display: none;
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        background: var(--bg-panel);
+        border: 1px solid var(--red);
+        color: var(--red);
+        padding: 16px 22px;
+        border-radius: var(--radius-md);
+        z-index: 9999;
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        box-shadow: 0 0 30px rgba(255, 61, 90, 0.25);
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .fade-in {
+        animation: fadeIn 0.5s ease;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-base);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-glow);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--cyan);
+      }
+      a {
+        text-decoration: none;
+      }
+      @media (max-width: 768px) {
+        .page-wrapper {
+          padding: 16px;
+        }
+        .top-bar {
+          padding: 14px 18px;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .brand-title {
+          font-size: 16px;
+        }
+        .card-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .chart-box {
+          max-width: 100%;
+        }
+        .modal-content {
+          width: 95%;
+          margin: 10% auto;
+          padding: 20px;
+        }
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+      }
 
-        .modal-title{font-size:16px;font-weight:700;letter-spacing:2px;color:var(--cyan);}
-        .close{width:32px;height:32px;background:var(--red-dim);border:1px solid rgba(255,61,90,0.3);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:var(--red);transition:all 0.2s ease;line-height:1;}
-        .close:hover{background:rgba(255,61,90,0.25);box-shadow:0 0 10px rgba(255,61,90,0.2);}
-        /* PORT SCANNER */
-        .scan-section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px;margin-bottom:16px;}
-        .scan-section-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);margin-bottom:14px;font-weight:600;}
-        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
-        .form-group{display:flex;flex-direction:column;gap:6px;}
-        .form-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);font-weight:400;}
-        .form-control{background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s ease;caret-color:var(--cyan);}
-        .form-control:focus{border-color:var(--border-glow);box-shadow:0 0 10px rgba(0,200,255,0.1);}
-        .target-badge{display:inline-flex;align-items:center;gap:8px;background:var(--cyan-dim);border-bottom:5px solid var(--border-glow);border-radius:var(--radius-sm);padding:8px 16px;font-family:var(--font-mono);font-size:14px;color:var(--cyan);}
-        #portResult{margin-top:14px;font-family:var(--font-mono);font-size:13px;}
-        #portResult .scan-status{display:flex;align-items:center;gap:8px;color:var(--cyan);font-weight:500;margin-bottom:10px;padding:8px 12px;background:var(--cyan-dim);border-radius:var(--radius-sm);}
-        #portResult .port-entry{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--radius-sm);margin-bottom:4px;border:1px solid transparent;}
-        #portResult .port-entry:hover{background:var(--bg-hover);}
-        /* ALERT */
-        #rogueAlert{display:none;position:fixed;top:24px;right:24px;background:var(--bg-panel);border:1px solid var(--red);color:var(--red);padding:16px 22px;border-radius:var(--radius-md);z-index:9999;font-weight:600;font-size:13px;letter-spacing:0.5px;box-shadow:0 0 30px rgba(255,61,90,0.25);}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-        .fade-in{animation:fadeIn 0.5s ease;}
-        ::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-track{background:var(--bg-base);} ::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;} ::-webkit-scrollbar-thumb:hover{background:var(--cyan);}
-        a{text-decoration:none;}
-        @media(max-width:768px){.page-wrapper{padding:16px;}.top-bar{padding:14px 18px;flex-wrap:wrap;gap:12px;}.brand-title{font-size:16px;}.card-grid{grid-template-columns:repeat(2,1fr);}.chart-box{max-width:100%;}.modal-content{width:95%;margin:10% auto;padding:20px;}.form-row{grid-template-columns:1fr;}}
+      /* ══════════════════════════════════════════════════
+           LOG MODAL — Professional styles (Bug Fix #4)
+           ══════════════════════════════════════════════════ */
+      .log-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .log-tab {
+        padding: 10px 22px;
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text-secondary);
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        user-select: none;
+      }
+      .log-tab.active {
+        color: var(--cyan);
+        border-bottom-color: var(--cyan);
+        background: var(--cyan-dim);
+      }
+      .log-tab:hover:not(.active) {
+        color: var(--text-primary);
+        background: var(--bg-hover);
+      }
+      .log-panel {
+        display: none;
+        animation: fadeIn 0.25s ease;
+      }
+      .log-panel.active {
+        display: block;
+      }
+      .log-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 0 10px;
+        flex-wrap: wrap;
+      }
+      .log-search {
+        flex: 1;
+        min-width: 180px;
+      }
+      .log-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+      }
+      .log-badge.danger {
+        background: var(--red-dim);
+        border: 1px solid rgba(255, 61, 90, 0.3);
+        color: var(--red);
+      }
+      .log-badge.safe {
+        background: var(--green-dim);
+        border: 1px solid rgba(0, 230, 118, 0.3);
+        color: var(--green);
+      }
+      .log-badge.warn {
+        background: var(--amber-dim);
+        border: 1px solid rgba(255, 171, 0, 0.3);
+        color: var(--amber);
+      }
+      .log-badge.info {
+        background: var(--blue-dim);
+        border: 1px solid rgba(68, 138, 255, 0.3);
+        color: var(--blue);
+      }
+      .log-table-wrap {
+        max-height: 380px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+      }
+      .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--font-mono);
+      }
+      .log-table thead tr {
+        background: var(--bg-surface);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .log-table th {
+        padding: 9px 13px;
+        font-size: 9px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      .log-table td {
+        padding: 9px 13px;
+        font-size: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        color: var(--text-primary);
+      }
+      .log-table tbody tr:hover {
+        background: var(--bg-hover);
+      }
+      .log-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .risk-pill {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .risk-high {
+        background: var(--red-dim);
+        color: var(--red);
+        border: 1px solid rgba(255, 61, 90, 0.35);
+      }
+      .risk-med {
+        background: var(--amber-dim);
+        color: var(--amber);
+        border: 1px solid rgba(255, 171, 0, 0.35);
+      }
+      .risk-low {
+        background: var(--green-dim);
+        color: var(--green);
+        border: 1px solid rgba(0, 230, 118, 0.35);
+      }
+      .log-empty {
+        padding: 32px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+      .log-summary-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 0 14px;
+      }
+      .log-kpi {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 10px 16px;
+        min-width: 90px;
+        text-align: center;
+      }
+      .log-kpi-val {
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .log-kpi-lbl {
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-top: 3px;
+      }
+      .port-tag {
+        display: inline-block;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 10px;
+        color: var(--cyan);
+        margin: 1px;
+      }
     </style>
-</head>
+  </head>
 
-<body class="fade-in">
-<div class="page-wrapper">
-
-    <header class="top-bar">
+  <body class="fade-in">
+    <div class="page-wrapper">
+      <header class="top-bar">
         <div class="brand">
-            <div class="brand-icon">🛡️</div>
-            <div class="brand-text">
-                <div class="brand-title">SCCSIMS</div>
-                <div class="brand-sub">Smart College Cyber Security & Infrastructure Management System</div>
+          <div class="brand-icon">🛡️</div>
+          <div class="brand-text">
+            <div class="brand-title">SCCSIMS</div>
+            <div class="brand-sub">
+              Smart College Cyber Security &amp; Infrastructure Management
+              System
             </div>
+          </div>
         </div>
         <div class="top-bar-right">
-            <span class="clock" id="liveClock">--:--:--</span>
-            <div class="status-pill" id="systemStatus">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">SYSTEM SECURE</span>
-            </div>
-            <a href="/logout" class="logout-btn">⏻ Logout</a>
+          <span class="clock" id="liveClock">--:--:--</span>
+          <div class="status-pill" id="systemStatus">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">SYSTEM SECURE</span>
+          </div>
+          <a href="/logout" class="logout-btn">⏻ Logout</a>
         </div>
-    </header>
+      </header>
 
-    <div class="section-header">
+      <div class="section-header">
         <div class="section-title">Network Overview</div>
         <div class="section-line"></div>
-        <div><a href="/generate-report" class="btn btn-primary">
-    📄 Generate Report
-</a>
+        <div>
+          <a href="/generate-report" class="btn btn-primary"
+            >📄 Generate Report</a
+          >
         </div>
-    </div>
+        <button class="btn btn-primary" onclick="openHistory()">
+          📜 View Logs
+        </button>
+      </div>
 
-    <div class="overview-container">
+      <div class="overview-container">
         <div class="card-grid">
-            <div class="stat-card s-blue">
-                <div class="stat-label">Total Devices</div>
-                <div class="stat-value" id="totalCount">{{ total_devices }}</div>
-                <div class="stat-icon">💻</div>
+          <div class="stat-card s-blue">
+            <div class="stat-label">Total Devices</div>
+            <div class="stat-value" id="totalCount">{{ total_devices }}</div>
+            <div class="stat-icon">💻</div>
+          </div>
+          <div class="stat-card s-green">
+            <div class="stat-label">Online</div>
+            <div class="stat-value" id="onlineCount">{{ online_devices }}</div>
+            <div class="stat-icon">📡</div>
+          </div>
+          <div class="stat-card s-red">
+            <div class="stat-label">Offline</div>
+            <div class="stat-value" id="offlineCount">
+              {{ offline_devices }}
             </div>
-            <div class="stat-card s-green">
-                <div class="stat-label">Online</div>
-                <div class="stat-value" id="onlineCount">{{ online_devices }}</div>
-                <div class="stat-icon">📡</div>
-            </div>
-            <div class="stat-card s-red">
-                <div class="stat-label">Offline</div>
-                <div class="stat-value" id="offlineCount">{{ offline_devices }}</div>
-                <div class="stat-icon">🔌</div>
-            </div>
-            <div class="stat-card s-amber">
-                <div class="stat-label">Rogue Devices</div>
-                <div class="stat-value" id="rogueCount">{{ rogue_count }}</div>
-                <div class="stat-icon">⚠️</div>
-            </div>
-            <div class="stat-card s-dark" id="trustedBtn">
-                <div class="stat-label">Trusted Devices</div>
-                <div class="stat-value" id="trustedCount">{{ trusted_count }}</div>
-                <div class="stat-icon">✅</div>
-            </div>
-            <div class="attacker-card">
-                <div class="attacker-label">🚨 Last Threat</div>
-                <div id="attackerInfo">No Data</div>
-            </div>
+            <div class="stat-icon">🔌</div>
+          </div>
+          <div class="stat-card s-amber">
+            <div class="stat-label">Rogue Devices</div>
+            <div class="stat-value" id="rogueCount">{{ rogue_count }}</div>
+            <div class="stat-icon">⚠️</div>
+          </div>
+          <div class="stat-card s-dark" id="trustedBtn">
+            <div class="stat-label">Trusted Devices</div>
+            <div class="stat-value" id="trustedCount">{{ trusted_count }}</div>
+            <div class="stat-icon">✅</div>
+          </div>
+          <div class="attacker-card">
+            <div class="attacker-label">🚨 Last Threat</div>
+            <div id="attackerInfo">No Data</div>
+          </div>
         </div>
         <div class="chart-box">
-            <div class="chart-title">Live Network Status</div>
-            <canvas id="deviceChart"></canvas>
+          <div class="chart-title">Live Network Status</div>
+          <canvas id="deviceChart"></canvas>
         </div>
-    </div>
+      </div>
 
-    <div class="analytics-toggle" onclick="toggleAnalytics()">
-        <span style="color:var(--cyan);font-size:14px;">◈</span>
+      <div class="analytics-toggle" onclick="toggleAnalytics()">
+        <span style="color: var(--cyan); font-size: 14px">◈</span>
         <span class="analytics-toggle-label">Advanced Analytics</span>
         <span class="analytics-toggle-icon" id="analyticsArrow">▼</span>
-    </div>
-    <div id="analyticsSection" style="display:none;">
+      </div>
+      <div id="analyticsSection" style="display: none">
         <div class="analytics-grid">
-            <div class="chart-box"><div class="chart-title">CPU Usage Trend</div><canvas id="cpuChart"></canvas></div>
-            <div class="chart-box"><div class="chart-title">Device Growth</div><canvas id="deviceGrowthChart"></canvas></div>
-            <div class="chart-box"><div class="chart-title">Rogue Activity</div><canvas id="rogueChart"></canvas></div>
+          <div class="chart-box">
+            <div class="chart-title">CPU Usage Trend</div>
+            <canvas id="cpuChart"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">Device Growth</div>
+            <canvas id="deviceGrowthChart"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">Rogue Activity</div>
+            <canvas id="rogueChart"></canvas>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <div class="section-header" style="margin-top:32px;">
+      <div class="section-header" style="margin-top: 32px">
         <div class="section-title">Device Monitoring</div>
         <div class="section-line"></div>
-    </div>
-    <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
-
-    <!-- Search -->
-    <input type="text" id="deviceSearch" placeholder="🔍 Search IP / Hostname"
-        class="form-control" style="max-width:260px;"
-        onkeyup="filterDeviceTable()">
-
-    <!-- Status Filter -->
-    <select id="deviceFilter" class="form-control" style="max-width:180px;"
-        onchange="filterDeviceTable()">
-        <option value="ALL">All Devices</option>
-        <option value="ONLINE">Online</option>
-        <option value="OFFLINE">Offline</option>
-    </select>
-
-</div>
-    <div class="table-wrapper">
+      </div>
+      <div
+        style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap"
+      >
+        <input
+          type="text"
+          id="deviceSearch"
+          placeholder="🔍 Search IP / Hostname"
+          class="form-control"
+          style="max-width: 260px"
+          onkeyup="filterDeviceTable()"
+        />
+        <select
+          id="deviceFilter"
+          class="form-control"
+          style="max-width: 180px"
+          onchange="filterDeviceTable()"
+        >
+          <option value="ALL">All Devices</option>
+          <option value="ONLINE">Online</option>
+          <option value="OFFLINE">Offline</option>
+        </select>
+      </div>
+      <div class="table-wrapper">
         <table id="deviceTable">
-            <thead>
-                <tr>
-                    <th>ID</th><th>Hostname</th><th>IP Address</th><th>OS</th>
-                    <th>CPU</th><th>RAM</th><th>Location</th><th>Last Seen</th>
-                    <th>Status</th><th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Hostname</th>
+              <th>IP Address</th>
+              <th>OS</th>
+              <th>CPU</th>
+              <th>RAM</th>
+              <th>Location</th>
+              <th>Last Seen</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
             {% for device in devices %}
             <tr data-ip="{{ device.ip_address }}">
-                <td>{{ device.id }}</td>
-                <td>{{ device.hostname }}</td>
-                <td>{{ device.ip_address }}</td>
-                <td>{{ device.os }}</td>
-                <td class="cell-cpu {{ 'val-high' if device.cpu_usage|float > 80 else 'val-normal' }}">{{ device.cpu_usage }}%</td>
-                <td class="cell-ram {{ 'val-high' if device.ram_usage|float > 80 else 'val-normal' }}">{{ device.ram_usage }}%</td>
-                <td>{{ device.location }}</td>
-                <td>{{ device.last_seen }}</td>
-                <td class="cell-status">
-                    {% if device.status == 'ONLINE' %}
-                    <span class="status-online">ONLINE</span>
-                    {% else %}
-                    <span class="status-offline">OFFLINE</span>
-                    {% endif %}
-                </td>
-                <td><button class="btn btn-scan" onclick="scanPorts('{{ device.ip_address }}')">⌖ Scan</button></td>
+              <td>{{ device.id }}</td>
+              <td>{{ device.hostname }}</td>
+              <td>{{ device.ip_address }}</td>
+              <td>{{ device.os }}</td>
+              <td
+                class="cell-cpu {{ 'val-high' if device.cpu_usage|float > 80 else 'val-normal' }}"
+              >
+                {{ device.cpu_usage }}%
+              </td>
+              <td
+                class="cell-ram {{ 'val-high' if device.ram_usage|float > 80 else 'val-normal' }}"
+              >
+                {{ device.ram_usage }}%
+              </td>
+              <td>{{ device.location }}</td>
+              <td>{{ device.last_seen }}</td>
+              <td class="cell-status">
+                {% if device.status == 'ONLINE' %}
+                <span class="status-online">ONLINE</span>
+                {% else %}
+                <span class="status-offline">OFFLINE</span>
+                {% endif %}
+              </td>
+              <td>
+                <button
+                  class="btn btn-scan"
+                  onclick="scanPorts('{{ device.ip_address }}')"
+                >
+                  ⌖ Scan
+                </button>
+              </td>
             </tr>
             {% endfor %}
-            </tbody>
+          </tbody>
         </table>
-    </div>
+      </div>
 
-    <div class="section-header" style="margin-top:32px;">
+      <div class="section-header" style="margin-top: 32px">
         <div class="rogue-header">
-            <div class="section-title" style="color:var(--red);">Unauthorized Devices</div>
-            <div class="rogue-badge">⚠ THREAT</div>
+          <div class="section-title" style="color: var(--red)">
+            Unauthorized Devices
+          </div>
+          <div class="rogue-badge">⚠ THREAT</div>
         </div>
         <div class="section-line"></div>
-    </div>
-    <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
-
-    <!-- Search -->
-    <input type="text" id="rogueSearch" placeholder="🔍 Search IP / MAC"
-        class="form-control" style="max-width:260px;"
-        onkeyup="filterRogueTable()">
-
-
-
-</div>
-    <div class="table-wrapper" style="border-color:rgba(255,61,90,0.18);">
+      </div>
+      <div
+        style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap"
+      >
+        <input
+          type="text"
+          id="rogueSearch"
+          placeholder="🔍 Search IP / MAC"
+          class="form-control"
+          style="max-width: 260px"
+          onkeyup="filterRogueTable()"
+        />
+      </div>
+      <div class="table-wrapper" style="border-color: rgba(255, 61, 90, 0.18)">
         <table id="rogueTable">
-            <thead><tr><th>IP Address</th><th>MAC Address</th><th>Status</th><th>Approve</th><th>Scan</th></tr></thead>
-            <tbody>
+          <thead>
+            <tr>
+              <th>IP Address</th>
+              <th>MAC Address</th>
+              <th>Status</th>
+              <th>Approve</th>
+              <th>Scan</th>
+            </tr>
+          </thead>
+          <tbody>
             {% for device in rogue_devices %}
             <tr>
-                <td>{{ device.ip }}</td>
-                <td>{{ device.mac }}</td>
-                <td style="color:var(--red);">{{ device.status }}</td>
-                <td><button class="btn btn-approve" onclick="approveDevice('{{ device.ip }}','{{ device.mac }}',this)">✓ Approve</button></td>
-                <td><button class="btn btn-scan" onclick="scanPorts('{{ device.ip }}')">⌖ Scan</button></td>
+              <td>{{ device.ip }}</td>
+              <td>{{ device.mac }}</td>
+              <td style="color: var(--red)">{{ device.status }}</td>
+              <td>
+                <button
+                  class="btn btn-approve"
+                  onclick="approveDevice('{{ device.ip }}','{{ device.mac }}',this)"
+                >
+                  ✓ Approve
+                </button>
+              </td>
+              <td>
+                <button
+                  class="btn btn-scan"
+                  onclick="scanPorts('{{ device.ip }}')"
+                >
+                  ⌖ Scan
+                </button>
+              </td>
             </tr>
             {% endfor %}
-            </tbody>
+          </tbody>
         </table>
+      </div>
     </div>
 
-</div>
-
-<!-- Trusted Modal -->
-<div id="trustedModal" class="modal">
-    <div class="modal-content">
+    <!-- Trusted Modal -->
+    <div id="trustedModal" class="modal">
+      <div class="modal-content">
         <div class="modal-header">
-            <div class="modal-title">✅ Trusted Devices</div>
-            <div id="closeModal" class="close">✕</div>
+          <div class="modal-title">✅ Trusted Devices</div>
+          <div id="closeModal" class="close">✕</div>
         </div>
         <div class="table-wrapper">
-            <table id="trustedTable">
-                <thead><tr><th>IP Address</th><th>MAC Address</th><th>Action</th></tr></thead>
-                <tbody>
-                {% for device in trusted_devices %}
-                <tr>
-                    <td>{{ device.ip }}</td>
-                    <td>{{ device.mac }}</td>
-                    <td><button class="btn btn-disapprove" onclick="disapproveDevice('{{ device.ip }}','{{ device.mac }}')">✗ Disapprove</button></td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+          <table id="trustedTable">
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>MAC Address</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for device in trusted_devices %}
+              <tr>
+                <td>{{ device.ip }}</td>
+                <td>{{ device.mac }}</td>
+                <td>
+                  <button
+                    class="btn btn-disapprove"
+                    onclick="disapproveDevice('{{ device.ip }}','{{ device.mac }}')"
+                  >
+                    ✗ Disapprove
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Port Scanner Modal -->
-<div id="portModal" class="modal">
-    <div class="modal-content">
+    <!-- ══════════════════════════════════════════════════════════════
+     LOG MODAL — Professional tabbed viewer  (Bug Fix #4 — frontend)
+     ══════════════════════════════════════════════════════════════ -->
+    <div id="historyModal" class="modal">
+      <div
+        class="modal-content"
+        style="width: min(90%, 900px); max-height: 88vh; overflow-y: auto"
+      >
         <div class="modal-header">
-            <div class="modal-title">⌖ Port Scanner</div>
-            <div id="closePortModal" class="close">✕</div>
+          <div class="modal-title">📜 System Logs &amp; History</div>
+          <div onclick="closeHistory()" class="close">✕</div>
         </div>
-        <div class="modal-header">
-            <div class="target-badge">🎯 <span id="scanIP">--</span></div>
-        <div style="text-align:right;">
 
-            <button class="btn btn-primary" id="generateReportBtn"
-        onclick="generatePortReport()" disabled>
-        📄 Generate Scan Report
-           </button>
+        <!-- Tab bar -->
+        <div class="log-tabs">
+          <div class="log-tab active" id="tab-scan" onclick="switchTab('scan')">
+            ⌖ Port Scan History
+          </div>
+          <div class="log-tab" id="tab-rogue" onclick="switchTab('rogue')">
+            🚨 Rogue &amp; Attack Events
+          </div>
         </div>
-</div>
-        <div class="scan-section">
-            <div class="scan-section-title">⚡ Quick Scan · Default 1–1024</div>
-            <button class="btn btn-primary" id="quickScanBtn" onclick="runQuickScan()">▶ Run Default Scan</button>
-        </div>
-        <div class="scan-section">
-            <div class="scan-section-title">⚙ Advanced Scan</div>
-            <div class="form-row">
-                <div class="form-group"><label class="form-label">Protocol</label><select id="protocol" class="form-control"><option value="tcp">TCP</option></select></div>
-                <div class="form-group"><label class="form-label">Speed</label><select id="speed" class="form-control"><option value="normal">Normal</option><option value="aggressive">Aggressive</option><option value="stealth">Stealth</option></select></div>
-                <div class="form-group"><label class="form-label">Port Range</label><input type="text" id="portRange" class="form-control" placeholder="e.g. 1-1024"></div>
-                <div class="form-group"><label class="form-label">Threads</label><input type="number" id="threads" class="form-control" value="10" min="1" max="100"></div>
+
+        <!-- ── PORT SCAN PANEL ── -->
+        <div class="log-panel active" id="panel-scan">
+          <div class="log-summary-bar">
+            <div class="log-kpi">
+              <div class="log-kpi-val" id="kpi-total-scans">—</div>
+              <div class="log-kpi-lbl">Total Scans</div>
             </div>
-            <button class="btn btn-primary" id="advancedScanBtn" onclick="runAdvancedScan()">▶ Run Advanced Scan</button>
+            <div class="log-kpi">
+              <div
+                class="log-kpi-val"
+                style="color: var(--red)"
+                id="kpi-high-risk-scans"
+              >
+                —
+              </div>
+              <div class="log-kpi-lbl">High-Risk</div>
+            </div>
+            <div class="log-kpi">
+              <div
+                class="log-kpi-val"
+                style="color: var(--cyan)"
+                id="kpi-unique-ips"
+              >
+                —
+              </div>
+              <div class="log-kpi-lbl">Unique IPs</div>
+            </div>
+            <div class="log-kpi">
+              <div
+                class="log-kpi-val"
+                style="color: var(--amber)"
+                id="kpi-avg-ports"
+              >
+                —
+              </div>
+              <div class="log-kpi-lbl">Avg Open Ports</div>
+            </div>
+          </div>
+          <div class="log-toolbar">
+            <input
+              type="text"
+              class="form-control log-search"
+              id="scanSearch"
+              placeholder="🔍  Filter by IP or port number…"
+              onkeyup="filterLogs('scan')"
+            />
+            <select
+              class="form-control"
+              style="max-width: 160px"
+              id="scanRiskFilter"
+              onchange="filterLogs('scan')"
+            >
+              <option value="ALL">All Risk Levels</option>
+              <option value="HIGH">High Risk Only</option>
+              <option value="CLEAN">Clean Only</option>
+            </select>
+          </div>
+          <div class="log-table-wrap">
+            <table class="log-table" id="scanLogTable">
+              <thead>
+                <tr>
+                  <th style="width: 36px">#</th>
+                  <th>Target IP</th>
+                  <th>Open Ports</th>
+                  <th style="text-align: center">Count</th>
+                  <th style="text-align: center">Risk</th>
+                  <th>Scanned At</th>
+                </tr>
+              </thead>
+              <tbody id="scanLogBody">
+                <tr>
+                  <td colspan="6" class="log-empty">Loading scan history…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── ROGUE / ATTACK PANEL ── -->
+        <div class="log-panel" id="panel-rogue">
+          <div class="log-summary-bar">
+            <div class="log-kpi">
+              <div class="log-kpi-val" id="kpi-total-rogue">—</div>
+              <div class="log-kpi-lbl">Total Events</div>
+            </div>
+            <div class="log-kpi">
+              <div class="log-kpi-val" style="color: var(--red)" id="kpi-spoof">
+                —
+              </div>
+              <div class="log-kpi-lbl">Spoofing</div>
+            </div>
+            <div class="log-kpi">
+              <div class="log-kpi-val" style="color: var(--amber)" id="kpi-dup">
+                —
+              </div>
+              <div class="log-kpi-lbl">Duplicates</div>
+            </div>
+            <div class="log-kpi">
+              <div
+                class="log-kpi-val"
+                style="color: var(--cyan)"
+                id="kpi-unauth"
+              >
+                —
+              </div>
+              <div class="log-kpi-lbl">Unauthorized</div>
+            </div>
+          </div>
+          <div class="log-toolbar">
+            <input
+              type="text"
+              class="form-control log-search"
+              id="rogueLogSearch"
+              placeholder="🔍  Filter by IP, MAC, or attack type…"
+              onkeyup="filterLogs('rogue')"
+            />
+            <select
+              class="form-control"
+              style="max-width: 190px"
+              id="rogueTypeFilter"
+              onchange="filterLogs('rogue')"
+            >
+              <option value="ALL">All Types</option>
+              <option value="Spoofing">Spoofing</option>
+              <option value="Duplicate">Duplicate</option>
+              <option value="Unauthorized">Unauthorized</option>
+            </select>
+          </div>
+          <div class="log-table-wrap">
+            <table class="log-table" id="rogueLogTable">
+              <thead>
+                <tr>
+                  <th style="width: 36px">#</th>
+                  <th>Source IP</th>
+                  <th>MAC Address</th>
+                  <th>Attack Type</th>
+                  <th style="text-align: center">Severity</th>
+                  <th>Detected At</th>
+                </tr>
+              </thead>
+              <tbody id="rogueLogBody">
+                <tr>
+                  <td colspan="6" class="log-empty">Loading rogue events…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Port Scanner Modal -->
+    <div id="portModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">⌖ Port Scanner</div>
+          <div id="closePortModal" class="close">✕</div>
+        </div>
+        <div class="modal-header">
+          <div class="target-badge">🎯 <span id="scanIP">--</span></div>
+          <div style="text-align: right">
+            <button
+              class="btn btn-primary"
+              id="generateReportBtn"
+              onclick="generatePortReport()"
+              disabled
+            >
+              📄 Generate Scan Report
+            </button>
+          </div>
+        </div>
+        <div class="scan-section">
+          <div class="scan-section-title">⚡ Quick Scan · Default 1–1024</div>
+          <button
+            class="btn btn-primary"
+            id="quickScanBtn"
+            onclick="runQuickScan()"
+          >
+            ▶ Run Default Scan
+          </button>
+        </div>
+        <div class="scan-section">
+          <div class="scan-section-title">⚙ Advanced Scan</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Protocol</label
+              ><select id="protocol" class="form-control">
+                <option value="tcp">TCP</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Speed</label
+              ><select id="speed" class="form-control">
+                <option value="normal">Normal</option>
+                <option value="aggressive">Aggressive</option>
+                <option value="stealth">Stealth</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Port Range</label
+              ><input
+                type="text"
+                id="portRange"
+                class="form-control"
+                placeholder="e.g. 1-1024"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Threads</label
+              ><input
+                type="number"
+                id="threads"
+                class="form-control"
+                value="10"
+                min="1"
+                max="100"
+              />
+            </div>
+          </div>
+          <button
+            class="btn btn-primary"
+            id="advancedScanBtn"
+            onclick="runAdvancedScan()"
+          >
+            ▶ Run Advanced Scan
+          </button>
         </div>
         <div id="portResult"></div>
+      </div>
     </div>
-</div>
 
-<div id="rogueAlert"></div>
+    <div id="rogueAlert"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-/* ── Clock ── */
-setInterval(()=>{
-    document.getElementById("liveClock").innerText =
-        new Date().toLocaleTimeString();
-},1000);
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      /* ── Clock ── */
+      setInterval(() => {
+        document.getElementById("liveClock").innerText =
+          new Date().toLocaleTimeString();
+      }, 1000);
 
-Chart.defaults.color='#7a9bb5';
-Chart.defaults.font.family="'JetBrains Mono',monospace";
+      Chart.defaults.color = "#7a9bb5";
+      Chart.defaults.font.family = "'JetBrains Mono',monospace";
+      let mainChart = null;
 
-let mainChart=null;
+      function drawChart(data) {
+        let ctx = document.getElementById("deviceChart").getContext("2d");
+        if (mainChart) {
+          mainChart.data.datasets[0].data = [
+            data.online,
+            data.offline,
+            data.rogue_count,
+          ];
+          mainChart.update();
+          return;
+        }
+        mainChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: ["Online", "Offline", "Rogue"],
+            datasets: [
+              {
+                data: [data.online, data.offline, data.rogue_count],
+                backgroundColor: ["#00e676", "#ff3d5a", "#ffab00"],
+                borderWidth: 2,
+                borderColor: "#0a1628",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "72%",
+            animation: { duration: 800 },
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { padding: 14, boxWidth: 10, font: { size: 11 } },
+              },
+            },
+          },
+        });
+      }
+    </script>
 
-function drawChart(data){
-    let ctx=document.getElementById('deviceChart').getContext('2d');
+    <script>
+      let cpuChart, deviceChart2, rogueChart;
+      function drawAnalytics(data) {
+        const lo = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+        };
+        let c1 = document.getElementById("cpuChart").getContext("2d");
+        if (!cpuChart) {
+          cpuChart = new Chart(c1, {
+            type: "line",
+            data: {
+              labels: data.timestamps,
+              datasets: [
+                {
+                  label: "Avg CPU %",
+                  data: data.cpu_avg,
+                  borderColor: "#00c8ff",
+                  backgroundColor: "rgba(0,200,255,0.06)",
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 3,
+                  pointBackgroundColor: "#00c8ff",
+                },
+              ],
+            },
+            options: lo,
+          });
+        } else {
+          cpuChart.data.labels = data.timestamps;
+          cpuChart.data.datasets[0].data = data.cpu_avg;
+          cpuChart.update();
+        }
+        let c2 = document.getElementById("deviceGrowthChart").getContext("2d");
+        if (!deviceChart2) {
+          deviceChart2 = new Chart(c2, {
+            type: "line",
+            data: {
+              labels: data.timestamps,
+              datasets: [
+                {
+                  label: "Devices",
+                  data: data.total_devices,
+                  borderColor: "#00e676",
+                  backgroundColor: "rgba(0,230,118,0.06)",
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 3,
+                  pointBackgroundColor: "#00e676",
+                },
+              ],
+            },
+            options: lo,
+          });
+        } else {
+          deviceChart2.data.labels = data.timestamps;
+          deviceChart2.data.datasets[0].data = data.total_devices;
+          deviceChart2.update();
+        }
+        let c3 = document.getElementById("rogueChart").getContext("2d");
+        if (!rogueChart) {
+          rogueChart = new Chart(c3, {
+            type: "bar",
+            data: {
+              labels: data.timestamps,
+              datasets: [
+                {
+                  label: "Rogue",
+                  data: data.rogue_count,
+                  backgroundColor: "rgba(255,61,90,0.5)",
+                  borderColor: "#ff3d5a",
+                  borderWidth: 1,
+                  borderRadius: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+            },
+          });
+        } else {
+          rogueChart.data.labels = data.timestamps;
+          rogueChart.data.datasets[0].data = data.rogue_count;
+          rogueChart.update();
+        }
+      }
+    </script>
 
-    if(mainChart){
-        mainChart.data.datasets[0].data=[
-            data.online,data.offline,data.rogue_count
-        ];
-        mainChart.update();
-        return;
-    }
+    <script>
+      let scannedPorts = [];
+      var modal = document.getElementById("trustedModal");
+      var portModal = document.getElementById("portModal");
+      document.getElementById("trustedBtn").onclick = () =>
+        (modal.style.display = "block");
+      document.getElementById("closeModal").onclick = () =>
+        (modal.style.display = "none");
+      document.getElementById("closePortModal").onclick = () =>
+        (portModal.style.display = "none");
+      window.onclick = function (e) {
+        if (e.target == modal) modal.style.display = "none";
+        if (e.target == portModal) portModal.style.display = "none";
+        if (e.target == document.getElementById("historyModal")) closeHistory();
+      };
 
-    mainChart=new Chart(ctx,{
-        type:'doughnut',
-        data:{
-            labels:['Online','Offline','Rogue'],
-            datasets:[{
-                data:[data.online,data.offline,data.rogue_count],
-                backgroundColor:['#00e676','#ff3d5a','#ffab00'],
-                borderWidth:2,
-                borderColor:"#0a1628"
-            }]
+      let scanController = null,
+        eventSource = null,
+        isScanning = false,
+        currentScanIP = "",
+        analyticsVisible = false;
+      let alertSound = new Audio(
+        "https://www.soundjay.com/buttons/beep-01a.mp3",
+      );
+      let knownRogueIPs = new Set(
+        JSON.parse(localStorage.getItem("rogueIPs") || "[]"),
+      );
+
+      document.addEventListener(
+        "click",
+        () => {
+          alertSound
+            .play()
+            .then(() => {
+              alertSound.pause();
+              alertSound.currentTime = 0;
+            })
+            .catch(() => {});
         },
-        options:{
-            responsive:true,
-            maintainAspectRatio:false,
-            cutout:"72%",
-            animation:{duration:800},
-            plugins:{
-                legend:{
-                    position:'bottom',
-                    labels:{
-                        padding:14,
-                        boxWidth:10,
-                        font:{size:11}
-                    }
-                }
+        { once: true },
+      );
+
+      function updateLastAttacker() {
+        fetch("/api/last-attacker")
+          .then((r) => r.json())
+          .then((data) => {
+            let box = document.getElementById("attackerInfo");
+            if (!data || !data.ip) {
+              box.innerHTML = "No recent attacks";
+              return;
             }
-        }
-    });
-}
-</script>
-
-<script>
-let cpuChart,deviceChart2,rogueChart;
-function drawAnalytics(data){
-    const lo={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
-    let c1=document.getElementById("cpuChart").getContext("2d");
-    if(!cpuChart){ cpuChart=new Chart(c1,{type:"line",data:{labels:data.timestamps,datasets:[{label:"Avg CPU %",data:data.cpu_avg,borderColor:"#00c8ff",backgroundColor:"rgba(0,200,255,0.06)",fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:"#00c8ff"}]},options:lo}); }
-    else{ cpuChart.data.labels=data.timestamps; cpuChart.data.datasets[0].data=data.cpu_avg; cpuChart.update(); }
-    let c2=document.getElementById("deviceGrowthChart").getContext("2d");
-    if(!deviceChart2){ deviceChart2=new Chart(c2,{type:"line",data:{labels:data.timestamps,datasets:[{label:"Devices",data:data.total_devices,borderColor:"#00e676",backgroundColor:"rgba(0,230,118,0.06)",fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:"#00e676"}]},options:lo}); }
-    else{ deviceChart2.data.labels=data.timestamps; deviceChart2.data.datasets[0].data=data.total_devices; deviceChart2.update(); }
-    let c3=document.getElementById("rogueChart").getContext("2d");
-    if(!rogueChart){ rogueChart=new Chart(c3,{type:"bar",data:{labels:data.timestamps,datasets:[{label:"Rogue",data:data.rogue_count,backgroundColor:"rgba(255,61,90,0.5)",borderColor:"#ff3d5a",borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}}); }
-    else{ rogueChart.data.labels=data.timestamps; rogueChart.data.datasets[0].data=data.rogue_count; rogueChart.update(); }
-}
-</script>
-
-<script>
-    let scannedPorts = [];
-var modal=document.getElementById("trustedModal");
-var portModal=document.getElementById("portModal");
-document.getElementById("trustedBtn").onclick=()=>modal.style.display="block";
-document.getElementById("closeModal").onclick=()=>modal.style.display="none";
-document.getElementById("closePortModal").onclick=()=>portModal.style.display="none";
-window.onclick=function(e){ if(e.target==modal)modal.style.display="none"; if(e.target==portModal)portModal.style.display="none"; };
-
-let scanController=null, eventSource=null, isScanning=false, currentScanIP="", analyticsVisible=false;
-let alertSound=new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
-let knownRogueIPs=new Set(JSON.parse(localStorage.getItem("rogueIPs")||"[]"));
-
-document.addEventListener("click",()=>{ alertSound.play().then(()=>{alertSound.pause();alertSound.currentTime=0;}).catch(()=>{}); },{once:true});
-function updateLastAttacker(){
-    fetch("/api/last-attacker")
-    .then(r=>r.json())
-    .then(data=>{
-        let box=document.getElementById("attackerInfo");
-
-        if(!data || !data.ip){
-            box.innerHTML="No recent attacks";
-            return;
-        }
-
-        box.innerHTML=`
+            box.innerHTML = `
             <span style="color:#00c8ff;">IP:</span> ${data.ip}<br>
             <span style="color:#00c8ff;">MAC:</span> ${data.mac}<br>
             <span style="color:#ff3d5a;">Type:</span> ${data.type}<br>
-            <span style="color:#7a9bb5;">⏱ ${data.last_seen}</span>
-        `;
-    })
-    .catch(()=>{
-        document.getElementById("attackerInfo").innerText="Error loading";
-    });
-}
+            <span style="color:#7a9bb5;">⏱ ${data.last_seen}</span>`;
+          })
+          .catch(() => {
+            document.getElementById("attackerInfo").innerText = "Error loading";
+          });
+      }
 
-/* ───────── DEVICE TABLE FILTER ───────── */
-function filterDeviceTable(){
-    let search = document.getElementById("deviceSearch").value.toLowerCase();
-    let filter = document.getElementById("deviceFilter").value;
+      function filterDeviceTable() {
+        let search = document
+          .getElementById("deviceSearch")
+          .value.toLowerCase();
+        let filter = document.getElementById("deviceFilter").value;
+        document.querySelectorAll("#deviceTable tbody tr").forEach((row) => {
+          let ip = row.cells[2].innerText.toLowerCase();
+          let host = row.cells[1].innerText.toLowerCase();
+          let status = row.querySelector(".cell-status").innerText.trim();
+          let matchSearch = ip.includes(search) || host.includes(search);
+          let matchFilter = filter === "ALL" || status === filter;
+          row.style.display = matchSearch && matchFilter ? "" : "none";
+        });
+      }
 
-    let rows = document.querySelectorAll("#deviceTable tbody tr");
+      function filterRogueTable() {
+        let search = document.getElementById("rogueSearch").value.toLowerCase();
+        document.querySelectorAll("#rogueTable tbody tr").forEach((row) => {
+          let ip = row.cells[0].innerText.toLowerCase();
+          let mac = row.cells[1].innerText.toLowerCase();
+          let status = row.cells[2].innerText.toLowerCase();
+          row.style.display =
+            ip.includes(search) ||
+            mac.includes(search) ||
+            status.includes(search)
+              ? ""
+              : "none";
+        });
+      }
 
-    rows.forEach(row=>{
-        let ip = row.cells[2].innerText.toLowerCase();
-        let host = row.cells[1].innerText.toLowerCase();
-        let status = row.querySelector(".cell-status").innerText.trim();
+      function toggleAnalytics() {
+        analyticsVisible = !analyticsVisible;
+        document.getElementById("analyticsSection").style.display =
+          analyticsVisible ? "block" : "none";
+        document.getElementById("analyticsArrow").style.transform =
+          analyticsVisible ? "rotate(180deg)" : "";
+        if (analyticsVisible)
+          fetch("/api/analytics")
+            .then((r) => r.json())
+            .then((d) => drawAnalytics(d));
+      }
 
-        let matchSearch = ip.includes(search) || host.includes(search);
-        let matchFilter = (filter === "ALL" || status === filter);
+      function disapproveDevice(ip, mac) {
+        fetch("/disapprove-device", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "ip=" + ip + "&mac=" + mac,
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.status === "success") {
+              let tbody = document.querySelector("#trustedTable tbody");
+              Array.from(tbody.rows).forEach((row) => {
+                if (
+                  row.cells[0].innerText === ip &&
+                  row.cells[1].innerText === mac
+                )
+                  row.remove();
+              });
+              document.getElementById("trustedCount").innerText =
+                parseInt(document.getElementById("trustedCount").innerText) - 1;
+              setTimeout(updateLiveData, 500);
+            }
+          });
+      }
 
-        row.style.display = (matchSearch && matchFilter) ? "" : "none";
-    });
-}
-
-function filterRogueTable(){
-    let search = document.getElementById("rogueSearch").value.toLowerCase();
-    let rows = document.querySelectorAll("#rogueTable tbody tr");
-
-    rows.forEach(row=>{
-        let ip = row.cells[0].innerText.toLowerCase();
-        let mac = row.cells[1].innerText.toLowerCase();
-        let status = row.cells[2].innerText.toLowerCase();
-
-        let match = ip.includes(search) || mac.includes(search) || status.includes(search);
-
-        row.style.display = match ? "" : "none";
-    });
-}
-
-function toggleAnalytics(){
-    analyticsVisible=!analyticsVisible;
-    document.getElementById("analyticsSection").style.display=analyticsVisible?"block":"none";
-    document.getElementById("analyticsArrow").style.transform=analyticsVisible?"rotate(180deg)":"";
-    if(analyticsVisible) fetch("/api/analytics").then(r=>r.json()).then(d=>drawAnalytics(d));
-}
-
-function disapproveDevice(ip,mac){
-    fetch("/disapprove-device",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"ip="+ip+"&mac="+mac})
-    .then(r=>r.json()).then(data=>{
-        if(data.status==="success"){
-            let tbody=document.querySelector("#trustedTable tbody");
-            Array.from(tbody.rows).forEach(row=>{
-                if(row.cells[0].innerText===ip && row.cells[1].innerText===mac) row.remove();
-            });
-            document.getElementById("trustedCount").innerText=
-                parseInt(document.getElementById("trustedCount").innerText)-1;
-            setTimeout(updateLiveData,500);
-        }
-    });
-}
-function appendPort(port){
-    let service = getServiceName(port);
-    let risk = getRiskLevel(port);
-
-    // ✅ store full data
-    scannedPorts.push({
-        port: port,
-        service: service,
-        risk: risk
-    });
-
-    let color = risk==="HIGH"?"var(--red)":risk==="MEDIUM"?"var(--amber)":"var(--green)";
-    let bg = risk==="HIGH"?"var(--red-dim)":risk==="MEDIUM"?"var(--amber-dim)":"var(--green-dim)";
-
-    document.getElementById("scanResults").innerHTML += `
+      function appendPort(port) {
+        let service = getServiceName(port);
+        let risk = getRiskLevel(port);
+        scannedPorts.push({ port: port, service: service, risk: risk });
+        let color =
+          risk === "HIGH"
+            ? "var(--red)"
+            : risk === "MEDIUM"
+              ? "var(--amber)"
+              : "var(--green)";
+        let bg =
+          risk === "HIGH"
+            ? "var(--red-dim)"
+            : risk === "MEDIUM"
+              ? "var(--amber-dim)"
+              : "var(--green-dim)";
+        document.getElementById("scanResults").innerHTML += `
     <div class="port-entry" style="background:${bg};border-color:${color}40;">
         🔓 <span style="color:var(--cyan);">Port ${port}</span>
         <span style="color:var(--text-secondary);">(${service})</span>
         <span style="color:${color};font-weight:600;margin-left:auto;">[${risk}]</span>
     </div>`;
-}
-function approveDevice(ip,mac,btn){
-    fetch("/approve-device",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"ip="+ip+"&mac="+mac})
-    .then(r=>r.json()).then(data=>{
-        if(data.status==="success"){
-            if(btn) btn.closest("tr").remove();
-            document.getElementById("rogueCount").innerText=
-                parseInt(document.getElementById("rogueCount").innerText)-1;
-            setTimeout(updateLiveData,500);
-        }
-    });
-}
+      }
 
-function updateLiveData(){
-    fetch("/api/live-data").then(r=>r.json()).then(data=>{
-        let pill=document.getElementById("systemStatus");
-        let dot=document.getElementById("statusDot");
-        let txt=document.getElementById("statusText");
-        if(data.rogue_count>0){
-            dot.style.background="var(--red)"; dot.style.boxShadow="0 0 8px var(--red)";
-            txt.innerText="THREAT DETECTED";
-            pill.style.background="var(--red-dim)"; pill.style.borderColor="rgba(255,61,90,0.25)"; pill.style.color="var(--red)";
-        } else {
-            dot.style.background="var(--green)"; dot.style.boxShadow="0 0 8px var(--green)";
-            txt.innerText="SYSTEM SECURE";
-            pill.style.background="var(--green-dim)"; pill.style.borderColor="rgba(0,230,118,0.25)"; pill.style.color="var(--green)";
-        }
+      function approveDevice(ip, mac, btn) {
+        fetch("/approve-device", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "ip=" + ip + "&mac=" + mac,
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.status === "success") {
+              if (btn) btn.closest("tr").remove();
+              document.getElementById("rogueCount").innerText =
+                parseInt(document.getElementById("rogueCount").innerText) - 1;
+              setTimeout(updateLiveData, 500);
+            }
+          });
+      }
 
-        document.getElementById("totalCount").innerText  =data.total;
-        document.getElementById("onlineCount").innerText =data.online;
-        document.getElementById("offlineCount").innerText=data.offline;
-        document.getElementById("rogueCount").innerText  =data.rogue_count;
+      function updateLiveData() {
+        fetch("/api/live-data")
+          .then((r) => r.json())
+          .then((data) => {
+            let pill = document.getElementById("systemStatus");
+            let dot = document.getElementById("statusDot");
+            let txt = document.getElementById("statusText");
+            if (data.rogue_count > 0) {
+              dot.style.background = "var(--red)";
+              dot.style.boxShadow = "0 0 8px var(--red)";
+              txt.innerText = "THREAT DETECTED";
+              pill.style.background = "var(--red-dim)";
+              pill.style.borderColor = "rgba(255,61,90,0.25)";
+              pill.style.color = "var(--red)";
+            } else {
+              dot.style.background = "var(--green)";
+              dot.style.boxShadow = "0 0 8px var(--green)";
+              txt.innerText = "SYSTEM SECURE";
+              pill.style.background = "var(--green-dim)";
+              pill.style.borderColor = "rgba(0,230,118,0.25)";
+              pill.style.color = "var(--green)";
+            }
+            document.getElementById("totalCount").innerText = data.total;
+            document.getElementById("onlineCount").innerText = data.online;
+            document.getElementById("offlineCount").innerText = data.offline;
+            document.getElementById("rogueCount").innerText = data.rogue_count;
 
+            data.devices.forEach((device) => {
+              let row = document.querySelector(
+                `#deviceTable tbody tr[data-ip="${device.ip}"]`,
+              );
+              if (!row) return;
+              let cpuCell = row.querySelector(".cell-cpu");
+              let ramCell = row.querySelector(".cell-ram");
+              let stCell = row.querySelector(".cell-status");
+              if (cpuCell) {
+                cpuCell.innerText = device.cpu + "%";
+                cpuCell.className =
+                  "cell-cpu " +
+                  (parseFloat(device.cpu) > 80 ? "val-high" : "val-normal");
+              }
+              if (ramCell) {
+                ramCell.innerText = device.ram + "%";
+                ramCell.className =
+                  "cell-ram " +
+                  (parseFloat(device.ram) > 80 ? "val-high" : "val-normal");
+              }
+              if (stCell) {
+                stCell.innerHTML =
+                  device.status === "ONLINE"
+                    ? `<span class="status-online">ONLINE</span>`
+                    : `<span class="status-offline">OFFLINE</span>`;
+              }
+            });
 
-        data.devices.forEach(device=>{
-            let row=document.querySelector(`#deviceTable tbody tr[data-ip="${device.ip}"]`);
-            if(!row) return;
-            let cpuCell=row.querySelector(".cell-cpu");
-            let ramCell=row.querySelector(".cell-ram");
-            let stCell =row.querySelector(".cell-status");
-            if(cpuCell){ cpuCell.innerText=device.cpu+"%"; cpuCell.className="cell-cpu "+(parseFloat(device.cpu)>80?"val-high":"val-normal"); }
-            if(ramCell){ ramCell.innerText=device.ram+"%"; ramCell.className="cell-ram "+(parseFloat(device.ram)>80?"val-high":"val-normal"); }
-            if(stCell){ stCell.innerHTML=device.status==="ONLINE"?`<span class="status-online">ONLINE</span>`:`<span class="status-offline">OFFLINE</span>`; }
-        });
+            let trustedBody = document.querySelector("#trustedTable tbody");
+            trustedBody.innerHTML = "";
+            data.trusted.forEach((device) => {
+              let row = trustedBody.insertRow();
+              row.insertCell(0).innerText = device.ip;
+              row.insertCell(1).innerText = device.mac;
+              row.insertCell(2).innerHTML =
+                `<button class="btn btn-disapprove" onclick="disapproveDevice('${device.ip}','${device.mac}')">✗ Disapprove</button>`;
+            });
+            document.getElementById("trustedCount").innerText =
+              data.trusted.length;
 
-        // Refresh trusted tbody
-        let trustedBody=document.querySelector("#trustedTable tbody");
-        trustedBody.innerHTML="";
-        data.trusted.forEach(device=>{
-            let row=trustedBody.insertRow();
-            row.insertCell(0).innerText=device.ip;
-            row.insertCell(1).innerText=device.mac;
-            row.insertCell(2).innerHTML=`<button class="btn btn-disapprove" onclick="disapproveDevice('${device.ip}','${device.mac}')">✗ Disapprove</button>`;
-        });
-        document.getElementById("trustedCount").innerText=data.trusted.length;
+            let rogueBody = document.querySelector("#rogueTable tbody");
+            rogueBody.innerHTML = "";
+            data.rogue.forEach((device) => {
+              let row = rogueBody.insertRow();
+              row.insertCell(0).innerText = device.ip;
+              row.insertCell(1).innerText = device.mac;
+              let sc = row.insertCell(2);
+              sc.innerText = device.status;
+              sc.style.color = device.status.includes("Spoof")
+                ? "var(--red)"
+                : "var(--red)";
+              row.insertCell(3).innerHTML =
+                `<button class="btn btn-approve" onclick="approveDevice('${device.ip}','${device.mac}',this)">✓ Approve</button>`;
+              row.insertCell(4).innerHTML =
+                `<button class="btn btn-scan" onclick="scanPorts('${device.ip}')">⌖ Scan</button>`;
+            });
 
-        // Refresh rogue tbody
-        let rogueBody=document.querySelector("#rogueTable tbody");
-        rogueBody.innerHTML="";
-        data.rogue.forEach(device=>{
-            let row=rogueBody.insertRow();
-            row.insertCell(0).innerText=device.ip;
-            row.insertCell(1).innerText=device.mac;
-            let sc=row.insertCell(2);
-            sc.innerText=device.status;
-            sc.style.color=device.status.includes("Duplicate")?"var(--amber)":device.status.includes("Spoof")?"var(--red)":"var(--red)";
-            row.insertCell(3).innerHTML=`<button class="btn btn-approve" onclick="approveDevice('${device.ip}','${device.mac}',this)">✓ Approve</button>`;
-            row.insertCell(4).innerHTML=`<button class="btn btn-scan" onclick="scanPorts('${device.ip}')">⌖ Scan</button>`;
-        });
+            drawChart(data);
 
-        drawChart(data);
+            let currentRogueIPs = new Set(data.rogue.map((d) => d.ip));
+            if (!window.initialized) {
+              knownRogueIPs = new Set(currentRogueIPs);
+              localStorage.setItem(
+                "rogueIPs",
+                JSON.stringify([...knownRogueIPs]),
+              );
+              window.initialized = true;
+              updateLastAttacker();
+              return;
+            }
+            let newRogues = [...currentRogueIPs].filter(
+              (ip) => !knownRogueIPs.has(ip),
+            );
+            if (newRogues.length > 0) {
+              alertSound.currentTime = 0;
+              alertSound.play().catch(() => {});
+              let ab = document.getElementById("rogueAlert");
+              ab.innerText =
+                "🚨 ALERT: Unauthorized device → " + newRogues.join(", ");
+              ab.style.display = "block";
+              setTimeout(() => {
+                ab.style.display = "none";
+              }, 4000);
+            }
+            knownRogueIPs = currentRogueIPs;
+            localStorage.setItem(
+              "rogueIPs",
+              JSON.stringify([...knownRogueIPs]),
+            );
 
-        // Rogue alert logic
-        let currentRogueIPs=new Set(data.rogue.map(d=>d.ip));
-        if(!window.initialized){
-            knownRogueIPs=new Set(currentRogueIPs);
-            localStorage.setItem("rogueIPs",JSON.stringify([...knownRogueIPs]));
-            window.initialized=true;
+            if (analyticsVisible)
+              fetch("/api/analytics")
+                .then((r) => r.json())
+                .then((d) => drawAnalytics(d));
             updateLastAttacker();
+            filterRogueTable();
+          })
+          .catch((err) => console.warn("Live data error:", err));
+      }
+
+      setInterval(updateLiveData, 5000);
+      updateLiveData();
+      filterDeviceTable();
+      filterRogueTable();
+
+      /* ══════════════════════════════════════════════════════════
+   LOG MODAL — Professional tabbed viewer (Bug Fix — frontend)
+   ══════════════════════════════════════════════════════════ */
+      let _scanData = [],
+        _rogueData = [];
+
+      function switchTab(tab) {
+        document
+          .querySelectorAll(".log-tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".log-panel")
+          .forEach((p) => p.classList.remove("active"));
+        document.getElementById("tab-" + tab).classList.add("active");
+        document.getElementById("panel-" + tab).classList.add("active");
+      }
+
+      function rogueSeverity(type) {
+        const t = (type || "").toLowerCase();
+        if (t.includes("spoof")) return { cls: "risk-high", label: "CRITICAL" };
+        if (t.includes("duplicate"))
+          return { cls: "risk-med", label: "MEDIUM" };
+        if (t.includes("unauthorized"))
+          return { cls: "risk-low", label: "LOW" };
+        return { cls: "risk-low", label: "INFO" };
+      }
+
+      function renderPorts(portsStr) {
+        if (!portsStr)
+          return '<span style="color:var(--text-muted);">none</span>';
+        const ports = portsStr
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean);
+        const shown = ports.slice(0, 12);
+        const extra = ports.length - shown.length;
+        let html = shown
+          .map((p) => `<span class="port-tag">${p}</span>`)
+          .join("");
+        if (extra > 0)
+          html += `<span class="port-tag" style="color:var(--text-secondary);">+${extra} more</span>`;
+        return html;
+      }
+
+      function renderScanTable(rows) {
+        const tbody = document.getElementById("scanLogBody");
+        if (!rows.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="6" class="log-empty">No port scan records found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows
+          .map((r, i) => {
+            const riskCls = r.high_risk > 0 ? "risk-high" : "risk-low";
+            const riskLabel =
+              r.high_risk > 0 ? `⚠ ${r.high_risk} HIGH` : "✔ CLEAN";
+            return `<tr data-ip="${r.ip}" data-ports="${r.ports || ""}" data-risk="${r.high_risk > 0 ? "HIGH" : "CLEAN"}">
+            <td style="color:var(--text-muted);">${i + 1}</td>
+            <td style="color:var(--cyan);font-weight:600;">${r.ip || "—"}</td>
+            <td>${renderPorts(r.ports)}</td>
+            <td style="text-align:center;"><span class="log-badge ${r.port_count > 0 ? "info" : "safe"}">${r.port_count}</span></td>
+            <td style="text-align:center;"><span class="risk-pill ${riskCls}">${riskLabel}</span></td>
+            <td style="color:var(--text-secondary);font-size:11px;">${r.time || "—"}</td>
+        </tr>`;
+          })
+          .join("");
+      }
+
+      function renderRogueTable(rows) {
+        const tbody = document.getElementById("rogueLogBody");
+        if (!rows.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="6" class="log-empty">No rogue events recorded.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows
+          .map((r, i) => {
+            const sev = rogueSeverity(r.type);
+            return `<tr data-ip="${r.ip}" data-mac="${r.mac || ""}" data-type="${r.type || ""}">
+            <td style="color:var(--text-muted);">${i + 1}</td>
+            <td style="color:var(--red);font-weight:600;">${r.ip || "—"}</td>
+            <td style="color:var(--text-secondary);font-size:11px;">${r.mac || "—"}</td>
+            <td>${r.type || "—"}</td>
+            <td style="text-align:center;"><span class="risk-pill ${sev.cls}">${sev.label}</span></td>
+            <td style="color:var(--text-secondary);font-size:11px;">${r.time || "—"}</td>
+        </tr>`;
+          })
+          .join("");
+      }
+
+      function updateScanKpis(data) {
+        const total = data.length;
+        const highRisk = data.filter((d) => d.high_risk > 0).length;
+        const unique = new Set(data.map((d) => d.ip)).size;
+        const avgPorts = total
+          ? Math.round(data.reduce((a, d) => a + d.port_count, 0) / total)
+          : 0;
+        document.getElementById("kpi-total-scans").innerText = total;
+        document.getElementById("kpi-high-risk-scans").innerText = highRisk;
+        document.getElementById("kpi-unique-ips").innerText = unique;
+        document.getElementById("kpi-avg-ports").innerText = avgPorts;
+      }
+
+      function updateRogueKpis(data) {
+        const total = data.length;
+        const spoof = data.filter((d) =>
+          (d.type || "").toLowerCase().includes("spoof"),
+        ).length;
+        const dup = data.filter((d) =>
+          (d.type || "").toLowerCase().includes("duplicate"),
+        ).length;
+        const unauth = data.filter((d) =>
+          (d.type || "").toLowerCase().includes("unauthorized"),
+        ).length;
+        document.getElementById("kpi-total-rogue").innerText = total;
+        document.getElementById("kpi-spoof").innerText = spoof;
+        document.getElementById("kpi-dup").innerText = dup;
+        document.getElementById("kpi-unauth").innerText = unauth;
+      }
+
+      function filterLogs(panel) {
+        if (panel === "scan") {
+          const search = document
+            .getElementById("scanSearch")
+            .value.toLowerCase();
+          const risk = document.getElementById("scanRiskFilter").value;
+          document
+            .querySelectorAll("#scanLogBody tr[data-ip]")
+            .forEach((row) => {
+              const ip = (row.dataset.ip || "").toLowerCase();
+              const ports = (row.dataset.ports || "").toLowerCase();
+              const riskMatch = risk === "ALL" || row.dataset.risk === risk;
+              const searchMatch =
+                !search || ip.includes(search) || ports.includes(search);
+              row.style.display = riskMatch && searchMatch ? "" : "none";
+            });
+        } else {
+          const search = document
+            .getElementById("rogueLogSearch")
+            .value.toLowerCase();
+          const type = document.getElementById("rogueTypeFilter").value;
+          document
+            .querySelectorAll("#rogueLogBody tr[data-ip]")
+            .forEach((row) => {
+              const ip = (row.dataset.ip || "").toLowerCase();
+              const mac = (row.dataset.mac || "").toLowerCase();
+              const t = (row.dataset.type || "").toLowerCase();
+              const typeMatch =
+                type === "ALL" || t.includes(type.toLowerCase());
+              const searchMatch =
+                !search ||
+                ip.includes(search) ||
+                mac.includes(search) ||
+                t.includes(search);
+              row.style.display = typeMatch && searchMatch ? "" : "none";
+            });
+        }
+      }
+
+      /* open / close */
+      function openHistory() {
+        document.getElementById("historyModal").style.display = "block";
+        switchTab("scan");
+
+        const safeJson = (r) => {
+          if (!r.ok)
+            throw new Error("Server error " + r.status + " on " + r.url);
+          return r.json();
+        };
+
+        Promise.all([
+          fetch("/api/scan-history").then(safeJson),
+          fetch("/api/rogue-logs").then(safeJson),
+        ])
+          .then(([scanData, rogueData]) => {
+            _scanData = scanData;
+            _rogueData = rogueData;
+            updateScanKpis(scanData);
+            updateRogueKpis(rogueData);
+            renderScanTable(scanData);
+            renderRogueTable(rogueData);
+          })
+          .catch((err) => {
+            console.error("Log fetch error:", err);
+            document.getElementById("scanLogBody").innerHTML =
+              '<tr><td colspan="6" class="log-empty" style="color:var(--red);">Failed to load logs.</td></tr>';
+            document.getElementById("rogueLogBody").innerHTML =
+              '<tr><td colspan="6" class="log-empty" style="color:var(--red);">Failed to load logs.</td></tr>';
+          });
+      }
+
+      function closeHistory() {
+        document.getElementById("historyModal").style.display = "none";
+      }
+      /* end log modal */
+
+      /* ── Port Scanner ── */
+      function scanPorts(ip) {
+        currentScanIP = ip;
+        document.getElementById("scanIP").innerText = ip;
+        document.getElementById("portResult").innerHTML = "";
+        portModal.style.display = "block";
+      }
+
+      function runQuickScan() {
+        scannedPorts = [];
+        document.getElementById("generateReportBtn").disabled = true;
+        if (isScanning) {
+          stopScan();
+          return;
+        }
+        isScanning = true;
+        let btn = document.getElementById("quickScanBtn"),
+          advBtn = document.getElementById("advancedScanBtn");
+        btn.textContent = "⬛ Stop Scan";
+        btn.className = "btn btn-stop";
+        advBtn.disabled = true;
+        let rb = document.getElementById("portResult");
+        rb.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing…</div><div id="scanResults"></div>`;
+        eventSource = new EventSource(
+          `/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`,
+        );
+        eventSource.onmessage = function (e) {
+          if (e.data === "done") {
+            document.getElementById("generateReportBtn").disabled = false;
+            stopScan(true);
+            document.getElementById("scanStatus").innerHTML =
+              "✅ Scan Completed";
             return;
+          }
+          let port = parseInt(e.data);
+          if (!isNaN(port)) {
+            document.getElementById("scanStatus").innerHTML =
+              `⚡ Found: Port ${port}`;
+            appendPort(port);
+          }
+        };
+        eventSource.onerror = function () {
+          document.getElementById("scanStatus").innerHTML = "❌ Scan Error";
+          stopScan();
+        };
+      }
+
+      function runAdvancedScan() {
+        scannedPorts = [];
+        document.getElementById("generateReportBtn").disabled = true;
+        if (isScanning) {
+          stopScan();
+          return;
         }
-        let newRogues=[...currentRogueIPs].filter(ip=>!knownRogueIPs.has(ip));
-        if(newRogues.length>0){
-            alertSound.currentTime=0; alertSound.play().catch(()=>{});
-            let ab=document.getElementById("rogueAlert");
-            ab.innerText="🚨 ALERT: Unauthorized device → "+newRogues.join(", ");
-            ab.style.display="block";
-            setTimeout(()=>{ ab.style.display="none"; },4000);
+        isScanning = true;
+        let qb = document.getElementById("quickScanBtn"),
+          ab = document.getElementById("advancedScanBtn");
+        qb.disabled = true;
+        ab.textContent = "⬛ Stop Scan";
+        ab.className = "btn btn-stop";
+        let portRange = document.getElementById("portRange").value || "1-1024";
+        let threads = document.getElementById("threads").value,
+          speed = document.getElementById("speed").value;
+        let rb = document.getElementById("portResult");
+        rb.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing…</div><div id="scanResults"></div>`;
+        eventSource = new EventSource(
+          `/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`,
+        );
+        eventSource.onmessage = function (e) {
+          if (e.data === "done") {
+            document.getElementById("generateReportBtn").disabled = false;
+            stopScan(true);
+            document.getElementById("scanStatus").innerHTML =
+              "✅ Scan Completed";
+            return;
+          }
+          let p = parseInt(e.data);
+          document.getElementById("scanStatus").innerHTML =
+            `⚡ Found: Port ${p}`;
+          appendPort(p);
+        };
+        eventSource.onerror = function () {
+          rb.innerHTML += "<br>❌ Scan Error";
+          stopScan();
+        };
+      }
+
+      function generatePortReport() {
+        if (scannedPorts.length === 0) {
+          alert("No scan data available!");
+          return;
         }
-        knownRogueIPs=currentRogueIPs;
-        localStorage.setItem("rogueIPs",JSON.stringify([...knownRogueIPs]));
+        fetch("/generate-port-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ip: currentScanIP,
+            ports: scannedPorts,
+            timestamp: new Date().toLocaleString(),
+          }),
+        })
+          .then((res) => res.blob())
+          .then((blob) => {
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement("a");
+            a.href = url;
+            a.download = "Port_Scan_Report.pdf";
+            a.click();
+          })
+          .catch((err) => {
+            alert("Report generation failed!");
+            console.error(err);
+          });
+      }
 
-        if(analyticsVisible) fetch("/api/analytics").then(r=>r.json()).then(d=>drawAnalytics(d));
-       updateLastAttacker();
-filterRogueTable();
+      function stopScan(done = false) {
+        if (scanController) scanController.abort();
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        if (!done)
+          document.getElementById("scanStatus").innerHTML = "⛔ Scan Stopped";
+        resetScanButtons();
+      }
+      function resetScanButtons() {
+        isScanning = false;
+        scanController = null;
+        let q = document.getElementById("quickScanBtn"),
+          a = document.getElementById("advancedScanBtn");
+        q.textContent = "▶ Run Default Scan";
+        q.className = "btn btn-primary";
+        q.disabled = false;
+        a.textContent = "▶ Run Advanced Scan";
+        a.className = "btn btn-primary";
+        a.disabled = false;
+      }
 
-    }).catch(err=>console.warn("Live data error:",err));
-}
+      function getServiceName(port) {
+        const services = {
+          1: "TCPMUX",
+          21: "FTP",
+          22: "SSH",
+          23: "Telnet",
+          25: "SMTP",
+          53: "DNS",
+          67: "DHCP Server",
+          68: "DHCP Client",
+          69: "TFTP",
+          80: "HTTP",
+          88: "Kerberos",
+          110: "POP3",
+          111: "RPCBind",
+          123: "NTP",
+          135: "MS RPC",
+          137: "NetBIOS Name",
+          138: "NetBIOS Datagram",
+          139: "NetBIOS Session",
+          143: "IMAP",
+          161: "SNMP",
+          389: "LDAP",
+          443: "HTTPS",
+          445: "SMB",
+          465: "SMTPS",
+          500: "ISAKMP (VPN)",
+          512: "rexec",
+          513: "rlogin",
+          514: "syslog",
+          515: "LPD",
+          554: "RTSP",
+          587: "SMTP Submit",
+          631: "IPP",
+          636: "LDAPS",
+          993: "IMAPS",
+          995: "POP3S",
+          1433: "MSSQL",
+          1521: "Oracle DB",
+          1723: "PPTP VPN",
+          1883: "MQTT",
+          2049: "NFS",
+          2375: "Docker (Unsecured)",
+          2376: "Docker (Secure)",
+          3000: "Dev Server",
+          3306: "MySQL",
+          3389: "RDP",
+          3690: "Subversion",
+          4444: "Metasploit/Backdoor",
+          5000: "Flask/Dev",
+          5432: "PostgreSQL",
+          5555: "ADB (Android)",
+          5900: "VNC",
+          5985: "WinRM HTTP",
+          5986: "WinRM HTTPS",
+          6379: "Redis",
+          6443: "Kubernetes API",
+          7001: "WebLogic",
+          8080: "HTTP Proxy",
+          8443: "HTTPS Alt",
+          8888: "Jupyter Notebook",
+          9200: "Elasticsearch",
+          9092: "Kafka",
+          9090: "Prometheus",
+          10000: "Webmin",
+          11211: "Memcached",
+          27017: "MongoDB",
+        };
+        return services[port] || "Unknown / Custom";
+      }
 
-setInterval(updateLiveData,5000);
-updateLiveData(); // immediate first call
-filterDeviceTable();
-filterRogueTable();
-/* ── Port Scanner ── */
-function scanPorts(ip){ currentScanIP=ip; document.getElementById("scanIP").innerText=ip; document.getElementById("portResult").innerHTML=""; portModal.style.display="block"; }
-
-function runQuickScan(){
-scannedPorts = [];
-document.getElementById("generateReportBtn").disabled = true;
-    if(isScanning){stopScan();return;} isScanning=true;
-    let btn=document.getElementById("quickScanBtn"),advBtn=document.getElementById("advancedScanBtn");
-    btn.textContent="⬛ Stop Scan"; btn.className="btn btn-stop"; advBtn.disabled=true;
-    let rb=document.getElementById("portResult");
-    rb.innerHTML=`<div id="scanStatus" class="scan-status">⚡ Initializing...</div><div id="scanResults"></div>`;
-    eventSource=new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`);
-    eventSource.onmessage = function(e){
-    if(e.data === "done"){
-    document.getElementById("generateReportBtn").disabled = false;
-
-    // ✅ Stop scan FIRST
-    stopScan(true);
-
-    // ✅ Then update UI
-    document.getElementById("scanStatus").innerHTML =
-        "✅ Scan Completed";
-
-    return;
-}
-
-    let port = parseInt(e.data);
-
-    if(!isNaN(port)){
-        document.getElementById("scanStatus").innerHTML = `⚡ Found: Port ${port}`;
-        appendPort(port);
-    }
-};
-    eventSource.onerror=function(){ document.getElementById("scanStatus").innerHTML="❌ Scan Error"; stopScan(); };
-}
-
-function runAdvancedScan(){
-scannedPorts = [];
-document.getElementById("generateReportBtn").disabled = true;
-    if(isScanning){stopScan();return;} isScanning=true;
-    let qb=document.getElementById("quickScanBtn"),ab=document.getElementById("advancedScanBtn");
-    qb.disabled=true; ab.textContent="⬛ Stop Scan"; ab.className="btn btn-stop";
-    let portRange=document.getElementById("portRange").value||"1-1024";
-    let threads=document.getElementById("threads").value, speed=document.getElementById("speed").value;
-    let rb=document.getElementById("portResult");
-    rb.innerHTML=`<div id="scanStatus" class="scan-status">⚡ Initializing...</div><div id="scanResults"></div>`;
-    eventSource=new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`);
-    eventSource.onmessage=function(e){
-     if(e.data === "done"){
-    document.getElementById("generateReportBtn").disabled = false;
-
-    stopScan(true);
-
-    document.getElementById("scanStatus").innerHTML =
-        "✅ Scan Completed";
-
-    return;
-}
-let p=parseInt(e.data); document.getElementById("scanStatus").innerHTML=`⚡ Found: Port ${p}`; appendPort(p); };
-    eventSource.onerror=function(){ rb.innerHTML+="<br>❌ Scan Error"; stopScan(); };
-}
-function generatePortReport(){
-    if(scannedPorts.length === 0){
-        alert("No scan data available!");
-        return;
-    }
-
-    fetch("/generate-port-report", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-    ip: currentScanIP,
-    ports: scannedPorts,   // now includes port + service + risk
-    timestamp: new Date().toLocaleString()
-})
-    })
-    .then(res => res.blob())
-    .then(blob => {
-        let url = window.URL.createObjectURL(blob);
-        let a = document.createElement("a");
-        a.href = url;
-        a.download = "Port_Scan_Report.pdf";
-        a.click();
-    })
-    .catch(err => {
-        alert("Report generation failed!");
-        console.error(err);
-    });
-}
-
-function stopScan(done=false){
-    if(scanController)scanController.abort();
-    if(eventSource){eventSource.close();eventSource=null;}
-    if(!done)document.getElementById("scanStatus").innerHTML="⛔ Scan Stopped";
-    resetScanButtons();
-}
-function resetScanButtons(){
-    isScanning=false; scanController=null;
-    let q=document.getElementById("quickScanBtn"),a=document.getElementById("advancedScanBtn");
-    q.textContent="▶ Run Default Scan"; q.className="btn btn-primary"; q.disabled=false;
-    a.textContent="▶ Run Advanced Scan"; a.className="btn btn-primary"; a.disabled=false;
-}
-function getServiceName(port){
-    const services = {
-        1:"TCPMUX", 5:"RJE", 7:"Echo",
-        20:"FTP-Data", 21:"FTP",
-        22:"SSH",
-        23:"Telnet",
-        25:"SMTP",
-        37:"Time",
-        42:"WINS Replication",
-        43:"WHOIS",
-        49:"TACACS",
-        53:"DNS",
-        67:"DHCP Server", 68:"DHCP Client",
-        69:"TFTP",
-        70:"Gopher",
-        79:"Finger",
-        80:"HTTP",
-        81:"HTTP Alt",
-        88:"Kerberos",
-        110:"POP3",
-        111:"RPCBind",
-        119:"NNTP",
-        123:"NTP",
-        135:"MS RPC",
-        137:"NetBIOS Name", 138:"NetBIOS Datagram", 139:"NetBIOS Session",
-        143:"IMAP",
-        161:"SNMP",
-        162:"SNMP Trap",
-        179:"BGP",
-        194:"IRC",
-        201:"AppleTalk",
-        389:"LDAP",
-        443:"HTTPS",
-        445:"SMB",
-        465:"SMTPS",
-        500:"ISAKMP (VPN)",
-        512:"rexec", 513:"rlogin", 514:"syslog",
-        515:"LPD",
-        520:"RIP",
-        540:"UUCP",
-        548:"AFP",
-        554:"RTSP",
-        587:"SMTP (Submission)",
-        631:"IPP (Printing)",
-        636:"LDAPS",
-        989:"FTPS Data", 990:"FTPS",
-        993:"IMAPS",
-        995:"POP3S",
-        1025:"NFS",
-        1433:"MSSQL",
-        1521:"Oracle DB",
-        1723:"PPTP VPN",
-        1883:"MQTT",
-        2049:"NFS",
-        2082:"cPanel",
-        2083:"cPanel SSL",
-        2086:"WHM",
-        2087:"WHM SSL",
-        2181:"Zookeeper",
-        2222:"DirectAdmin",
-        2375:"Docker (Unsecured)",
-        2376:"Docker (Secure)",
-        2483:"Oracle SSL",
-        2484:"Oracle TCPS",
-        3000:"Dev Server",
-        3128:"Proxy (Squid)",
-        3260:"iSCSI",
-        3306:"MySQL",
-        3389:"RDP",
-        3690:"Subversion",
-        4000:"Dev Server",
-        4040:"Spark UI",
-        4444:"Metasploit / Backdoor",
-        4567:"Ruby Dev",
-        4711:"PulseAudio",
-        4712:"PulseAudio",
-        5000:"Flask / Dev Server",
-        5001:"Flask SSL",
-        5060:"SIP",
-        5432:"PostgreSQL",
-        5555:"ADB (Android Debug)",
-        5601:"Kibana",
-        5631:"PCAnywhere",
-        5666:"NRPE",
-        5800:"VNC Web",
-        5900:"VNC",
-        5985:"WinRM HTTP",
-        5986:"WinRM HTTPS",
-        6000:"X11",
-        6379:"Redis",
-        6443:"Kubernetes API",
-        6667:"IRC",
-        7001:"WebLogic",
-        7002:"WebLogic SSL",
-        7077:"Spark",
-        7199:"Cassandra",
-        7474:"Neo4j",
-        7687:"Neo4j Bolt",
-        7777:"Game / Dev",
-        8000:"HTTP Alt",
-        8008:"HTTP Alt",
-        8009:"AJP (Tomcat)",
-        8080:"HTTP Proxy",
-        8081:"HTTP Alt",
-        8086:"InfluxDB",
-        8088:"Hadoop",
-        8090:"HTTP Alt",
-        8091:"Couchbase",
-        8200:"Vault",
-        8333:"Bitcoin",
-        8443:"HTTPS Alt",
-        8500:"Consul",
-        8600:"DNS (Consul)",
-        8888:"Jupyter Notebook",
-        9000:"SonarQube / Dev",
-        9042:"Cassandra",
-        9092:"Kafka",
-        9090:"Prometheus",
-        9200:"Elasticsearch",
-        9418:"Git",
-        9999:"Debug",
-        10000:"Webmin",
-        11211:"Memcached",
-        27017:"MongoDB"
-    };
-
-    return services[port] || "Unknown / Custom Service";
-}
-
-
-function getRiskLevel(port){
-    const HIGH = [
-        21,23,69,111,135,137,138,139,445,
-        3389,4444,5555,5900,6379,27017,
-        11211,9200,2375
-    ];
-
-    const MEDIUM = [
-        22,25,53,80,110,143,161,389,
-        443,3306,5432,8080,8000,8888,
-        8443,9090,9092,7001
-    ];
-
-    const LOW = [
-        123,179,500,631,993,995,5985,5986
-    ];
-
-    if(HIGH.includes(port)) return "HIGH";
-    if(MEDIUM.includes(port)) return "MEDIUM";
-    if(LOW.includes(port)) return "LOW";
-
-    // 🔥 Smart heuristic for unknown ports
-    if(port >= 0 && port <= 1024) return "MEDIUM";   // system ports
-    if(port >= 1025 && port <= 49151) return "LOW"; // registered ports
-    if(port > 49151) return "LOW";                  // dynamic ports
-
-    return "UNKNOWN";
-}
-</script>
-
-</body>
+      function getRiskLevel(port) {
+        const HIGH = [
+          21, 23, 69, 111, 135, 137, 138, 139, 445, 3389, 4444, 5555, 5900,
+          6379, 27017, 11211, 9200, 2375,
+        ];
+        const MEDIUM = [
+          22, 25, 53, 80, 110, 143, 161, 389, 443, 3306, 5432, 8080, 8000, 8888,
+          8443, 9090, 9092, 7001,
+        ];
+        if (HIGH.includes(port)) return "HIGH";
+        if (MEDIUM.includes(port)) return "MEDIUM";
+        if (port >= 0 && port <= 1024) return "MEDIUM";
+        return "LOW";
+      }
+    </script>
+  </body>
 </html>
