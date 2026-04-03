@@ -63,17 +63,12 @@ network_cache = {
     "arp":     []
 }
 
-
-# ─────────────────────────────────────────────
 # HELPERS
-# ─────────────────────────────────────────────
-
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
 
 def get_db():
     conn = sqlite3.connect(DATABASE, timeout=10, check_same_thread=False)
-    # ── FIX: enable WAL mode so concurrent reads/writes don't collide ──────
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
@@ -95,11 +90,7 @@ def fmt_timestamp(ts_str):
     except Exception:
         return ts_str
 
-
-# ─────────────────────────────────────────────
 # DATABASE INIT
-# ─────────────────────────────────────────────
-
 def init_db():
     conn   = get_db()
     cursor = conn.cursor()
@@ -181,11 +172,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-
-# ─────────────────────────────────────────────
 # BACKGROUND SCANNER
-# ─────────────────────────────────────────────
-
 def background_scanner():
     global network_cache
 
@@ -262,7 +249,6 @@ def background_scanner():
         sleep_time = max(5, 10 - elapsed)
         time.sleep(sleep_time)
 
-
 def safe_background():
     while True:
         try:
@@ -271,11 +257,7 @@ def safe_background():
             print("Scanner crashed, restarting in 3s...", e)
             time.sleep(3)
 
-
-# ─────────────────────────────────────────────
 # ROGUE DETECTION
-# ─────────────────────────────────────────────
-
 def log_rogue_attack(ip, mac, attack_type):
     try:
         conn   = get_db()
@@ -300,7 +282,6 @@ def log_rogue_attack(ip, mac, attack_type):
         conn.close()
     except Exception as e:
         print("log_rogue_attack error:", e)
-
 
 def detect_rogue_logic(trusted_macs, trusted_ips):
     current_time = datetime.now()
@@ -357,11 +338,7 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     return rogue_devices
 
-
-# ─────────────────────────────────────────────
 # ROUTES — AUTH
-# ─────────────────────────────────────────────
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -384,17 +361,12 @@ def login():
 
     return render_template("login.html")
 
-
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
 
-
-# ─────────────────────────────────────────────
 # ROUTES — DASHBOARD
-# ─────────────────────────────────────────────
-
 @app.route("/")
 def dashboard():
     if "user" not in session:
@@ -479,11 +451,7 @@ def dashboard():
         trusted_count=trusted_count
     )
 
-
-# ─────────────────────────────────────────────
 # ROUTES — AGENT API
-# ─────────────────────────────────────────────
-
 @app.route("/api/device", methods=["POST"])
 def receive_device_data():
     if not verify_api():
@@ -531,7 +499,6 @@ def receive_device_data():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
     conn   = get_db()
@@ -552,11 +519,7 @@ def get_devices():
         "last_seen":   row[8]
     } for row in rows])
 
-
-# ─────────────────────────────────────────────
 # ROUTES — DEVICE MANAGEMENT
-# ─────────────────────────────────────────────
-
 @app.route("/approve-device", methods=["POST"])
 def approve_device():
     ip  = request.form.get("ip")
@@ -585,7 +548,6 @@ def approve_device():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-
 @app.route("/disapprove-device", methods=["POST"])
 def disapprove_device():
     try:
@@ -599,11 +561,7 @@ def disapprove_device():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-
-# ─────────────────────────────────────────────
 # ROUTES — LIVE DATA
-# ─────────────────────────────────────────────
-
 @app.route("/api/live-data")
 def live_data():
     try:
@@ -674,16 +632,13 @@ def live_data():
         return jsonify({"devices": [], "rogue": [], "trusted": [],
                         "total": 0, "online": 0, "offline": 0, "rogue_count": 0})
 
-
 @app.before_request
 def manage_session():
     session.permanent = True
-    # ── FIX: skip session check for pure API/data routes so they always
-    #    return JSON and never redirect to the HTML login page ──────────────
     api_prefixes = ("/api/", "/scan-", "/stop-scan", "/detect-rogue",
                     "/approve-device", "/disapprove-device", "/generate-")
     if any(request.path.startswith(p) for p in api_prefixes):
-        return  # let the route handle auth via verify_api() or skip auth
+        return
 
     if "user" in session:
         now         = datetime.now().timestamp()
@@ -693,11 +648,7 @@ def manage_session():
             return redirect("/login")
         session["last_active"] = now
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # REPORT GENERATION
-# ═══════════════════════════════════════════════════════════════════════════════
-
 RPT_DARK_BLUE    = HexColor("#1a237e")
 RPT_MED_BLUE     = HexColor("#283593")
 RPT_ACCENT_BLUE  = HexColor("#1565c0")
@@ -735,9 +686,7 @@ def calculate_system_health(total, rogue):
         return "MEDIUM RISK"
     return "LOW RISK"
 
-
 _rpt_ctx = {}
-
 
 def _draw_watermark(canvas, doc):
     pw, ph = doc.pagesize
@@ -748,7 +697,6 @@ def _draw_watermark(canvas, doc):
     canvas.setFillGray(0.92)
     canvas.drawCentredString(0, 0, "SCCSIMS")
     canvas.restoreState()
-
 
 def _draw_page1_header(canvas, doc):
     pw, ph = doc.pagesize
@@ -782,7 +730,6 @@ def _draw_page1_header(canvas, doc):
     )
     canvas.restoreState()
 
-
 def _draw_page_header(canvas, doc):
     pw, ph = doc.pagesize
     canvas.saveState()
@@ -794,7 +741,6 @@ def _draw_page_header(canvas, doc):
     canvas.setFont("Helvetica", 8)
     canvas.drawRightString(pw - 16, ph - 15, _rpt_ctx.get("now_str", ""))
     canvas.restoreState()
-
 
 def _draw_footer(canvas, doc):
     pw, _ = doc.pagesize
@@ -809,18 +755,15 @@ def _draw_footer(canvas, doc):
     canvas.drawRightString(pw - 36, 14, f"Page {doc.page}")
     canvas.restoreState()
 
-
 def _on_first_page(canvas, doc):
     _draw_watermark(canvas, doc)
     _draw_page1_header(canvas, doc)
     _draw_footer(canvas, doc)
 
-
 def _on_later_pages(canvas, doc):
     _draw_watermark(canvas, doc)
     _draw_page_header(canvas, doc)
     _draw_footer(canvas, doc)
-
 
 def _build_styles():
     base = getSampleStyleSheet()
@@ -877,7 +820,6 @@ def _build_styles():
     )
     return st
 
-
 def _tbl_style(header_bg=None):
     if header_bg is None:
         header_bg = RPT_MED_BLUE
@@ -902,7 +844,6 @@ def _tbl_style(header_bg=None):
         ("LINEBELOW",     (0, 0), (-1,  0), 1.5, RPT_DARK_BLUE),
     ])
 
-
 def _section_bar(label, st):
     tbl = Table([[Paragraph(f"  {label}", st["section_heading"])]], colWidths=["100%"])
     tbl.setStyle(TableStyle([
@@ -915,7 +856,6 @@ def _section_bar(label, st):
     ]))
     return tbl
 
-
 def _cell(text, st, key="wrap", color=None):
     val = str(text) if (text is not None and str(text).strip() not in ("", "None")) else "—"
     if color:
@@ -923,7 +863,6 @@ def _cell(text, st, key="wrap", color=None):
     else:
         sty = st[key]
     return Paragraph(val, sty)
-
 
 def _status_pill(status_str, st):
     s = (status_str or "").strip().upper()
@@ -938,7 +877,6 @@ def _status_pill(status_str, st):
         alignment=TA_CENTER, borderPad=2,
     )
     return Paragraph(s, pill)
-
 
 def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_count=0):
     timestamps = analytics_history["timestamps"]
@@ -1097,7 +1035,6 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
 
     return cpu_path, ram_path, rogue_path, pie_path, combined_path
 
-
 @app.route("/generate-report")
 def generate_report():
     if "user" not in session:
@@ -1123,7 +1060,7 @@ def generate_report():
 
     _rpt_ctx["now_str"]   = datetime.now().strftime("%A, %d %B %Y  •  %H:%M:%S")
     _rpt_ctx["operator"]  = session.get("user", "admin")
-    _rpt_ctx["logo_path"] = "static/logo.png"
+    _rpt_ctx["logo_path"] = "templates/logo.png"
 
     conn   = get_db()
     cursor = conn.cursor()
@@ -1450,20 +1387,10 @@ def generate_report():
         headers={"Content-Disposition": f"attachment; filename={fname}"},
     )
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# END REPORT SECTION
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-# ─────────────────────────────────────────────
 # ROUTES — ANALYTICS & ATTACKER
-# ─────────────────────────────────────────────
-
 @app.route("/api/analytics")
 def analytics():
     return jsonify(analytics_history)
-
 
 @app.route("/api/last-attacker")
 def last_attacker():
@@ -1490,11 +1417,7 @@ def last_attacker():
     except Exception as e:
         return jsonify({"ip": None, "message": str(e)})
 
-
-# ─────────────────────────────────────────────
 # ROUTES — NETWORK SCAN
-# ─────────────────────────────────────────────
-
 @app.route("/scan-network")
 def scan_network_route():
     return jsonify(scan_network())
@@ -1517,11 +1440,7 @@ def detect_rogue_devices():
     except Exception as e:
         return jsonify({"rogue_devices": [], "error": str(e)})
 
-
-# ─────────────────────────────────────────────
 # ROUTES — PORT SCANNER
-# ─────────────────────────────────────────────
-
 def scan_ports(ip, ports=None):
     if ports is None:
         ports = [21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 3389]
@@ -1537,7 +1456,6 @@ def scan_ports(ip, ports=None):
             pass
     return open_ports
 
-
 def scan_single_port(ip, port, timeout):
     try:
         sock   = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1547,7 +1465,6 @@ def scan_single_port(ip, port, timeout):
         return port if result == 0 else None
     except Exception:
         return None
-
 
 @app.route("/scan-ports")
 def scan_ports_route():
@@ -1560,7 +1477,6 @@ def scan_ports_route():
         start, end = port_range.split("-")
         ports = list(range(int(start), int(end) + 1))
     return jsonify({"ip": ip, "open_ports": scan_ports(ip, ports)})
-
 
 @app.route("/scan-ports-live")
 def scan_ports_live():
@@ -1601,7 +1517,6 @@ def scan_ports_live():
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
-
 @app.route("/scan-ports-advanced", methods=["POST"])
 def scan_ports_advanced():
     try:
@@ -1631,7 +1546,6 @@ def scan_ports_advanced():
         return jsonify({"ip": ip, "open_ports": sorted(p for p in results if p)})
     except Exception as e:
         return jsonify({"error": "scan failed", "open_ports": []})
-
 
 def save_scan_history(ip, ports):
     try:
@@ -1666,14 +1580,11 @@ def save_scan_history(ip, ports):
     except Exception as e:
         print("save_scan_history ERROR:", e)
 
-
 @app.route("/stop-scan")
 def stop_scan():
     scan_control["stop"] = True
     return jsonify({"status": "stopped"})
 
-
-# ── FIX: log_rogue now wrapped in try/except ─────────────────────────────────
 def log_rogue(ip, mac, attack_type):
     try:
         conn   = get_db()
@@ -1686,8 +1597,6 @@ def log_rogue(ip, mac, attack_type):
         conn.close()
     except Exception as e:
         print("log_rogue error:", e)
-# ── end fix ──────────────────────────────────────────────────────────────────
-
 
 @app.route("/generate-port-report", methods=["POST"])
 def generate_port_report():
@@ -1764,7 +1673,6 @@ def generate_port_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/scan-history")
 def scan_history():
     try:
@@ -1839,18 +1747,10 @@ def get_rogue_logs():
         return jsonify({"error": str(e)}), 500
 
 
-
-# ─────────────────────────────────────────────
 # STARTUP
-# ─────────────────────────────────────────────
-
 if __name__ == "__main__":
     init_db()
     scanner_thread = threading.Thread(target=safe_background, daemon=True)
     scanner_thread.start()
-    # ── FIX: use_reloader=False prevents the Werkzeug reloader from
-    #    spawning a second process that kills the background scanner thread,
-    #    which was causing ERR_CONNECTION_REFUSED after page load.
-    #    threaded=True lets Flask handle concurrent AJAX calls properly. ──────
     app.run(host="0.0.0.0", port=5000, debug=True,
             use_reloader=False, threaded=True)
