@@ -546,6 +546,15 @@
         border-color: var(--green);
         box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
       }
+      /* Pending/loading state for approve button */
+      .btn-approve-pending {
+        background: var(--amber-dim);
+        border-color: rgba(255,171,0,0.3);
+        color: var(--amber);
+        opacity: 0.7;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
       .btn-disapprove {
         background: var(--red-dim);
         border-color: rgba(255, 61, 90, 0.3);
@@ -826,9 +835,6 @@
         }
       }
 
-      /* ══════════════════════════════════════════════════
-           LOG MODAL — Professional styles (Bug Fix #4)
-           ══════════════════════════════════════════════════ */
       .log-tabs {
         display: flex;
         gap: 0;
@@ -1008,93 +1014,53 @@
         color: var(--cyan);
         margin: 1px;
       }
-      /* Make full height layout */
-body {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Main content grows */
-.main-content {
-    flex: 1;
-}
-
-/* Footer styling */
-.app-footer {
-    background: #0d1117;
-    color: #aaa;
-    padding: 15px 20px;
-    border-top: 1px solid #222;
-    margin-top: 30px;
-}
-
-/* Footer content layout */
-.footer-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1200px;
-    margin: auto;
-    font-size: 14px;
-}
-
-/* Highlight name */
-.footer-content strong {
-    color: #00ffcc;
-}
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .main-content {
+        flex: 1;
+      }
       .app-footer {
-    box-shadow: 0 -2px 10px rgba(0,255,204,0.2);
-}
-      .app-footer {
-    background: #0d1117;
-    color: #aaa;
-    padding: 15px 20px;
-    border-top: 1px solid #222;
-    margin-top: 30px;
-}
-
-.footer-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1200px;
-    margin: auto;
-    font-size: 14px;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.footer-content strong {
-    color: #00ffcc;
-}
-
-/* GitHub link */
-.github-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #aaa;
-    text-decoration: none;
-    transition: 0.3s;
-}
-
-/* Icon */
-.github-icon {
-    width: 20px;
-    height: 20px;
-    filter: invert(1); /* white icon for dark theme */
-}
-
-/* Hover effect */
-.github-link:hover {
-    color: #00ffcc;
-    transform: scale(1.05);
-}
+        background: #0d1117;
+        color: #aaa;
+        padding: 15px 20px;
+        border-top: 1px solid #222;
+        margin-top: 30px;
+        box-shadow: 0 -2px 10px rgba(0,255,204,0.2);
+      }
+      .footer-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1200px;
+        margin: auto;
+        font-size: 14px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .footer-content strong {
+        color: #00ffcc;
+      }
+      .github-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #aaa;
+        text-decoration: none;
+        transition: 0.3s;
+      }
+      .github-icon {
+        width: 20px;
+        height: 20px;
+        filter: invert(1);
+      }
       .github-link:hover {
-    color: #00ffcc;
-    text-shadow: 0 0 5px #00ffcc;
-}
+        color: #00ffcc;
+        transform: scale(1.05);
+        text-shadow: 0 0 5px #00ffcc;
+      }
     </style>
   </head>
 
@@ -1107,8 +1073,7 @@ body {
           <div class="brand-text">
             <div class="brand-title">SCCSIMS</div>
             <div class="brand-sub">
-              Smart College Cyber Security &amp; Infrastructure Management
-              System
+              Smart College Cyber Security &amp; Infrastructure Management System
             </div>
           </div>
         </div>
@@ -1126,9 +1091,7 @@ body {
         <div class="section-title">Network Overview</div>
         <div class="section-line"></div>
         <div>
-          <a href="/generate-report" class="btn btn-primary"
-            >📄 Generate Report</a
-          >
+          <a href="/generate-report" class="btn btn-primary">📄 Generate Report</a>
         </div>
         <button class="btn btn-primary" onclick="openHistory()">
           📜 View Logs
@@ -1149,9 +1112,7 @@ body {
           </div>
           <div class="stat-card s-red">
             <div class="stat-label">Offline</div>
-            <div class="stat-value" id="offlineCount">
-              {{ offline_devices }}
-            </div>
+            <div class="stat-value" id="offlineCount">{{ offline_devices }}</div>
             <div class="stat-icon">🔌</div>
           </div>
           <div class="stat-card s-amber">
@@ -1201,23 +1162,11 @@ body {
         <div class="section-title">Device Monitoring</div>
         <div class="section-line"></div>
       </div>
-      <div
-        style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap"
-      >
-        <input
-          type="text"
-          id="deviceSearch"
-          placeholder="🔍 Search IP / Hostname"
-          class="form-control"
-          style="max-width: 260px"
-          onkeyup="filterDeviceTable()"
-        />
-        <select
-          id="deviceFilter"
-          class="form-control"
-          style="max-width: 180px"
-          onchange="filterDeviceTable()"
-        >
+      <div style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap">
+        <input type="text" id="deviceSearch" placeholder="🔍 Search IP / Hostname"
+          class="form-control" style="max-width: 260px" onkeyup="filterDeviceTable()" />
+        <select id="deviceFilter" class="form-control" style="max-width: 180px"
+          onchange="filterDeviceTable()">
           <option value="ALL">All Devices</option>
           <option value="ONLINE">Online</option>
           <option value="OFFLINE">Offline</option>
@@ -1227,16 +1176,9 @@ body {
         <table id="deviceTable">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Hostname</th>
-              <th>IP Address</th>
-              <th>OS</th>
-              <th>CPU</th>
-              <th>RAM</th>
-              <th>Location</th>
-              <th>Last Seen</th>
-              <th>Status</th>
-              <th>Action</th>
+              <th>ID</th><th>Hostname</th><th>IP Address</th><th>OS</th>
+              <th>CPU</th><th>RAM</th><th>Location</th><th>Last Seen</th>
+              <th>Status</th><th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -1246,16 +1188,8 @@ body {
               <td>{{ device.hostname }}</td>
               <td>{{ device.ip_address }}</td>
               <td>{{ device.os }}</td>
-              <td
-                class="cell-cpu {{ 'val-high' if device.cpu_usage|float > 80 else 'val-normal' }}"
-              >
-                {{ device.cpu_usage }}%
-              </td>
-              <td
-                class="cell-ram {{ 'val-high' if device.ram_usage|float > 80 else 'val-normal' }}"
-              >
-                {{ device.ram_usage }}%
-              </td>
+              <td class="cell-cpu {{ 'val-high' if device.cpu_usage|float > 80 else 'val-normal' }}">{{ device.cpu_usage }}%</td>
+              <td class="cell-ram {{ 'val-high' if device.ram_usage|float > 80 else 'val-normal' }}">{{ device.ram_usage }}%</td>
               <td>{{ device.location }}</td>
               <td>{{ device.last_seen }}</td>
               <td class="cell-status">
@@ -1266,12 +1200,7 @@ body {
                 {% endif %}
               </td>
               <td>
-                <button
-                  class="btn btn-scan"
-                  onclick="scanPorts('{{ device.ip_address }}')"
-                >
-                  ⌖ Scan
-                </button>
+                <button class="btn btn-scan" onclick="scanPorts('{{ device.ip_address }}')">⌖ Scan</button>
               </td>
             </tr>
             {% endfor %}
@@ -1281,34 +1210,21 @@ body {
 
       <div class="section-header" style="margin-top: 32px">
         <div class="rogue-header">
-          <div class="section-title" style="color: var(--red)">
-            Unauthorized Devices
-          </div>
+          <div class="section-title" style="color: var(--red)">Unauthorized Devices</div>
           <div class="rogue-badge">⚠ THREAT</div>
         </div>
         <div class="section-line"></div>
       </div>
-      <div
-        style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap"
-      >
-        <input
-          type="text"
-          id="rogueSearch"
-          placeholder="🔍 Search IP / MAC"
-          class="form-control"
-          style="max-width: 260px"
-          onkeyup="filterRogueTable()"
-        />
+      <div style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap">
+        <input type="text" id="rogueSearch" placeholder="🔍 Search IP / MAC"
+          class="form-control" style="max-width: 260px" onkeyup="filterRogueTable()" />
       </div>
       <div class="table-wrapper" style="border-color: rgba(255, 61, 90, 0.18)">
         <table id="rogueTable">
           <thead>
             <tr>
-              <th>IP Address</th>
-              <th>MAC Address</th>
-              <th>Status</th>
-              <th>Approve</th>
-              <th>Scan</th>
+              <th>IP Address</th><th>MAC Address</th><th>Status</th>
+              <th>Approve</th><th>Scan</th>
             </tr>
           </thead>
           <tbody>
@@ -1318,19 +1234,43 @@ body {
               <td>{{ device.mac }}</td>
               <td style="color: var(--red)">{{ device.status }}</td>
               <td>
-                <button
-                  class="btn btn-approve"
-                  onclick="approveDevice('{{ device.ip }}','{{ device.mac }}',this)"
-                >
+                <button class="btn btn-approve"
+                  onclick="approveDevice('{{ device.ip }}','{{ device.mac }}',this)">
                   ✓ Approve
                 </button>
               </td>
               <td>
-                <button
-                  class="btn btn-scan"
-                  onclick="scanPorts('{{ device.ip }}')"
-                >
-                  ⌖ Scan
+                <button class="btn btn-scan" onclick="scanPorts('{{ device.ip }}')">⌖ Scan</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trusted Modal -->
+  <div id="trustedModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">✅ Trusted Devices</div>
+        <div id="closeModal" class="close">✕</div>
+      </div>
+      <div class="table-wrapper">
+        <table id="trustedTable">
+          <thead>
+            <tr><th>IP Address</th><th>MAC Address</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for device in trusted_devices %}
+            <tr>
+              <td>{{ device.ip }}</td>
+              <td>{{ device.mac }}</td>
+              <td>
+                <button class="btn btn-disapprove"
+                  onclick="disapproveDevice('{{ device.ip }}','{{ device.mac }}')">
+                  ✗ Disapprove
                 </button>
               </td>
             </tr>
@@ -1339,1179 +1279,689 @@ body {
         </table>
       </div>
     </div>
-</div>
-    <!-- Trusted Modal -->
-    <div id="trustedModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <div class="modal-title">✅ Trusted Devices</div>
-          <div id="closeModal" class="close">✕</div>
+  </div>
+
+  <!-- Log Modal -->
+  <div id="historyModal" class="modal">
+    <div class="modal-content" style="width: min(90%, 900px); max-height: 88vh; overflow-y: auto">
+      <div class="modal-header">
+        <div class="modal-title">📜 System Logs &amp; History</div>
+        <div onclick="closeHistory()" class="close">✕</div>
+      </div>
+      <div class="log-tabs">
+        <div class="log-tab active" id="tab-scan" onclick="switchTab('scan')">⌖ Port Scan History</div>
+        <div class="log-tab" id="tab-rogue" onclick="switchTab('rogue')">🚨 Rogue &amp; Attack Events</div>
+      </div>
+      <div class="log-panel active" id="panel-scan">
+        <div class="log-summary-bar">
+          <div class="log-kpi"><div class="log-kpi-val" id="kpi-total-scans">—</div><div class="log-kpi-lbl">Total Scans</div></div>
+          <div class="log-kpi"><div class="log-kpi-val" style="color:var(--red)" id="kpi-high-risk-scans">—</div><div class="log-kpi-lbl">High-Risk</div></div>
+          <div class="log-kpi"><div class="log-kpi-val" style="color:var(--cyan)" id="kpi-unique-ips">—</div><div class="log-kpi-lbl">Unique IPs</div></div>
+          <div class="log-kpi"><div class="log-kpi-val" style="color:var(--amber)" id="kpi-avg-ports">—</div><div class="log-kpi-lbl">Avg Open Ports</div></div>
         </div>
-        <div class="table-wrapper">
-          <table id="trustedTable">
-            <thead>
-              <tr>
-                <th>IP Address</th>
-                <th>MAC Address</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for device in trusted_devices %}
-              <tr>
-                <td>{{ device.ip }}</td>
-                <td>{{ device.mac }}</td>
-                <td>
-                  <button
-                    class="btn btn-disapprove"
-                    onclick="disapproveDevice('{{ device.ip }}','{{ device.mac }}')"
-                  >
-                    ✗ Disapprove
-                  </button>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
+        <div class="log-toolbar">
+          <input type="text" class="form-control log-search" id="scanSearch"
+            placeholder="🔍  Filter by IP or port number…" onkeyup="filterLogs('scan')" />
+          <select class="form-control" style="max-width:160px" id="scanRiskFilter" onchange="filterLogs('scan')">
+            <option value="ALL">All Risk Levels</option>
+            <option value="HIGH">High Risk Only</option>
+            <option value="CLEAN">Clean Only</option>
+          </select>
+        </div>
+        <div class="log-table-wrap">
+          <table class="log-table" id="scanLogTable">
+            <thead><tr><th style="width:36px">#</th><th>Target IP</th><th>Open Ports</th><th style="text-align:center">Count</th><th style="text-align:center">Risk</th><th>Scanned At</th></tr></thead>
+            <tbody id="scanLogBody"><tr><td colspan="6" class="log-empty">Loading scan history…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="log-panel" id="panel-rogue">
+        <div class="log-summary-bar">
+          <div class="log-kpi"><div class="log-kpi-val" id="kpi-total-rogue">—</div><div class="log-kpi-lbl">Total Events</div></div>
+          <div class="log-kpi"><div class="log-kpi-val" style="color:var(--red)" id="kpi-spoof">—</div><div class="log-kpi-lbl">Spoofing</div></div>
+          <div class="log-kpi"><div class="log-kpi-val" style="color:var(--amber)" id="kpi-dup">—</div><div class="log-kpi-lbl">Duplicates</div></div>
+          <div class="log-kpi"><div class="log-kpi-val" style="color:var(--cyan)" id="kpi-unauth">—</div><div class="log-kpi-lbl">Unauthorized</div></div>
+        </div>
+        <div class="log-toolbar">
+          <input type="text" class="form-control log-search" id="rogueLogSearch"
+            placeholder="🔍  Filter by IP, MAC, or attack type…" onkeyup="filterLogs('rogue')" />
+          <select class="form-control" style="max-width:190px" id="rogueTypeFilter" onchange="filterLogs('rogue')">
+            <option value="ALL">All Types</option>
+            <option value="Spoofing">Spoofing</option>
+            <option value="Duplicate">Duplicate</option>
+            <option value="Unauthorized">Unauthorized</option>
+          </select>
+        </div>
+        <div class="log-table-wrap">
+          <table class="log-table" id="rogueLogTable">
+            <thead><tr><th style="width:36px">#</th><th>Source IP</th><th>MAC Address</th><th>Attack Type</th><th style="text-align:center">Severity</th><th>Detected At</th></tr></thead>
+            <tbody id="rogueLogBody"><tr><td colspan="6" class="log-empty">Loading rogue events…</td></tr></tbody>
           </table>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ══════════════════════════════════════════════════════════════
-     LOG MODAL — Professional tabbed viewer  (Bug Fix #4 — frontend)
-     ══════════════════════════════════════════════════════════════ -->
-    <div id="historyModal" class="modal">
-      <div
-        class="modal-content"
-        style="width: min(90%, 900px); max-height: 88vh; overflow-y: auto"
-      >
-        <div class="modal-header">
-          <div class="modal-title">📜 System Logs &amp; History</div>
-          <div onclick="closeHistory()" class="close">✕</div>
-        </div>
-
-        <!-- Tab bar -->
-        <div class="log-tabs">
-          <div class="log-tab active" id="tab-scan" onclick="switchTab('scan')">
-            ⌖ Port Scan History
-          </div>
-          <div class="log-tab" id="tab-rogue" onclick="switchTab('rogue')">
-            🚨 Rogue &amp; Attack Events
-          </div>
-        </div>
-
-        <!-- ── PORT SCAN PANEL ── -->
-        <div class="log-panel active" id="panel-scan">
-          <div class="log-summary-bar">
-            <div class="log-kpi">
-              <div class="log-kpi-val" id="kpi-total-scans">—</div>
-              <div class="log-kpi-lbl">Total Scans</div>
-            </div>
-            <div class="log-kpi">
-              <div
-                class="log-kpi-val"
-                style="color: var(--red)"
-                id="kpi-high-risk-scans"
-              >
-                —
-              </div>
-              <div class="log-kpi-lbl">High-Risk</div>
-            </div>
-            <div class="log-kpi">
-              <div
-                class="log-kpi-val"
-                style="color: var(--cyan)"
-                id="kpi-unique-ips"
-              >
-                —
-              </div>
-              <div class="log-kpi-lbl">Unique IPs</div>
-            </div>
-            <div class="log-kpi">
-              <div
-                class="log-kpi-val"
-                style="color: var(--amber)"
-                id="kpi-avg-ports"
-              >
-                —
-              </div>
-              <div class="log-kpi-lbl">Avg Open Ports</div>
-            </div>
-          </div>
-          <div class="log-toolbar">
-            <input
-              type="text"
-              class="form-control log-search"
-              id="scanSearch"
-              placeholder="🔍  Filter by IP or port number…"
-              onkeyup="filterLogs('scan')"
-            />
-            <select
-              class="form-control"
-              style="max-width: 160px"
-              id="scanRiskFilter"
-              onchange="filterLogs('scan')"
-            >
-              <option value="ALL">All Risk Levels</option>
-              <option value="HIGH">High Risk Only</option>
-              <option value="CLEAN">Clean Only</option>
-            </select>
-          </div>
-          <div class="log-table-wrap">
-            <table class="log-table" id="scanLogTable">
-              <thead>
-                <tr>
-                  <th style="width: 36px">#</th>
-                  <th>Target IP</th>
-                  <th>Open Ports</th>
-                  <th style="text-align: center">Count</th>
-                  <th style="text-align: center">Risk</th>
-                  <th>Scanned At</th>
-                </tr>
-              </thead>
-              <tbody id="scanLogBody">
-                <tr>
-                  <td colspan="6" class="log-empty">Loading scan history…</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- ── ROGUE / ATTACK PANEL ── -->
-        <div class="log-panel" id="panel-rogue">
-          <div class="log-summary-bar">
-            <div class="log-kpi">
-              <div class="log-kpi-val" id="kpi-total-rogue">—</div>
-              <div class="log-kpi-lbl">Total Events</div>
-            </div>
-            <div class="log-kpi">
-              <div class="log-kpi-val" style="color: var(--red)" id="kpi-spoof">
-                —
-              </div>
-              <div class="log-kpi-lbl">Spoofing</div>
-            </div>
-            <div class="log-kpi">
-              <div class="log-kpi-val" style="color: var(--amber)" id="kpi-dup">
-                —
-              </div>
-              <div class="log-kpi-lbl">Duplicates</div>
-            </div>
-            <div class="log-kpi">
-              <div
-                class="log-kpi-val"
-                style="color: var(--cyan)"
-                id="kpi-unauth"
-              >
-                —
-              </div>
-              <div class="log-kpi-lbl">Unauthorized</div>
-            </div>
-          </div>
-          <div class="log-toolbar">
-            <input
-              type="text"
-              class="form-control log-search"
-              id="rogueLogSearch"
-              placeholder="🔍  Filter by IP, MAC, or attack type…"
-              onkeyup="filterLogs('rogue')"
-            />
-            <select
-              class="form-control"
-              style="max-width: 190px"
-              id="rogueTypeFilter"
-              onchange="filterLogs('rogue')"
-            >
-              <option value="ALL">All Types</option>
-              <option value="Spoofing">Spoofing</option>
-              <option value="Duplicate">Duplicate</option>
-              <option value="Unauthorized">Unauthorized</option>
-            </select>
-          </div>
-          <div class="log-table-wrap">
-            <table class="log-table" id="rogueLogTable">
-              <thead>
-                <tr>
-                  <th style="width: 36px">#</th>
-                  <th>Source IP</th>
-                  <th>MAC Address</th>
-                  <th>Attack Type</th>
-                  <th style="text-align: center">Severity</th>
-                  <th>Detected At</th>
-                </tr>
-              </thead>
-              <tbody id="rogueLogBody">
-                <tr>
-                  <td colspan="6" class="log-empty">Loading rogue events…</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+  <!-- Port Scanner Modal -->
+  <div id="portModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">⌖ Port Scanner</div>
+        <div id="closePortModal" class="close">✕</div>
       </div>
-    </div>
-
-    <!-- Port Scanner Modal -->
-    <div id="portModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <div class="modal-title">⌖ Port Scanner</div>
-          <div id="closePortModal" class="close">✕</div>
-        </div>
-        <div class="modal-header">
-          <div class="target-badge">🎯 <span id="scanIP">--</span></div>
-          <div style="text-align: right">
-            <button
-              class="btn btn-primary"
-              id="generateReportBtn"
-              onclick="generatePortReport()"
-              disabled
-            >
-              📄 Generate Scan Report
-            </button>
-          </div>
-        </div>
-        <div class="scan-section">
-          <div class="scan-section-title">⚡ Quick Scan · Default 1–1024</div>
-          <button
-            class="btn btn-primary"
-            id="quickScanBtn"
-            onclick="runQuickScan()"
-          >
-            ▶ Run Default Scan
+      <div class="modal-header">
+        <div class="target-badge">🎯 <span id="scanIP">--</span></div>
+        <div style="text-align: right">
+          <button class="btn btn-primary" id="generateReportBtn" onclick="generatePortReport()" disabled>
+            📄 Generate Scan Report
           </button>
         </div>
-        <div class="scan-section">
-          <div class="scan-section-title">⚙ Advanced Scan</div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Protocol</label
-              ><select id="protocol" class="form-control">
-                <option value="tcp">TCP</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Speed</label
-              ><select id="speed" class="form-control">
-                <option value="normal">Normal</option>
-                <option value="aggressive">Aggressive</option>
-                <option value="stealth">Stealth</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Port Range</label
-              ><input
-                type="text"
-                id="portRange"
-                class="form-control"
-                placeholder="e.g. 1-1024"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Threads</label
-              ><input
-                type="number"
-                id="threads"
-                class="form-control"
-                value="10"
-                min="1"
-                max="100"
-              />
-            </div>
-          </div>
-          <button
-            class="btn btn-primary"
-            id="advancedScanBtn"
-            onclick="runAdvancedScan()"
-          >
-            ▶ Run Advanced Scan
-          </button>
-        </div>
-        <div id="portResult"></div>
       </div>
+      <div class="scan-section">
+        <div class="scan-section-title">⚡ Quick Scan · Default 1–1024</div>
+        <button class="btn btn-primary" id="quickScanBtn" onclick="runQuickScan()">▶ Run Default Scan</button>
+      </div>
+      <div class="scan-section">
+        <div class="scan-section-title">⚙ Advanced Scan</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Protocol</label>
+            <select id="protocol" class="form-control"><option value="tcp">TCP</option></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Speed</label>
+            <select id="speed" class="form-control">
+              <option value="normal">Normal</option>
+              <option value="aggressive">Aggressive</option>
+              <option value="stealth">Stealth</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Port Range</label>
+            <input type="text" id="portRange" class="form-control" placeholder="e.g. 1-1024" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Threads</label>
+            <input type="number" id="threads" class="form-control" value="10" min="1" max="100" />
+          </div>
+        </div>
+        <button class="btn btn-primary" id="advancedScanBtn" onclick="runAdvancedScan()">▶ Run Advanced Scan</button>
+      </div>
+      <div id="portResult"></div>
     </div>
+  </div>
 
-    <div id="rogueAlert"></div>
- <footer class="app-footer">
+  <div id="rogueAlert"></div>
+
+  <footer class="app-footer">
     <div class="footer-content">
-
-        <span>© 2026 SCCSIMS</span>
-
-        <span>
-            Developed by <strong>Mohit</strong> (ByteBandit-100)
-        </span>
-
-        <a href="https://github.com/ByteBandit-100" target="_blank" class="github-link">
-            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
-                 alt="GitHub" class="github-icon">
-            ByteBandit-100
-        </a>
-
+      <span>© 2026 SCCSIMS</span>
+      <span>Developed by <strong>Mohit</strong> (ByteBandit-100)</span>
+      <a href="https://github.com/ByteBandit-100" target="_blank" class="github-link">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
+             alt="GitHub" class="github-icon">
+        ByteBandit-100
+      </a>
     </div>
-</footer>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-      /* ── Clock ── */
-      setInterval(() => {
-        document.getElementById("liveClock").innerText =
-          new Date().toLocaleTimeString();
-      }, 1000);
+  </footer>
 
-      Chart.defaults.color = "#7a9bb5";
-      Chart.defaults.font.family = "'JetBrains Mono',monospace";
-      let mainChart = null;
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    /* ── Clock ── */
+    setInterval(() => {
+      document.getElementById("liveClock").innerText = new Date().toLocaleTimeString();
+    }, 1000);
 
-      function drawChart(data) {
-        let ctx = document.getElementById("deviceChart").getContext("2d");
-        if (mainChart) {
-          mainChart.data.datasets[0].data = [
-            data.online,
-            data.offline,
-            data.rogue_count,
-          ];
-          mainChart.update();
-          return;
-        }
-        mainChart = new Chart(ctx, {
-          type: "doughnut",
-          data: {
-            labels: ["Online", "Offline", "Rogue"],
-            datasets: [
-              {
-                data: [data.online, data.offline, data.rogue_count],
-                backgroundColor: ["#00e676", "#ff3d5a", "#ffab00"],
-                borderWidth: 2,
-                borderColor: "#0a1628",
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "72%",
-            animation: { duration: 800 },
-            plugins: {
-              legend: {
-                position: "bottom",
-                labels: { padding: 14, boxWidth: 10, font: { size: 11 } },
-              },
-            },
-          },
-        });
+    Chart.defaults.color = "#7a9bb5";
+    Chart.defaults.font.family = "'JetBrains Mono',monospace";
+    let mainChart = null;
+
+    function drawChart(data) {
+      let ctx = document.getElementById("deviceChart").getContext("2d");
+      if (mainChart) {
+        mainChart.data.datasets[0].data = [data.online, data.offline, data.rogue_count];
+        mainChart.update();
+        return;
       }
-    </script>
-
-    <script>
-      let cpuChart, deviceChart2, rogueChart;
-      function drawAnalytics(data) {
-        const lo = {
+      mainChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: ["Online", "Offline", "Rogue"],
+          datasets: [{
+            data: [data.online, data.offline, data.rogue_count],
+            backgroundColor: ["#00e676", "#ff3d5a", "#ffab00"],
+            borderWidth: 2,
+            borderColor: "#0a1628",
+          }],
+        },
+        options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-        };
-        let c1 = document.getElementById("cpuChart").getContext("2d");
-        if (!cpuChart) {
-          cpuChart = new Chart(c1, {
-            type: "line",
-            data: {
-              labels: data.timestamps,
-              datasets: [
-                {
-                  label: "Avg CPU %",
-                  data: data.cpu_avg,
-                  borderColor: "#00c8ff",
-                  backgroundColor: "rgba(0,200,255,0.06)",
-                  fill: true,
-                  tension: 0.4,
-                  pointRadius: 3,
-                  pointBackgroundColor: "#00c8ff",
-                },
-              ],
-            },
-            options: lo,
-          });
-        } else {
-          cpuChart.data.labels = data.timestamps;
-          cpuChart.data.datasets[0].data = data.cpu_avg;
-          cpuChart.update();
-        }
-        let c2 = document.getElementById("deviceGrowthChart").getContext("2d");
-        if (!deviceChart2) {
-          deviceChart2 = new Chart(c2, {
-            type: "line",
-            data: {
-              labels: data.timestamps,
-              datasets: [
-                {
-                  label: "Devices",
-                  data: data.total_devices,
-                  borderColor: "#00e676",
-                  backgroundColor: "rgba(0,230,118,0.06)",
-                  fill: true,
-                  tension: 0.4,
-                  pointRadius: 3,
-                  pointBackgroundColor: "#00e676",
-                },
-              ],
-            },
-            options: lo,
-          });
-        } else {
-          deviceChart2.data.labels = data.timestamps;
-          deviceChart2.data.datasets[0].data = data.total_devices;
-          deviceChart2.update();
-        }
-        let c3 = document.getElementById("rogueChart").getContext("2d");
-        if (!rogueChart) {
-          rogueChart = new Chart(c3, {
-            type: "bar",
-            data: {
-              labels: data.timestamps,
-              datasets: [
-                {
-                  label: "Rogue",
-                  data: data.rogue_count,
-                  backgroundColor: "rgba(255,61,90,0.5)",
-                  borderColor: "#ff3d5a",
-                  borderWidth: 1,
-                  borderRadius: 4,
-                },
-              ],
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-            },
-          });
-        } else {
-          rogueChart.data.labels = data.timestamps;
-          rogueChart.data.datasets[0].data = data.rogue_count;
-          rogueChart.update();
-        }
-      }
-    </script>
-
-    <script>
-      let scannedPorts = [];
-      var modal = document.getElementById("trustedModal");
-      var portModal = document.getElementById("portModal");
-      document.getElementById("trustedBtn").onclick = () =>
-        (modal.style.display = "block");
-      document.getElementById("closeModal").onclick = () =>
-        (modal.style.display = "none");
-      document.getElementById("closePortModal").onclick = () =>
-        (portModal.style.display = "none");
-      window.onclick = function (e) {
-        if (e.target == modal) modal.style.display = "none";
-        if (e.target == portModal) portModal.style.display = "none";
-        if (e.target == document.getElementById("historyModal")) closeHistory();
-      };
-
-      let scanController = null,
-        eventSource = null,
-        isScanning = false,
-        currentScanIP = "",
-        analyticsVisible = false;
-      let alertSound = new Audio(
-        "https://www.soundjay.com/buttons/beep-01a.mp3",
-      );
-      let knownRogueIPs = new Set(
-        JSON.parse(localStorage.getItem("rogueIPs") || "[]"),
-      );
-
-      document.addEventListener(
-        "click",
-        () => {
-          alertSound
-            .play()
-            .then(() => {
-              alertSound.pause();
-              alertSound.currentTime = 0;
-            })
-            .catch(() => {});
+          cutout: "72%",
+          animation: { duration: 800 },
+          plugins: {
+            legend: { position: "bottom", labels: { padding: 14, boxWidth: 10, font: { size: 11 } } },
+          },
         },
-        { once: true },
-      );
+      });
+    }
+  </script>
 
-      function updateLastAttacker() {
-        fetch("/api/last-attacker")
-          .then((r) => r.json())
-          .then((data) => {
-            let box = document.getElementById("attackerInfo");
-            if (!data || !data.ip) {
-              box.innerHTML = "No recent attacks";
-              return;
-            }
-            box.innerHTML = `
+  <script>
+    let cpuChart, deviceChart2, rogueChart;
+    function drawAnalytics(data) {
+      const lo = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+      let c1 = document.getElementById("cpuChart").getContext("2d");
+      if (!cpuChart) {
+        cpuChart = new Chart(c1, { type: "line", data: { labels: data.timestamps, datasets: [{ label: "Avg CPU %", data: data.cpu_avg, borderColor: "#00c8ff", backgroundColor: "rgba(0,200,255,0.06)", fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: "#00c8ff" }] }, options: lo });
+      } else { cpuChart.data.labels = data.timestamps; cpuChart.data.datasets[0].data = data.cpu_avg; cpuChart.update(); }
+      let c2 = document.getElementById("deviceGrowthChart").getContext("2d");
+      if (!deviceChart2) {
+        deviceChart2 = new Chart(c2, { type: "line", data: { labels: data.timestamps, datasets: [{ label: "Devices", data: data.total_devices, borderColor: "#00e676", backgroundColor: "rgba(0,230,118,0.06)", fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: "#00e676" }] }, options: lo });
+      } else { deviceChart2.data.labels = data.timestamps; deviceChart2.data.datasets[0].data = data.total_devices; deviceChart2.update(); }
+      let c3 = document.getElementById("rogueChart").getContext("2d");
+      if (!rogueChart) {
+        rogueChart = new Chart(c3, { type: "bar", data: { labels: data.timestamps, datasets: [{ label: "Rogue", data: data.rogue_count, backgroundColor: "rgba(255,61,90,0.5)", borderColor: "#ff3d5a", borderWidth: 1, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+      } else { rogueChart.data.labels = data.timestamps; rogueChart.data.datasets[0].data = data.rogue_count; rogueChart.update(); }
+    }
+  </script>
+
+  <script>
+    let scannedPorts = [];
+    var modal     = document.getElementById("trustedModal");
+    var portModal = document.getElementById("portModal");
+    document.getElementById("trustedBtn").onclick  = () => (modal.style.display = "block");
+    document.getElementById("closeModal").onclick  = () => (modal.style.display = "none");
+    document.getElementById("closePortModal").onclick = () => (portModal.style.display = "none");
+    window.onclick = function (e) {
+      if (e.target == modal)     modal.style.display = "none";
+      if (e.target == portModal) portModal.style.display = "none";
+      if (e.target == document.getElementById("historyModal")) closeHistory();
+    };
+
+    let scanController = null, eventSource = null, isScanning = false,
+        currentScanIP = "", analyticsVisible = false;
+    let alertSound = new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
+    let knownRogueIPs = new Set(JSON.parse(localStorage.getItem("rogueIPs") || "[]"));
+
+    // ── FIX: pendingApprovals prevents re-appearing after approve ──────────
+    // Map of  mac → { ip, expiresAt }
+    // Any device whose MAC is in this map is hidden from the rogue table
+    // until the next scan confirms it has been removed server-side.
+    // TTL is 30 s (longer than the max scan cycle of ~15 s) so it never
+    // unlocks prematurely but cleans itself up automatically.
+    const APPROVAL_TTL_MS = 30000;
+    let pendingApprovals = new Map(); // mac → { ip, expiresAt }
+
+    function isPendingApproval(mac) {
+      if (!pendingApprovals.has(mac)) return false;
+      const entry = pendingApprovals.get(mac);
+      if (Date.now() > entry.expiresAt) {
+        pendingApprovals.delete(mac);  // expired — clean up
+        return false;
+      }
+      return true;
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
+    document.addEventListener("click", () => {
+      alertSound.play().then(() => { alertSound.pause(); alertSound.currentTime = 0; }).catch(() => {});
+    }, { once: true });
+
+    function updateLastAttacker() {
+      fetch("/api/last-attacker")
+        .then(r => r.json())
+        .then(data => {
+          let box = document.getElementById("attackerInfo");
+          if (!data || !data.ip) { box.innerHTML = "No recent attacks"; return; }
+          box.innerHTML = `
             <span style="color:#00c8ff;">IP:</span> ${data.ip}<br>
             <span style="color:#00c8ff;">MAC:</span> ${data.mac}<br>
             <span style="color:#ff3d5a;">Type:</span> ${data.type}<br>
             <span style="color:#7a9bb5;">⏱ ${data.last_seen}</span>`;
-          })
-          .catch(() => {
-            document.getElementById("attackerInfo").innerText = "Error loading";
-          });
-      }
-
-      function filterDeviceTable() {
-        let search = document
-          .getElementById("deviceSearch")
-          .value.toLowerCase();
-        let filter = document.getElementById("deviceFilter").value;
-        document.querySelectorAll("#deviceTable tbody tr").forEach((row) => {
-          let ip = row.cells[2].innerText.toLowerCase();
-          let host = row.cells[1].innerText.toLowerCase();
-          let status = row.querySelector(".cell-status").innerText.trim();
-          let matchSearch = ip.includes(search) || host.includes(search);
-          let matchFilter = filter === "ALL" || status === filter;
-          row.style.display = matchSearch && matchFilter ? "" : "none";
-        });
-      }
-
-      function filterRogueTable() {
-        let search = document.getElementById("rogueSearch").value.toLowerCase();
-        document.querySelectorAll("#rogueTable tbody tr").forEach((row) => {
-          let ip = row.cells[0].innerText.toLowerCase();
-          let mac = row.cells[1].innerText.toLowerCase();
-          let status = row.cells[2].innerText.toLowerCase();
-          row.style.display =
-            ip.includes(search) ||
-            mac.includes(search) ||
-            status.includes(search)
-              ? ""
-              : "none";
-        });
-      }
-
-      function toggleAnalytics() {
-        analyticsVisible = !analyticsVisible;
-        document.getElementById("analyticsSection").style.display =
-          analyticsVisible ? "block" : "none";
-        document.getElementById("analyticsArrow").style.transform =
-          analyticsVisible ? "rotate(180deg)" : "";
-        if (analyticsVisible)
-          fetch("/api/analytics")
-            .then((r) => r.json())
-            .then((d) => drawAnalytics(d));
-      }
-
-      function disapproveDevice(ip, mac) {
-        fetch("/disapprove-device", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "ip=" + ip + "&mac=" + mac,
         })
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.status === "success") {
-              let tbody = document.querySelector("#trustedTable tbody");
-              Array.from(tbody.rows).forEach((row) => {
-                if (
-                  row.cells[0].innerText === ip &&
-                  row.cells[1].innerText === mac
-                )
-                  row.remove();
-              });
-              document.getElementById("trustedCount").innerText =
-                parseInt(document.getElementById("trustedCount").innerText) - 1;
-              setTimeout(updateLiveData, 500);
-            }
-          });
-      }
+        .catch(() => { document.getElementById("attackerInfo").innerText = "Error loading"; });
+    }
 
-      function appendPort(port) {
-        let service = getServiceName(port);
-        let risk = getRiskLevel(port);
-        scannedPorts.push({ port: port, service: service, risk: risk });
-        let color =
-          risk === "HIGH"
-            ? "var(--red)"
-            : risk === "MEDIUM"
-              ? "var(--amber)"
-              : "var(--green)";
-        let bg =
-          risk === "HIGH"
-            ? "var(--red-dim)"
-            : risk === "MEDIUM"
-              ? "var(--amber-dim)"
-              : "var(--green-dim)";
-        document.getElementById("scanResults").innerHTML += `
-    <div class="port-entry" style="background:${bg};border-color:${color}40;">
-        🔓 <span style="color:var(--cyan);">Port ${port}</span>
-        <span style="color:var(--text-secondary);">(${service})</span>
-        <span style="color:${color};font-weight:600;margin-left:auto;">[${risk}]</span>
-    </div>`;
-      }
+    function filterDeviceTable() {
+      let search = document.getElementById("deviceSearch").value.toLowerCase();
+      let filter = document.getElementById("deviceFilter").value;
+      document.querySelectorAll("#deviceTable tbody tr").forEach(row => {
+        let ip     = row.cells[2].innerText.toLowerCase();
+        let host   = row.cells[1].innerText.toLowerCase();
+        let status = row.querySelector(".cell-status").innerText.trim();
+        row.style.display = (ip.includes(search) || host.includes(search)) &&
+                            (filter === "ALL" || status === filter) ? "" : "none";
+      });
+    }
 
-      function approveDevice(ip, mac, btn) {
-        fetch("/approve-device", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "ip=" + ip + "&mac=" + mac,
-        })
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.status === "success") {
-              if (btn) btn.closest("tr").remove();
-              document.getElementById("rogueCount").innerText =
-                parseInt(document.getElementById("rogueCount").innerText) - 1;
-              setTimeout(updateLiveData, 500);
-            }
-          });
-      }
+    function filterRogueTable() {
+      let search = document.getElementById("rogueSearch").value.toLowerCase();
+      document.querySelectorAll("#rogueTable tbody tr").forEach(row => {
+        let ip  = row.cells[0].innerText.toLowerCase();
+        let mac = row.cells[1].innerText.toLowerCase();
+        let st  = row.cells[2].innerText.toLowerCase();
+        row.style.display = ip.includes(search) || mac.includes(search) || st.includes(search) ? "" : "none";
+      });
+    }
 
-      function updateLiveData() {
-        fetch("/api/live-data")
-          .then((r) => r.json())
-          .then((data) => {
-            let pill = document.getElementById("systemStatus");
-            let dot = document.getElementById("statusDot");
-            let txt = document.getElementById("statusText");
-            if (data.rogue_count > 0) {
-              dot.style.background = "var(--red)";
-              dot.style.boxShadow = "0 0 8px var(--red)";
-              txt.innerText = "THREAT DETECTED";
-              pill.style.background = "var(--red-dim)";
-              pill.style.borderColor = "rgba(255,61,90,0.25)";
-              pill.style.color = "var(--red)";
-            } else {
-              dot.style.background = "var(--green)";
-              dot.style.boxShadow = "0 0 8px var(--green)";
-              txt.innerText = "SYSTEM SECURE";
-              pill.style.background = "var(--green-dim)";
-              pill.style.borderColor = "rgba(0,230,118,0.25)";
-              pill.style.color = "var(--green)";
-            }
-            document.getElementById("totalCount").innerText = data.total;
-            document.getElementById("onlineCount").innerText = data.online;
-            document.getElementById("offlineCount").innerText = data.offline;
-            document.getElementById("rogueCount").innerText = data.rogue_count;
+    function toggleAnalytics() {
+      analyticsVisible = !analyticsVisible;
+      document.getElementById("analyticsSection").style.display = analyticsVisible ? "block" : "none";
+      document.getElementById("analyticsArrow").style.transform  = analyticsVisible ? "rotate(180deg)" : "";
+      if (analyticsVisible) fetch("/api/analytics").then(r => r.json()).then(d => drawAnalytics(d));
+    }
 
-            data.devices.forEach((device) => {
-              let row = document.querySelector(
-                `#deviceTable tbody tr[data-ip="${device.ip}"]`,
-              );
-              if (!row) return;
-              let cpuCell = row.querySelector(".cell-cpu");
-              let ramCell = row.querySelector(".cell-ram");
-              let stCell = row.querySelector(".cell-status");
-              if (cpuCell) {
-                cpuCell.innerText = device.cpu + "%";
-                cpuCell.className =
-                  "cell-cpu " +
-                  (parseFloat(device.cpu) > 80 ? "val-high" : "val-normal");
-              }
-              if (ramCell) {
-                ramCell.innerText = device.ram + "%";
-                ramCell.className =
-                  "cell-ram " +
-                  (parseFloat(device.ram) > 80 ? "val-high" : "val-normal");
-              }
-              if (stCell) {
-                stCell.innerHTML =
-                  device.status === "ONLINE"
-                    ? `<span class="status-online">ONLINE</span>`
-                    : `<span class="status-offline">OFFLINE</span>`;
-              }
-            });
-
-            let trustedBody = document.querySelector("#trustedTable tbody");
-            trustedBody.innerHTML = "";
-            data.trusted.forEach((device) => {
-              let row = trustedBody.insertRow();
-              row.insertCell(0).innerText = device.ip;
-              row.insertCell(1).innerText = device.mac;
-              row.insertCell(2).innerHTML =
-                `<button class="btn btn-disapprove" onclick="disapproveDevice('${device.ip}','${device.mac}')">✗ Disapprove</button>`;
+    function disapproveDevice(ip, mac) {
+      fetch("/disapprove-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "ip=" + ip + "&mac=" + mac,
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === "success") {
+            let tbody = document.querySelector("#trustedTable tbody");
+            Array.from(tbody.rows).forEach(row => {
+              if (row.cells[0].innerText === ip && row.cells[1].innerText === mac) row.remove();
             });
             document.getElementById("trustedCount").innerText =
-              data.trusted.length;
-
-            let rogueBody = document.querySelector("#rogueTable tbody");
-            rogueBody.innerHTML = "";
-            data.rogue.forEach((device) => {
-              let row = rogueBody.insertRow();
-              row.insertCell(0).innerText = device.ip;
-              row.insertCell(1).innerText = device.mac;
-              let sc = row.insertCell(2);
-              sc.innerText = device.status;
-              sc.style.color = device.status.includes("Spoof")
-                ? "var(--red)"
-                : "var(--red)";
-              row.insertCell(3).innerHTML =
-                `<button class="btn btn-approve" onclick="approveDevice('${device.ip}','${device.mac}',this)">✓ Approve</button>`;
-              row.insertCell(4).innerHTML =
-                `<button class="btn btn-scan" onclick="scanPorts('${device.ip}')">⌖ Scan</button>`;
-            });
-
-            drawChart(data);
-
-            let currentRogueIPs = new Set(data.rogue.map((d) => d.ip));
-            if (!window.initialized) {
-              knownRogueIPs = new Set(currentRogueIPs);
-              localStorage.setItem(
-                "rogueIPs",
-                JSON.stringify([...knownRogueIPs]),
-              );
-              window.initialized = true;
-              updateLastAttacker();
-              return;
-            }
-            let newRogues = [...currentRogueIPs].filter(
-              (ip) => !knownRogueIPs.has(ip),
-            );
-            if (newRogues.length > 0) {
-              alertSound.currentTime = 0;
-              alertSound.play().catch(() => {});
-              let ab = document.getElementById("rogueAlert");
-              ab.innerText =
-                "🚨 ALERT: Unauthorized device → " + newRogues.join(", ");
-              ab.style.display = "block";
-              setTimeout(() => {
-                ab.style.display = "none";
-              }, 4000);
-            }
-            knownRogueIPs = currentRogueIPs;
-            localStorage.setItem(
-              "rogueIPs",
-              JSON.stringify([...knownRogueIPs]),
-            );
-
-            if (analyticsVisible)
-              fetch("/api/analytics")
-                .then((r) => r.json())
-                .then((d) => drawAnalytics(d));
-            updateLastAttacker();
-            filterRogueTable();
-          })
-          .catch((err) => console.warn("Live data error:", err));
-      }
-
-      setInterval(updateLiveData, 5000);
-      updateLiveData();
-      filterDeviceTable();
-      filterRogueTable();
-
-      /* ══════════════════════════════════════════════════════════
-   LOG MODAL — Professional tabbed viewer (Bug Fix — frontend)
-   ══════════════════════════════════════════════════════════ */
-      let _scanData = [],
-        _rogueData = [];
-
-      function switchTab(tab) {
-        document
-          .querySelectorAll(".log-tab")
-          .forEach((t) => t.classList.remove("active"));
-        document
-          .querySelectorAll(".log-panel")
-          .forEach((p) => p.classList.remove("active"));
-        document.getElementById("tab-" + tab).classList.add("active");
-        document.getElementById("panel-" + tab).classList.add("active");
-      }
-
-      function rogueSeverity(type) {
-        const t = (type || "").toLowerCase();
-        if (t.includes("spoof")) return { cls: "risk-high", label: "CRITICAL" };
-        if (t.includes("duplicate"))
-          return { cls: "risk-med", label: "MEDIUM" };
-        if (t.includes("unauthorized"))
-          return { cls: "risk-low", label: "LOW" };
-        return { cls: "risk-low", label: "INFO" };
-      }
-
-      function renderPorts(portsStr) {
-        if (!portsStr)
-          return '<span style="color:var(--text-muted);">none</span>';
-        const ports = portsStr
-          .split(",")
-          .map((p) => p.trim())
-          .filter(Boolean);
-        const shown = ports.slice(0, 12);
-        const extra = ports.length - shown.length;
-        let html = shown
-          .map((p) => `<span class="port-tag">${p}</span>`)
-          .join("");
-        if (extra > 0)
-          html += `<span class="port-tag" style="color:var(--text-secondary);">+${extra} more</span>`;
-        return html;
-      }
-
-      function renderScanTable(rows) {
-        const tbody = document.getElementById("scanLogBody");
-        if (!rows.length) {
-          tbody.innerHTML =
-            '<tr><td colspan="6" class="log-empty">No port scan records found.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = rows
-          .map((r, i) => {
-            const riskCls = r.high_risk > 0 ? "risk-high" : "risk-low";
-            const riskLabel =
-              r.high_risk > 0 ? `⚠ ${r.high_risk} HIGH` : "✔ CLEAN";
-            return `<tr data-ip="${r.ip}" data-ports="${r.ports || ""}" data-risk="${r.high_risk > 0 ? "HIGH" : "CLEAN"}">
-            <td style="color:var(--text-muted);">${i + 1}</td>
-            <td style="color:var(--cyan);font-weight:600;">${r.ip || "—"}</td>
-            <td>${renderPorts(r.ports)}</td>
-            <td style="text-align:center;"><span class="log-badge ${r.port_count > 0 ? "info" : "safe"}">${r.port_count}</span></td>
-            <td style="text-align:center;"><span class="risk-pill ${riskCls}">${riskLabel}</span></td>
-            <td style="color:var(--text-secondary);font-size:11px;">${r.time || "—"}</td>
-        </tr>`;
-          })
-          .join("");
-      }
-
-      function renderRogueTable(rows) {
-        const tbody = document.getElementById("rogueLogBody");
-        if (!rows.length) {
-          tbody.innerHTML =
-            '<tr><td colspan="6" class="log-empty">No rogue events recorded.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = rows
-          .map((r, i) => {
-            const sev = rogueSeverity(r.type);
-            return `<tr data-ip="${r.ip}" data-mac="${r.mac || ""}" data-type="${r.type || ""}">
-            <td style="color:var(--text-muted);">${i + 1}</td>
-            <td style="color:var(--red);font-weight:600;">${r.ip || "—"}</td>
-            <td style="color:var(--text-secondary);font-size:11px;">${r.mac || "—"}</td>
-            <td>${r.type || "—"}</td>
-            <td style="text-align:center;"><span class="risk-pill ${sev.cls}">${sev.label}</span></td>
-            <td style="color:var(--text-secondary);font-size:11px;">${r.time || "—"}</td>
-        </tr>`;
-          })
-          .join("");
-      }
-
-      function updateScanKpis(data) {
-        const total = data.length;
-        const highRisk = data.filter((d) => d.high_risk > 0).length;
-        const unique = new Set(data.map((d) => d.ip)).size;
-        const avgPorts = total
-          ? Math.round(data.reduce((a, d) => a + d.port_count, 0) / total)
-          : 0;
-        document.getElementById("kpi-total-scans").innerText = total;
-        document.getElementById("kpi-high-risk-scans").innerText = highRisk;
-        document.getElementById("kpi-unique-ips").innerText = unique;
-        document.getElementById("kpi-avg-ports").innerText = avgPorts;
-      }
-
-      function updateRogueKpis(data) {
-        const total = data.length;
-        const spoof = data.filter((d) =>
-          (d.type || "").toLowerCase().includes("spoof"),
-        ).length;
-        const dup = data.filter((d) =>
-          (d.type || "").toLowerCase().includes("duplicate"),
-        ).length;
-        const unauth = data.filter((d) =>
-          (d.type || "").toLowerCase().includes("unauthorized"),
-        ).length;
-        document.getElementById("kpi-total-rogue").innerText = total;
-        document.getElementById("kpi-spoof").innerText = spoof;
-        document.getElementById("kpi-dup").innerText = dup;
-        document.getElementById("kpi-unauth").innerText = unauth;
-      }
-
-      function filterLogs(panel) {
-        if (panel === "scan") {
-          const search = document
-            .getElementById("scanSearch")
-            .value.toLowerCase();
-          const risk = document.getElementById("scanRiskFilter").value;
-          document
-            .querySelectorAll("#scanLogBody tr[data-ip]")
-            .forEach((row) => {
-              const ip = (row.dataset.ip || "").toLowerCase();
-              const ports = (row.dataset.ports || "").toLowerCase();
-              const riskMatch = risk === "ALL" || row.dataset.risk === risk;
-              const searchMatch =
-                !search || ip.includes(search) || ports.includes(search);
-              row.style.display = riskMatch && searchMatch ? "" : "none";
-            });
-        } else {
-          const search = document
-            .getElementById("rogueLogSearch")
-            .value.toLowerCase();
-          const type = document.getElementById("rogueTypeFilter").value;
-          document
-            .querySelectorAll("#rogueLogBody tr[data-ip]")
-            .forEach((row) => {
-              const ip = (row.dataset.ip || "").toLowerCase();
-              const mac = (row.dataset.mac || "").toLowerCase();
-              const t = (row.dataset.type || "").toLowerCase();
-              const typeMatch =
-                type === "ALL" || t.includes(type.toLowerCase());
-              const searchMatch =
-                !search ||
-                ip.includes(search) ||
-                mac.includes(search) ||
-                t.includes(search);
-              row.style.display = typeMatch && searchMatch ? "" : "none";
-            });
-        }
-      }
-
-      /* open / close */
-      function openHistory() {
-        document.getElementById("historyModal").style.display = "block";
-        switchTab("scan");
-
-        const safeJson = (r) => {
-          if (!r.ok)
-            throw new Error("Server error " + r.status + " on " + r.url);
-          return r.json();
-        };
-
-        Promise.all([
-          fetch("/api/scan-history").then(safeJson),
-          fetch("/api/rogue-logs").then(safeJson),
-        ])
-          .then(([scanData, rogueData]) => {
-            _scanData = scanData;
-            _rogueData = rogueData;
-            updateScanKpis(scanData);
-            updateRogueKpis(rogueData);
-            renderScanTable(scanData);
-            renderRogueTable(rogueData);
-          })
-          .catch((err) => {
-            console.error("Log fetch error:", err);
-            document.getElementById("scanLogBody").innerHTML =
-              '<tr><td colspan="6" class="log-empty" style="color:var(--red);">Failed to load logs.</td></tr>';
-            document.getElementById("rogueLogBody").innerHTML =
-              '<tr><td colspan="6" class="log-empty" style="color:var(--red);">Failed to load logs.</td></tr>';
-          });
-      }
-
-      function closeHistory() {
-        document.getElementById("historyModal").style.display = "none";
-      }
-      /* end log modal */
-
-      /* ── Port Scanner ── */
-      function scanPorts(ip) {
-        currentScanIP = ip;
-        document.getElementById("scanIP").innerText = ip;
-        document.getElementById("portResult").innerHTML = "";
-        portModal.style.display = "block";
-      }
-
-      function runQuickScan() {
-        scannedPorts = [];
-        document.getElementById("generateReportBtn").disabled = true;
-        if (isScanning) {
-          stopScan();
-          return;
-        }
-        isScanning = true;
-        let btn = document.getElementById("quickScanBtn"),
-          advBtn = document.getElementById("advancedScanBtn");
-        btn.textContent = "⬛ Stop Scan";
-        btn.className = "btn btn-stop";
-        advBtn.disabled = true;
-        let rb = document.getElementById("portResult");
-        rb.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing…</div><div id="scanResults"></div>`;
-        eventSource = new EventSource(
-          `/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`,
-        );
-        eventSource.onmessage = function (e) {
-          if (e.data === "done") {
-            document.getElementById("generateReportBtn").disabled = false;
-            stopScan(true);
-            document.getElementById("scanStatus").innerHTML =
-              "✅ Scan Completed";
-            return;
+              parseInt(document.getElementById("trustedCount").innerText) - 1;
+            setTimeout(updateLiveData, 500);
           }
-          let port = parseInt(e.data);
-          if (!isNaN(port)) {
-            document.getElementById("scanStatus").innerHTML =
-              `⚡ Found: Port ${port}`;
-            appendPort(port);
-          }
-        };
-        eventSource.onerror = function () {
-          document.getElementById("scanStatus").innerHTML = "❌ Scan Error";
-          stopScan();
-        };
+        });
+    }
+
+    function appendPort(port) {
+      let service = getServiceName(port);
+      let risk    = getRiskLevel(port);
+      scannedPorts.push({ port, service, risk });
+      let color = risk === "HIGH" ? "var(--red)" : risk === "MEDIUM" ? "var(--amber)" : "var(--green)";
+      let bg    = risk === "HIGH" ? "var(--red-dim)" : risk === "MEDIUM" ? "var(--amber-dim)" : "var(--green-dim)";
+      document.getElementById("scanResults").innerHTML +=
+        `<div class="port-entry" style="background:${bg};border-color:${color}40;">
+            🔓 <span style="color:var(--cyan);">Port ${port}</span>
+            <span style="color:var(--text-secondary);">(${service})</span>
+            <span style="color:${color};font-weight:600;margin-left:auto;">[${risk}]</span>
+        </div>`;
+    }
+
+    // ── FIX: approveDevice — optimistic lock + single correct counter update ──
+    function approveDevice(ip, mac, btn) {
+      // 1. Immediately disable the button and show pending state so the user
+      //    cannot double-click and so they get instant visual feedback.
+      if (btn) {
+        btn.textContent  = "⏳ Approving…";
+        btn.className    = "btn btn-approve-pending";
+        btn.disabled     = true;
       }
 
-      function runAdvancedScan() {
-        scannedPorts = [];
-        document.getElementById("generateReportBtn").disabled = true;
-        if (isScanning) {
-          stopScan();
-          return;
-        }
-        isScanning = true;
-        let qb = document.getElementById("quickScanBtn"),
-          ab = document.getElementById("advancedScanBtn");
-        qb.disabled = true;
-        ab.textContent = "⬛ Stop Scan";
-        ab.className = "btn btn-stop";
-        let portRange = document.getElementById("portRange").value || "1-1024";
-        let threads = document.getElementById("threads").value,
-          speed = document.getElementById("speed").value;
-        let rb = document.getElementById("portResult");
-        rb.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing…</div><div id="scanResults"></div>`;
-        eventSource = new EventSource(
-          `/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`,
-        );
-        eventSource.onmessage = function (e) {
-          if (e.data === "done") {
-            document.getElementById("generateReportBtn").disabled = false;
-            stopScan(true);
-            document.getElementById("scanStatus").innerHTML =
-              "✅ Scan Completed";
-            return;
-          }
-          let p = parseInt(e.data);
-          document.getElementById("scanStatus").innerHTML =
-            `⚡ Found: Port ${p}`;
-          appendPort(p);
-        };
-        eventSource.onerror = function () {
-          rb.innerHTML += "<br>❌ Scan Error";
-          stopScan();
-        };
-      }
+      // 2. Register in pendingApprovals BEFORE the fetch so that even if the
+      //    5-second updateLiveData fires during the network round-trip the row
+      //    stays hidden.
+      pendingApprovals.set(mac, { ip, expiresAt: Date.now() + APPROVAL_TTL_MS });
 
-      function generatePortReport() {
-        if (scannedPorts.length === 0) {
-          alert("No scan data available!");
-          return;
-        }
-        fetch("/generate-port-report", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ip: currentScanIP,
-            ports: scannedPorts,
-            timestamp: new Date().toLocaleString(),
-          }),
+      // 3. Remove the row from the DOM immediately (optimistic UI).
+      let parentRow = btn ? btn.closest("tr") : null;
+      if (parentRow) parentRow.remove();
+
+      // 4. Decrement the rogue counter immediately so it matches the DOM.
+      let rogueEl = document.getElementById("rogueCount");
+      let current = parseInt(rogueEl.innerText) || 0;
+      if (current > 0) rogueEl.innerText = current - 1;
+
+      fetch("/approve-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "ip=" + encodeURIComponent(ip) + "&mac=" + encodeURIComponent(mac),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === "success") {
+            // Backend confirmed — force a live-data refresh to sync counters.
+            // pendingApprovals entry stays alive for the full TTL so that
+            // any stale rogue_cache response doesn't re-add the row.
+            setTimeout(updateLiveData, 600);
+          } else {
+            // Server rejected — roll back: remove from pending, restore row.
+            pendingApprovals.delete(mac);
+            rogueEl.innerText = (parseInt(rogueEl.innerText) || 0) + 1;
+            let tbody = document.querySelector("#rogueTable tbody");
+            let tr    = document.createElement("tr");
+            tr.innerHTML = `<td>${ip}</td><td>${mac}</td>
+              <td style="color:var(--red)">Unauthorized Device</td>
+              <td><button class="btn btn-approve" onclick="approveDevice('${ip}','${mac}',this)">✓ Approve</button></td>
+              <td><button class="btn btn-scan" onclick="scanPorts('${ip}')">⌖ Scan</button></td>`;
+            tbody.appendChild(tr);
+          }
         })
-          .then((res) => res.blob())
-          .then((blob) => {
-            let url = window.URL.createObjectURL(blob);
-            let a = document.createElement("a");
-            a.href = url;
-            a.download = "Port_Scan_Report.pdf";
-            a.click();
-          })
-          .catch((err) => {
-            alert("Report generation failed!");
-            console.error(err);
+        .catch(() => {
+          // Network error — roll back same as server rejection.
+          pendingApprovals.delete(mac);
+          rogueEl.innerText = (parseInt(rogueEl.innerText) || 0) + 1;
+        });
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
+    function updateLiveData() {
+      fetch("/api/live-data")
+        .then(r => r.json())
+        .then(data => {
+          let pill = document.getElementById("systemStatus");
+          let dot  = document.getElementById("statusDot");
+          let txt  = document.getElementById("statusText");
+          if (data.rogue_count > 0) {
+            dot.style.background = "var(--red)"; dot.style.boxShadow = "0 0 8px var(--red)";
+            txt.innerText = "THREAT DETECTED";
+            pill.style.background = "var(--red-dim)"; pill.style.borderColor = "rgba(255,61,90,0.25)"; pill.style.color = "var(--red)";
+          } else {
+            dot.style.background = "var(--green)"; dot.style.boxShadow = "0 0 8px var(--green)";
+            txt.innerText = "SYSTEM SECURE";
+            pill.style.background = "var(--green-dim)"; pill.style.borderColor = "rgba(0,230,118,0.25)"; pill.style.color = "var(--green)";
+          }
+          document.getElementById("totalCount").innerText   = data.total;
+          document.getElementById("onlineCount").innerText  = data.online;
+          document.getElementById("offlineCount").innerText = data.offline;
+
+          // ── FIX: only update rogueCount from server when no approvals are
+          //    pending, to avoid the counter jumping back up mid-animation.
+          if (pendingApprovals.size === 0) {
+            document.getElementById("rogueCount").innerText = data.rogue_count;
+          }
+
+          data.devices.forEach(device => {
+            let row = document.querySelector(`#deviceTable tbody tr[data-ip="${device.ip}"]`);
+            if (!row) return;
+            let cpuCell = row.querySelector(".cell-cpu");
+            let ramCell = row.querySelector(".cell-ram");
+            let stCell  = row.querySelector(".cell-status");
+            if (cpuCell) { cpuCell.innerText = device.cpu + "%"; cpuCell.className = "cell-cpu " + (parseFloat(device.cpu) > 80 ? "val-high" : "val-normal"); }
+            if (ramCell) { ramCell.innerText = device.ram + "%"; ramCell.className = "cell-ram " + (parseFloat(device.ram) > 80 ? "val-high" : "val-normal"); }
+            if (stCell)  { stCell.innerHTML  = device.status === "ONLINE" ? `<span class="status-online">ONLINE</span>` : `<span class="status-offline">OFFLINE</span>`; }
           });
-      }
 
-      function stopScan(done = false) {
-        if (scanController) scanController.abort();
-        if (eventSource) {
-          eventSource.close();
-          eventSource = null;
-        }
-        if (!done)
-          document.getElementById("scanStatus").innerHTML = "⛔ Scan Stopped";
-        resetScanButtons();
-      }
-      function resetScanButtons() {
-        isScanning = false;
-        scanController = null;
-        let q = document.getElementById("quickScanBtn"),
-          a = document.getElementById("advancedScanBtn");
-        q.textContent = "▶ Run Default Scan";
-        q.className = "btn btn-primary";
-        q.disabled = false;
-        a.textContent = "▶ Run Advanced Scan";
-        a.className = "btn btn-primary";
-        a.disabled = false;
-      }
+          let trustedBody = document.querySelector("#trustedTable tbody");
+          trustedBody.innerHTML = "";
+          data.trusted.forEach(device => {
+            let row = trustedBody.insertRow();
+            row.insertCell(0).innerText = device.ip;
+            row.insertCell(1).innerText = device.mac;
+            row.insertCell(2).innerHTML = `<button class="btn btn-disapprove" onclick="disapproveDevice('${device.ip}','${device.mac}')">✗ Disapprove</button>`;
+          });
+          document.getElementById("trustedCount").innerText = data.trusted.length;
 
-      function getServiceName(port) {
-        const services = {
-          1: "TCPMUX",
-          21: "FTP",
-          22: "SSH",
-          23: "Telnet",
-          25: "SMTP",
-          53: "DNS",
-          67: "DHCP Server",
-          68: "DHCP Client",
-          69: "TFTP",
-          80: "HTTP",
-          88: "Kerberos",
-          110: "POP3",
-          111: "RPCBind",
-          123: "NTP",
-          135: "MS RPC",
-          137: "NetBIOS Name",
-          138: "NetBIOS Datagram",
-          139: "NetBIOS Session",
-          143: "IMAP",
-          161: "SNMP",
-          389: "LDAP",
-          443: "HTTPS",
-          445: "SMB",
-          465: "SMTPS",
-          500: "ISAKMP (VPN)",
-          512: "rexec",
-          513: "rlogin",
-          514: "syslog",
-          515: "LPD",
-          554: "RTSP",
-          587: "SMTP Submit",
-          631: "IPP",
-          636: "LDAPS",
-          993: "IMAPS",
-          995: "POP3S",
-          1433: "MSSQL",
-          1521: "Oracle DB",
-          1723: "PPTP VPN",
-          1883: "MQTT",
-          2049: "NFS",
-          2375: "Docker (Unsecured)",
-          2376: "Docker (Secure)",
-          3000: "Dev Server",
-          3306: "MySQL",
-          3389: "RDP",
-          3690: "Subversion",
-          4444: "Metasploit/Backdoor",
-          5000: "Flask/Dev",
-          5432: "PostgreSQL",
-          5555: "ADB (Android)",
-          5900: "VNC",
-          5985: "WinRM HTTP",
-          5986: "WinRM HTTPS",
-          6379: "Redis",
-          6443: "Kubernetes API",
-          7001: "WebLogic",
-          8080: "HTTP Proxy",
-          8443: "HTTPS Alt",
-          8888: "Jupyter Notebook",
-          9200: "Elasticsearch",
-          9092: "Kafka",
-          9090: "Prometheus",
-          10000: "Webmin",
-          11211: "Memcached",
-          27017: "MongoDB",
-        };
-        return services[port] || "Unknown / Custom";
-      }
+          // ── FIX: rebuild rogue table but SKIP any MAC in pendingApprovals ──
+          let rogueBody = document.querySelector("#rogueTable tbody");
+          rogueBody.innerHTML = "";
+          let visibleRogues = 0;
+          data.rogue.forEach(device => {
+            // Skip device if its MAC is still in the pending-approval window.
+            if (isPendingApproval(device.mac)) return;
 
-      function getRiskLevel(port) {
-        const HIGH = [
-          21, 23, 69, 111, 135, 137, 138, 139, 445, 3389, 4444, 5555, 5900,
-          6379, 27017, 11211, 9200, 2375,
-        ];
-        const MEDIUM = [
-          22, 25, 53, 80, 110, 143, 161, 389, 443, 3306, 5432, 8080, 8000, 8888,
-          8443, 9090, 9092, 7001,
-        ];
-        if (HIGH.includes(port)) return "HIGH";
-        if (MEDIUM.includes(port)) return "MEDIUM";
-        if (port >= 0 && port <= 1024) return "MEDIUM";
-        return "LOW";
+            visibleRogues++;
+            let row = rogueBody.insertRow();
+            row.insertCell(0).innerText = device.ip;
+            row.insertCell(1).innerText = device.mac;
+            let sc = row.insertCell(2);
+            sc.innerText = device.status;
+            sc.style.color = "var(--red)";
+            row.insertCell(3).innerHTML = `<button class="btn btn-approve" onclick="approveDevice('${device.ip}','${device.mac}',this)">✓ Approve</button>`;
+            row.insertCell(4).innerHTML = `<button class="btn btn-scan" onclick="scanPorts('${device.ip}')">⌖ Scan</button>`;
+          });
+
+          // Sync rogue counter to the number of rows actually visible.
+          document.getElementById("rogueCount").innerText = visibleRogues;
+
+          drawChart(data);
+
+          let currentRogueIPs = new Set(data.rogue.filter(d => !isPendingApproval(d.mac)).map(d => d.ip));
+          if (!window.initialized) {
+            knownRogueIPs = new Set(currentRogueIPs);
+            localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
+            window.initialized = true;
+            updateLastAttacker();
+            return;
+          }
+          let newRogues = [...currentRogueIPs].filter(ip => !knownRogueIPs.has(ip));
+          if (newRogues.length > 0) {
+            alertSound.currentTime = 0;
+            alertSound.play().catch(() => {});
+            let ab = document.getElementById("rogueAlert");
+            ab.innerText = "🚨 ALERT: Unauthorized device → " + newRogues.join(", ");
+            ab.style.display = "block";
+            setTimeout(() => { ab.style.display = "none"; }, 4000);
+          }
+          knownRogueIPs = currentRogueIPs;
+          localStorage.setItem("rogueIPs", JSON.stringify([...knownRogueIPs]));
+
+          if (analyticsVisible) fetch("/api/analytics").then(r => r.json()).then(d => drawAnalytics(d));
+          updateLastAttacker();
+          filterRogueTable();
+        })
+        .catch(err => console.warn("Live data error:", err));
+    }
+
+    setInterval(updateLiveData, 5000);
+    updateLiveData();
+    filterDeviceTable();
+    filterRogueTable();
+
+    /* ── Log modal ── */
+    let _scanData = [], _rogueData = [];
+
+    function switchTab(tab) {
+      document.querySelectorAll(".log-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".log-panel").forEach(p => p.classList.remove("active"));
+      document.getElementById("tab-"   + tab).classList.add("active");
+      document.getElementById("panel-" + tab).classList.add("active");
+    }
+
+    function rogueSeverity(type) {
+      const t = (type || "").toLowerCase();
+      if (t.includes("spoof"))        return { cls: "risk-high", label: "CRITICAL" };
+      if (t.includes("duplicate"))    return { cls: "risk-med",  label: "MEDIUM"   };
+      if (t.includes("unauthorized")) return { cls: "risk-low",  label: "LOW"      };
+      return { cls: "risk-low", label: "INFO" };
+    }
+
+    function renderPorts(portsStr) {
+      if (!portsStr) return '<span style="color:var(--text-muted);">none</span>';
+      const ports = portsStr.split(",").map(p => p.trim()).filter(Boolean);
+      const shown = ports.slice(0, 12);
+      const extra = ports.length - shown.length;
+      let html = shown.map(p => `<span class="port-tag">${p}</span>`).join("");
+      if (extra > 0) html += `<span class="port-tag" style="color:var(--text-secondary);">+${extra} more</span>`;
+      return html;
+    }
+
+    function renderScanTable(rows) {
+      const tbody = document.getElementById("scanLogBody");
+      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="log-empty">No port scan records found.</td></tr>'; return; }
+      tbody.innerHTML = rows.map((r, i) => {
+        const riskCls   = r.high_risk > 0 ? "risk-high" : "risk-low";
+        const riskLabel = r.high_risk > 0 ? `⚠ ${r.high_risk} HIGH` : "✔ CLEAN";
+        return `<tr data-ip="${r.ip}" data-ports="${r.ports||""}" data-risk="${r.high_risk > 0 ? "HIGH" : "CLEAN"}">
+          <td style="color:var(--text-muted);">${i+1}</td>
+          <td style="color:var(--cyan);font-weight:600;">${r.ip||"—"}</td>
+          <td>${renderPorts(r.ports)}</td>
+          <td style="text-align:center;"><span class="log-badge ${r.port_count > 0 ? "info" : "safe"}">${r.port_count}</span></td>
+          <td style="text-align:center;"><span class="risk-pill ${riskCls}">${riskLabel}</span></td>
+          <td style="color:var(--text-secondary);font-size:11px;">${r.time||"—"}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function renderRogueTable(rows) {
+      const tbody = document.getElementById("rogueLogBody");
+      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="log-empty">No rogue events recorded.</td></tr>'; return; }
+      tbody.innerHTML = rows.map((r, i) => {
+        const sev = rogueSeverity(r.type);
+        return `<tr data-ip="${r.ip}" data-mac="${r.mac||""}" data-type="${r.type||""}">
+          <td style="color:var(--text-muted);">${i+1}</td>
+          <td style="color:var(--red);font-weight:600;">${r.ip||"—"}</td>
+          <td style="color:var(--text-secondary);font-size:11px;">${r.mac||"—"}</td>
+          <td>${r.type||"—"}</td>
+          <td style="text-align:center;"><span class="risk-pill ${sev.cls}">${sev.label}</span></td>
+          <td style="color:var(--text-secondary);font-size:11px;">${r.time||"—"}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function updateScanKpis(data) {
+      const total   = data.length;
+      const highRisk = data.filter(d => d.high_risk > 0).length;
+      const unique  = new Set(data.map(d => d.ip)).size;
+      const avgPorts = total ? Math.round(data.reduce((a, d) => a + d.port_count, 0) / total) : 0;
+      document.getElementById("kpi-total-scans").innerText    = total;
+      document.getElementById("kpi-high-risk-scans").innerText = highRisk;
+      document.getElementById("kpi-unique-ips").innerText     = unique;
+      document.getElementById("kpi-avg-ports").innerText      = avgPorts;
+    }
+
+    function updateRogueKpis(data) {
+      const total = data.length;
+      const spoof = data.filter(d => (d.type||"").toLowerCase().includes("spoof")).length;
+      const dup   = data.filter(d => (d.type||"").toLowerCase().includes("duplicate")).length;
+      const unauth = data.filter(d => (d.type||"").toLowerCase().includes("unauthorized")).length;
+      document.getElementById("kpi-total-rogue").innerText = total;
+      document.getElementById("kpi-spoof").innerText = spoof;
+      document.getElementById("kpi-dup").innerText   = dup;
+      document.getElementById("kpi-unauth").innerText = unauth;
+    }
+
+    function filterLogs(panel) {
+      if (panel === "scan") {
+        const search = document.getElementById("scanSearch").value.toLowerCase();
+        const risk   = document.getElementById("scanRiskFilter").value;
+        document.querySelectorAll("#scanLogBody tr[data-ip]").forEach(row => {
+          const ip    = (row.dataset.ip    || "").toLowerCase();
+          const ports = (row.dataset.ports || "").toLowerCase();
+          row.style.display = (risk === "ALL" || row.dataset.risk === risk) &&
+                              (!search || ip.includes(search) || ports.includes(search)) ? "" : "none";
+        });
+      } else {
+        const search = document.getElementById("rogueLogSearch").value.toLowerCase();
+        const type   = document.getElementById("rogueTypeFilter").value;
+        document.querySelectorAll("#rogueLogBody tr[data-ip]").forEach(row => {
+          const ip  = (row.dataset.ip   || "").toLowerCase();
+          const mac = (row.dataset.mac  || "").toLowerCase();
+          const t   = (row.dataset.type || "").toLowerCase();
+          row.style.display = (type === "ALL" || t.includes(type.toLowerCase())) &&
+                              (!search || ip.includes(search) || mac.includes(search) || t.includes(search)) ? "" : "none";
+        });
       }
-    </script>
-  </body>
+    }
+
+    function openHistory() {
+      document.getElementById("historyModal").style.display = "block";
+      switchTab("scan");
+      const safeJson = r => { if (!r.ok) throw new Error("Server error " + r.status); return r.json(); };
+      Promise.all([fetch("/api/scan-history").then(safeJson), fetch("/api/rogue-logs").then(safeJson)])
+        .then(([scanData, rogueData]) => {
+          _scanData  = scanData;
+          _rogueData = rogueData;
+          updateScanKpis(scanData);
+          updateRogueKpis(rogueData);
+          renderScanTable(scanData);
+          renderRogueTable(rogueData);
+        })
+        .catch(err => {
+          console.error("Log fetch error:", err);
+          document.getElementById("scanLogBody").innerHTML  = '<tr><td colspan="6" class="log-empty" style="color:var(--red);">Failed to load logs.</td></tr>';
+          document.getElementById("rogueLogBody").innerHTML = '<tr><td colspan="6" class="log-empty" style="color:var(--red);">Failed to load logs.</td></tr>';
+        });
+    }
+
+    function closeHistory() {
+      document.getElementById("historyModal").style.display = "none";
+    }
+
+    /* ── Port Scanner ── */
+    function scanPorts(ip) {
+      currentScanIP = ip;
+      document.getElementById("scanIP").innerText = ip;
+      document.getElementById("portResult").innerHTML = "";
+      portModal.style.display = "block";
+    }
+
+    function runQuickScan() {
+      scannedPorts = [];
+      document.getElementById("generateReportBtn").disabled = true;
+      if (isScanning) { stopScan(); return; }
+      isScanning = true;
+      let btn = document.getElementById("quickScanBtn"), advBtn = document.getElementById("advancedScanBtn");
+      btn.textContent = "⬛ Stop Scan"; btn.className = "btn btn-stop"; advBtn.disabled = true;
+      let rb = document.getElementById("portResult");
+      rb.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing…</div><div id="scanResults"></div>`;
+      eventSource = new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=1-1024&threads=10&speed=normal`);
+      eventSource.onmessage = function (e) {
+        if (e.data === "done") { document.getElementById("generateReportBtn").disabled = false; stopScan(true); document.getElementById("scanStatus").innerHTML = "✅ Scan Completed"; return; }
+        let port = parseInt(e.data);
+        if (!isNaN(port)) { document.getElementById("scanStatus").innerHTML = `⚡ Found: Port ${port}`; appendPort(port); }
+      };
+      eventSource.onerror = function () { document.getElementById("scanStatus").innerHTML = "❌ Scan Error"; stopScan(); };
+    }
+
+    function runAdvancedScan() {
+      scannedPorts = [];
+      document.getElementById("generateReportBtn").disabled = true;
+      if (isScanning) { stopScan(); return; }
+      isScanning = true;
+      let qb = document.getElementById("quickScanBtn"), ab = document.getElementById("advancedScanBtn");
+      qb.disabled = true; ab.textContent = "⬛ Stop Scan"; ab.className = "btn btn-stop";
+      let portRange = document.getElementById("portRange").value || "1-1024";
+      let threads = document.getElementById("threads").value, speed = document.getElementById("speed").value;
+      let rb = document.getElementById("portResult");
+      rb.innerHTML = `<div id="scanStatus" class="scan-status">⚡ Initializing…</div><div id="scanResults"></div>`;
+      eventSource = new EventSource(`/scan-ports-live?ip=${currentScanIP}&range=${portRange}&threads=${threads}&speed=${speed}`);
+      eventSource.onmessage = function (e) {
+        if (e.data === "done") { document.getElementById("generateReportBtn").disabled = false; stopScan(true); document.getElementById("scanStatus").innerHTML = "✅ Scan Completed"; return; }
+        let p = parseInt(e.data);
+        document.getElementById("scanStatus").innerHTML = `⚡ Found: Port ${p}`;
+        appendPort(p);
+      };
+      eventSource.onerror = function () { rb.innerHTML += "<br>❌ Scan Error"; stopScan(); };
+    }
+
+    function generatePortReport() {
+      if (scannedPorts.length === 0) { alert("No scan data available!"); return; }
+      fetch("/generate-port-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: currentScanIP, ports: scannedPorts, timestamp: new Date().toLocaleString() }),
+      }).then(res => res.blob()).then(blob => {
+        let url = window.URL.createObjectURL(blob);
+        let a   = document.createElement("a");
+        a.href = url; a.download = "Port_Scan_Report.pdf"; a.click();
+      }).catch(err => { alert("Report generation failed!"); console.error(err); });
+    }
+
+    function stopScan(done = false) {
+      if (scanController) scanController.abort();
+      if (eventSource) { eventSource.close(); eventSource = null; }
+      if (!done) document.getElementById("scanStatus").innerHTML = "⛔ Scan Stopped";
+      resetScanButtons();
+    }
+    function resetScanButtons() {
+      isScanning = false; scanController = null;
+      let q = document.getElementById("quickScanBtn"), a = document.getElementById("advancedScanBtn");
+      q.textContent = "▶ Run Default Scan"; q.className = "btn btn-primary"; q.disabled = false;
+      a.textContent = "▶ Run Advanced Scan"; a.className = "btn btn-primary"; a.disabled = false;
+    }
+
+    function getServiceName(port) {
+      const services = { 1:"TCPMUX",21:"FTP",22:"SSH",23:"Telnet",25:"SMTP",53:"DNS",67:"DHCP Server",68:"DHCP Client",69:"TFTP",80:"HTTP",88:"Kerberos",110:"POP3",111:"RPCBind",123:"NTP",135:"MS RPC",137:"NetBIOS Name",138:"NetBIOS Datagram",139:"NetBIOS Session",143:"IMAP",161:"SNMP",389:"LDAP",443:"HTTPS",445:"SMB",465:"SMTPS",500:"ISAKMP (VPN)",512:"rexec",513:"rlogin",514:"syslog",515:"LPD",554:"RTSP",587:"SMTP Submit",631:"IPP",636:"LDAPS",993:"IMAPS",995:"POP3S",1433:"MSSQL",1521:"Oracle DB",1723:"PPTP VPN",1883:"MQTT",2049:"NFS",2375:"Docker (Unsecured)",2376:"Docker (Secure)",3000:"Dev Server",3306:"MySQL",3389:"RDP",3690:"Subversion",4444:"Metasploit/Backdoor",5000:"Flask/Dev",5432:"PostgreSQL",5555:"ADB (Android)",5900:"VNC",5985:"WinRM HTTP",5986:"WinRM HTTPS",6379:"Redis",6443:"Kubernetes API",7001:"WebLogic",8080:"HTTP Proxy",8443:"HTTPS Alt",8888:"Jupyter Notebook",9200:"Elasticsearch",9092:"Kafka",9090:"Prometheus",10000:"Webmin",11211:"Memcached",27017:"MongoDB" };
+      return services[port] || "Unknown / Custom";
+    }
+
+    function getRiskLevel(port) {
+      const HIGH   = [21,23,69,111,135,137,138,139,445,3389,4444,5555,5900,6379,27017,11211,9200,2375];
+      const MEDIUM = [22,25,53,80,110,143,161,389,443,3306,5432,8080,8000,8888,8443,9090,9092,7001];
+      if (HIGH.includes(port))   return "HIGH";
+      if (MEDIUM.includes(port)) return "MEDIUM";
+      if (port >= 0 && port <= 1024) return "MEDIUM";
+      return "LOW";
+    }
+  </script>
+</body>
 </html>

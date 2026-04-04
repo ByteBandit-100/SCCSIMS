@@ -658,10 +658,36 @@ def approve_device():
         conn.commit()
         conn.close()
         logger.info(f"DEVICE APPROVED: IP={ip}, MAC={mac}")
+
+        # ── Immediate in-memory eviction (fixes the appear/disappear flicker) ──
+        # 1. Remove from rogue_cache so /api/live-data stops serving it instantly.
+        #    Without this the 5-second UI poll re-adds the device 1-2 times while
+        #    the background scanner hasn't run yet.
+        with lock:
+            rogue_cache[:] = [
+                r for r in rogue_cache
+                if normalize_mac(r.get("mac", "")) != mac
+            ]
+
+        # 2. Remove stale ip_mac / mac_ip history so the next scan cycle does NOT
+        #    fire false "MAC/IP Spoofing" events for this now-trusted device.
+        with _detect_lock:
+            stale_ips = [k for k, v in ip_mac_history.items() if v[0] == mac]
+            for k in stale_ips:
+                ip_mac_history.pop(k, None)
+            mac_ip_history.pop(mac, None)
+
+        # 3. Clear the in-memory cooldown entries for this device so that if the
+        #    device is ever re-flagged legitimately in the future it gets logged
+        #    cleanly instead of being silently suppressed.
+        stale_keys = [k for k in list(_rogue_atk_cooldown) if k[1] == mac]
+        for k in stale_keys:
+            _rogue_atk_cooldown.pop(k, None)
+
         return jsonify({"status": "success"})
 
     except Exception as e:
-        logger.info(f"Error : {e}")
+        logger.error(f"Approve device error: {e}")
         return jsonify({"status": "error", "message": str(e)})
 
 
@@ -669,13 +695,12 @@ def approve_device():
 def disapprove_device():
     try:
         mac    = request.form.get("mac")
-        ip = request.form.get("ip")
         conn   = get_db()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM trusted_devices WHERE mac_address=?", (mac,))
         conn.commit()
         conn.close()
-        logger.warning(f"DEVICE DISAPPROVED : IP={ip}, MAC={mac}")
+        logger.warning(f"DEVICE DISAPPROVED : MAC={mac}")
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
@@ -1722,6 +1747,7 @@ def scan_ports_advanced():
     except Exception as e:
         return jsonify({"error": "scan failed", "open_ports": []})
 
+
 def save_scan_history(ip, ports):
     try:
         conn   = get_db()
@@ -1752,12 +1778,15 @@ def save_scan_history(ip, ports):
     except Exception as e:
         print("save_scan_history ERROR:", e)
 
+
 @app.route("/stop-scan")
 def stop_scan():
     scan_control["stop"] = True
     return jsonify({"status": "stopped"})
 
+
 ROGUE_LOG_COOLDOWN_SECONDS = 60
+
 
 def log_rogue(ip, mac, attack_type):
     try:
@@ -1789,6 +1818,7 @@ def log_rogue(ip, mac, attack_type):
         conn.close()
     except Exception as e:
         print("log_rogue error:", e)
+
 
 @app.route("/generate-port-report", methods=["POST"])
 def generate_port_report():
@@ -1865,6 +1895,7 @@ def generate_port_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/scan-history")
 def scan_history():
     try:
@@ -1901,6 +1932,7 @@ def scan_history():
         traceback.print_exc()
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
+
 @app.route("/api/rogue-logs")
 def get_rogue_logs():
     try:
@@ -1929,6 +1961,7 @@ def get_rogue_logs():
         print("get_rogue_logs error:", e)
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/logs")
 def view_logs():
     try:
@@ -1938,7 +1971,9 @@ def view_logs():
     except Exception as e:
         return f"Error reading logs: {str(e)}"
 
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     try:
         print("""
