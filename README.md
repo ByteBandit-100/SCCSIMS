@@ -10,12 +10,9 @@ A lightweight yet powerful **LAN Monitoring & Cybersecurity Platform** designed 
 
 |  **Login page**  |  **Dashboard**  |
 |:----------------:|:---------------:|
-|     <img width="1916" height="883" alt="Screenshot 2026-04-04 214130" src="https://github.com/user-attachments/assets/595694b2-a651-44d8-82ee-fd22f88a96a3" />             |  <img width="952" height="427" alt="image" src="https://github.com/user-attachments/assets/7059990e-5c5c-4446-b629-7bb23ee0ebb3" />
-  |
+|<img width="1916" height="883" alt="Screenshot 2026-04-04 214130" src="https://github.com/user-attachments/assets/595694b2-a651-44d8-82ee-fd22f88a96a3" />|<img width="952" height="427" alt="image" src="https://github.com/user-attachments/assets/7059990e-5c5c-4446-b629-7bb23ee0ebb3" />|
 |  **Scan Port**   | **Logs Viewer** |
-|<img width="1162" height="732" alt="image" src="https://github.com/user-attachments/assets/c9ebb7ba-1cc0-4371-89b6-be1a157b9ce8" />
-|<img width="1382" height="768" alt="image" src="https://github.com/user-attachments/assets/d2ea4443-a251-4a0d-b500-0fd5ba152749" />
-|
+|<img width="1162" height="732" alt="image" src="https://github.com/user-attachments/assets/c9ebb7ba-1cc0-4371-89b6-be1a157b9ce8" />|<img width="1382" height="768" alt="image" src="https://github.com/user-attachments/assets/d2ea4443-a251-4a0d-b500-0fd5ba152749" />|
 
 ---
 
