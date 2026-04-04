@@ -1833,65 +1833,112 @@ def generate_port_report():
         styles = getSampleStyleSheet()
         content = []
 
-        content.append(Paragraph("Port Scan Security Report", styles['Title']))
+        # Header
+        content.append(Paragraph("<b>SCCSIMS Cyber Security Report</b>", styles['Heading2']))
+        content.append(Spacer(1, 8))
+        content.append(Paragraph("<font color='blue'><b>Port Scan Security Report</b></font>", styles['Title']))
         content.append(Spacer(1, 10))
         content.append(Paragraph(f"<b>Target IP:</b> {ip}", styles['Normal']))
         content.append(Paragraph(f"<b>Scan Time:</b> {timestamp}", styles['Normal']))
         content.append(Spacer(1, 15))
 
+        # Remove duplicates
+        seen_ports = set()
+        clean_ports = []
+        for p in ports:
+            port = p.get("port")
+            if port and port not in seen_ports:
+                seen_ports.add(port)
+                clean_ports.append(p)
+
         table_data = [["Port", "Service", "Risk Level"]]
         high_count = 0
-        for p in ports:
+
+        # Build table
+        for p in clean_ports:
             port    = p.get("port")
-            service = p.get("service")
-            risk    = p.get("risk")
+            service = p.get("service") or "Unknown"
+            risk    = (p.get("risk") or "UNKNOWN").upper()
+
             if risk == "HIGH":
                 high_count += 1
-            table_data.append([str(port), service, risk])
+                risk_cell = Paragraph(f"<font color='red'><b>{risk}</b></font>", styles['Normal'])
+            else:
+                risk_cell = Paragraph(f"<b>{risk}</b>", styles['Normal'])
+
+            row = [str(port), service, risk_cell]
+            table_data.append(row)
 
         table = Table(table_data)
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-            ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
-            ("ALIGN",      (0, 0), (-1,-1), "CENTER"),
-            ("GRID",       (0, 0), (-1,-1), 1, colors.black),
-        ]))
-        content.append(table)
-        content.append(Spacer(1, 15))
 
+        # Table styling
+        table_style = TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.darkblue),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ])
+
+        table.setStyle(table_style)
+
+        content.append(table)
+        content.append(Spacer(1, 10))
+
+        # Summary (FIXED)
+        summary_text = f"""
+        <b>Total Ports Scanned:</b> {len(clean_ports)}<br/>
+        <b>High Risk Ports:</b> {high_count}<br/>
+        """
+        content.append(Paragraph(summary_text, styles['Normal']))
+
+        content.append(Spacer(1, 10))
+
+        # Risk summary
         if high_count > 0:
             summary = f"<font color='red'><b>HIGH RISK DETECTED: {high_count} critical ports open!</b></font>"
+            recommendation = "<font color='red'><b>Recommendation:</b> Close unused ports and apply firewall rules.</font>"
         else:
             summary = "<font color='green'><b>System appears secure (no critical ports)</b></font>"
-        content.append(Paragraph(summary, styles['Normal']))
+            recommendation = "<font color='green'><b>Recommendation:</b> System is secure. Continue monitoring.</font>"
 
+        content.append(Paragraph(summary, styles['Normal']))
+        content.append(Paragraph(recommendation, styles['Normal']))
+
+        # Build PDF
         doc.build(content)
         buffer.seek(0)
 
+        # Save history (FIXED consistency)
         try:
             conn   = get_db()
             cursor = conn.cursor()
-            high_risk = sum(1 for p in ports if p.get("risk") == "HIGH")
+
             cursor.execute("""
                 INSERT INTO scan_history (ip, ports, high_risk, time)
                 VALUES (?, ?, ?, ?)
             """, (
                 ip,
-                ",".join(str(p.get("port")) for p in ports),
-                high_risk,
+                ",".join(str(p.get("port")) for p in clean_ports),
+                high_count,
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ))
+
             conn.commit()
             conn.close()
+
         except Exception as e:
             print("generate_port_report DB error:", e)
+
+        # Filename
+        report_filename = f"Port_Scan_Report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
 
         return send_file(
             buffer,
             as_attachment=True,
-            download_name="Port_Scan_Report.pdf",
+            download_name=report_filename,
             mimetype="application/pdf"
         )
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

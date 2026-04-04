@@ -1932,7 +1932,7 @@
       }).then(res => res.blob()).then(blob => {
         let url = window.URL.createObjectURL(blob);
         let a   = document.createElement("a");
-        a.href = url; a.download = "Port_Scan_Report.pdf"; a.click();
+        a.href = url; a.download = "Port_Report_" + Date.now() + ".pdf"; a.click();
       }).catch(err => { alert("Report generation failed!"); console.error(err); });
     }
 
