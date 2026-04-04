@@ -1074,7 +1074,7 @@ def generate_report():
 
     _rpt_ctx["now_str"]   = datetime.now().strftime("%A, %d %B %Y  •  %H:%M:%S")
     _rpt_ctx["operator"]  = session.get("user", "admin")
-    _rpt_ctx["logo_path"] = "templates/logo.png"
+    _rpt_ctx["logo_path"] = "static/logo.png"
 
     conn   = get_db()
     cursor = conn.cursor()
