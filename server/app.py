@@ -17,6 +17,19 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import tempfile
+import logging
+
+# ===== LOGGING SETUP =====
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(BASE_DIR, "sccsims.log")
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+logging.info("===== SCCSIMS SERVER STARTED =====")
 
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
@@ -187,8 +200,7 @@ def background_scanner():
     while True:
         start_time = time.time()
         try:
-            print("Scanning network...")
-
+            logging.info("Network scan started")
             with ThreadPoolExecutor(max_workers=2) as executor:
                 ping_future  = executor.submit(scan_network)
                 arp_future   = executor.submit(scan_network_arp)
@@ -248,9 +260,10 @@ def background_scanner():
             except Exception as e:
                 print("Analytics Error:", e)
 
-            print(f"Scan done - {len(all_devices)} devices found")
+            logging.info(f"Scan completed: {len(all_devices)} devices found")
 
         except Exception as e:
+            logging.error(f"Scan error: {str(e)}")
             print("Scan error:", e)
 
         elapsed    = time.time() - start_time
@@ -345,7 +358,7 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
         if status_list:
             status = " | ".join(status_list)
-            print(f"ROGUE: {ip} {mac} -> {status}")
+            logging.warning(f"ROGUE DETECTED: IP={ip}, MAC={mac}, TYPE={status}")
             if ip not in [r["ip"] for r in rogue_devices]:
                 log_rogue_attack(ip, mac, status)
             rogue_devices.append({"ip": ip, "mac": mac, "status": status})
@@ -366,17 +379,20 @@ def login():
         conn.close()
 
         if user and check_password_hash(user[2], password):
-            session["user"]        = username
+            logging.info(f"LOGIN SUCCESS: {username}")
+            session["user"] = username
             session["last_active"] = datetime.now().timestamp()
             session.permanent      = True
             return redirect("/")
 
+        logging.warning(f"LOGIN FAILED: {username}")
         return render_template("login.html", error="Invalid Credentials")
 
     return render_template("login.html")
 
 @app.route("/logout")
 def logout():
+    logging.info(f"LOGOUT: {session.get('user')}")
     session.clear()
     return redirect("/login")
 
@@ -508,9 +524,11 @@ def receive_device_data():
 
         conn.commit()
         conn.close()
+        logging.info(f"Device data received: {ip_address} ({mac_address})")
         return jsonify({"status": "success"})
 
     except Exception as e:
+        logging.error(f"Device API error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)})
 
 @app.route("/api/devices", methods=["GET"])
@@ -558,8 +576,11 @@ def approve_device():
 
         conn.commit()
         conn.close()
+        logging.info(f"DEVICE APPROVED: IP={ip}, MAC={mac}")
         return jsonify({"status": "success"})
+
     except Exception as e:
+        logging.info(f"Error : {e}")
         return jsonify({"status": "error", "message": str(e)})
 
 @app.route("/disapprove-device", methods=["POST"])
@@ -571,6 +592,7 @@ def disapprove_device():
         cursor.execute("DELETE FROM trusted_devices WHERE mac_address=?", (mac,))
         conn.commit()
         conn.close()
+        logging.warning(f"DEVICE REMOVED: MAC={mac}")
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
@@ -642,7 +664,7 @@ def live_data():
             "rogue_count": len(set(r["ip"] for r in rogue))
         })
     except Exception as e:
-        print("live_data error:", e)
+        logging.error(f"Live data error: {str(e)}")
         return jsonify({"devices": [], "rogue": [], "trusted": [],
                         "total": 0, "online": 0, "offline": 0, "rogue_count": 0})
 
@@ -1779,6 +1801,15 @@ def get_rogue_logs():
     except Exception as e:
         print("get_rogue_logs error:", e)
         return jsonify({"error": str(e)}), 500
+
+@app.route("/logs")
+def view_logs():
+    try:
+        with open(LOG_FILE, "r") as f:
+            logs = f.readlines()
+        return "<br>".join(logs[::-1])
+    except Exception as e:
+        return f"Error reading logs: {str(e)}"
 
 # STARTUP
 if __name__ == "__main__":
