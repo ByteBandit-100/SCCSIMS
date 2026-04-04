@@ -36,7 +36,7 @@ file_handler.setFormatter(formatter)
 
 # Keep Flask logs in terminal only
 werkzeug_logger = logging.getLogger('werkzeug')
-werkzeug_logger.setLevel(logging.ERROR)
+werkzeug_logger.setLevel(logging.INFO)
 
 logger.addHandler(file_handler)
 
