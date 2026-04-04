@@ -8,7 +8,7 @@ import time
 # CONFIG
 # ─────────────────────────────────────────────
 API_KEY  = "secret123"
-SERVER   = "http://192.168.1.33:5000/api/device"
+SERVER   = "http://[SERVER_IP]:5000/api/device"
 LOCATION = "Lab"   # change per deployment: Lab / Library / Hostel / Admin Office
 
 FAIL_COUNT = 0

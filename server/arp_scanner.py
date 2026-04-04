@@ -1,7 +1,6 @@
 import scapy.all as scapy
 
-INTERFACE = "\\Device\\NPF_{D248DB56-09B4-4DF1-A3B6-CE7CBDA36CE9}"
-
+INTERFACE = None
 def scan_network_arp(network="192.168.1.0/24"):
 
     arp = scapy.ARP(pdst=network)

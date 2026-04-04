@@ -1,152 +1,257 @@
-# Smart College Cyber Security & Infrastructure Management System (SCCSIMS)
+# 🛡️ Smart College Cyber Security & Infrastructure Management System (SCCSIMS)
 
-A lightweight **LAN monitoring and cybersecurity platform** that detects unauthorized devices, monitors system activity, and provides administrators with real-time network visibility.
+A lightweight yet powerful **LAN Monitoring & Cybersecurity Platform** designed to detect unauthorized devices, monitor system activity, and provide administrators with **real-time network visibility**.
 
-Built using **Python, Flask, Scapy, and SQLite**, SCCSIMS demonstrates practical implementation of network monitoring and cyber defense techniques in small institutional networks such as **college labs and classrooms**.
-
----
-
-## Key Capabilities
-
-• Real-time device monitoring  
-• LAN network discovery (Ping + ARP scanning)  
-• Rogue / unauthorized device detection  
-• Trusted device approval system  
-• Interactive web-based monitoring dashboard  
-• CPU and RAM usage monitoring of client systems
+> 🚀 Built as a final-year project demonstrating practical implementation of **cybersecurity, network monitoring, and SOC-style systems**.
 
 ---
 
-## System Architecture
-Agent (Client Devices)<br>
-│<br>
-│ Sends system data every 10 seconds<br>
-▼<br>
-Flask Server (app.py)<br>
-│<br>
-├── Device Monitoring API<br>
-├── Network Scanner<br>
-├── Rogue Device Detection<br>
-└── Trusted Device Management<br>
-│<br>
-▼<br>
+## 📸 Project Preview
+
+|  **Login page**  |  **Dashboard**  |
+|:----------------:|:---------------:|
+|                  |                 |
+|  **Scan Port**   | **Logs Viewer** |
+| :--------------: | :-------------: |
+|||
+
+---
+
+## 🚀 Key Features
+
+✔ Real-time device monitoring<br>
+✔ LAN network discovery (ARP + Ping scanning)<br>
+✔ Rogue / unauthorized device detection<br>
+✔ Duplicate IP & spoofing detection<br>
+✔ Trusted device approval system<br>
+✔ Live SOC-style dashboard<br>
+✔ Port scanning with risk classification<br>
+✔ PDF security report generation<br>
+✔ CPU & RAM monitoring of client systems<br>
+✔ Scan history logging (SQLite)<br>
+
+---
+
+## 🧠 System Architecture
+
+```
+Client Agent (agent.py)
+        │
+        │ Sends system data every 10 seconds
+        ▼
+Flask Server (app.py)
+        │
+        ├── Device Monitoring API
+        ├── Logging & Activity Monitoring
+        ├── Network Scanner (ARP + Ping)
+        ├── Rogue Device Detection
+        ├── Device Authorization Management (Approve / Disapprove)
+        ├── Port Scanner Module
+        ├── Report Generator (PDF)
+        └── Admin Dashboard (Web Interface)
+        │
+        ▼
+
 SQLite Database (sccsims.db)
-
-
----
-
-## Technology Stack
-
-| Component | Technology |
-|--------|--------|
-Backend | Python |
-Web Framework | Flask |
-Database | SQLite |
-Network Scanning | Scapy |
-System Monitoring | psutil |
-Frontend | HTML, CSS, JavaScript |
+```
 
 ---
 
+## 🛠️ Tech Stack
 
-## Installation
+| Component          | Technology                         |
+|--------------------|------------------------------------|
+| Backend            | Python                             |
+| Web Framework      | Flask                              |
+| Database           | SQLite                             |
+| Network Scanning   | Scapy, Socket                      |
+| Concurrency        | Multithreading(ThreadPoolExecutor) |
+| Data Visualization | Matplotilib, NumPy                 |
+| System Monitoring  | psutil                             |
+| Frontend           | HTML, CSS, JavaScript              |
+| Reporting          | ReportLab                          |
+| Security           | Werkzeug (Password Hashing)        |
 
-### 1. Clone the repository
+---
+
+## 📜 Logging & Monitoring
+
+* Implemented using Python’s built-in **logging module**
+* Tracks:
+
+  * Server activity
+  * Network scans
+  * Threat detection events
+  * Admin actions (approve/disapprove)
+* Logs stored in: `sccsims.log`
+
+## ⚙️ Installation & Setup
+
+### 1️⃣ Clone Repository
+
+```bash
 git clone https://github.com/ByteBandit-100/SCCSIMS.git
 cd SCCSIMS
+```
 
+---
 
-### 2. Install dependencies
+### 2️⃣ Install Dependencies
 
+```bash
+pip install -r requirements.txt
+```
 
-pip install flask scapy psutil requests
+---
+### 3️⃣ Update /server/arp_scanner.py
 
+```
+INTERFACE = [your_system_working_interface_id] 
+OR 
+INTERFACE = None   #BY DEFAULT
+```
 
-### 3. Run the server
+###  4️⃣ ⃣ Run Server
 
-
+```bash
 python app.py
+```
 
+🌐 Access Dashboard:
 
-The dashboard will be available at:
+```
 http://localhost:5000
+```
 
-credentials for dashboard :-> username : admin  <br>
-password : admin123
 ---
 
-## Running the Monitoring Agent
+## 🔐 Default Credentials
 
-On each client device:
+```
+Username: admin
+Password: admin123
+```
 
-1. Update the server IP in **agent.py**
+⚠️ *Change credentials before production use.*
 
+---
 
+## 🖥️ Running the Monitoring Agent
+
+On each client machine:
+
+### 1. Update Server IP in `agent.py`
+
+```python
 SERVER_URL = "http://SERVER_IP:5000/api/device"
+```
 
+---
 
-2. Run the agent <br>
+### 2. Run Agent
+
+```bash
 python agent.py
+```
 
-The device will start sending system data every **10 seconds**.
-
----
-
-## Database
-
-The system uses **SQLite** and automatically creates the following tables:
-
-### devices
-
-Stores monitored client devices.
-
-| Column | Description |
-|------|------|
-id | Primary key |
-hostname | Device name |
-ip_address | Device IP |
-os | Operating system |
-cpu_usage | CPU usage |
-ram_usage | RAM usage |
-location | Device location |
-last_seen | Last activity timestamp |
-
-### trusted_devices
-
-Stores approved network devices.
-
-| Column | Description |
-|------|------|
-id | Primary key |
-ip_address | Trusted device IP |
-mac_address | Device MAC |
-device_name | Device name |
-location | Network location |
+📡 Device sends system data every *2 seconds**
 
 ---
 
-## Security Concepts Demonstrated
+## 📊 Features Breakdown
 
-- Network discovery
-- Device fingerprinting
-- Rogue device detection
-- Trusted device management
-- Real-time system monitoring
+### 🔍 Network Monitoring
 
----
-
-## Future Improvements
-
-Possible extensions for the system include:
-
-- Intrusion Detection System (IDS)
-- ARP spoofing detection
-- Network topology visualization
-- Authentication for admin dashboard
-- Real-time WebSocket dashboard updates
+* Detects all devices in LAN
+* Tracks IP, MAC, hostname
+* Real-time updates
 
 ---
 
-## Author
+### 🚨 Threat Detection
 
-Mohit  
+* Rogue device detection
+* Duplicate IP detection
+* Unauthorized access alerts
+
+---
+
+### 🔎 Port Scanner
+
+* Multi-threaded scanning
+* Risk classification (LOW / HIGH)
+* Live scan updates
+
+---
+
+### 📄 Report Generation
+
+* Professional PDF reports
+* Risk highlighting (RED for HIGH)
+* Summary + recommendations
+
+---
+
+## 🛡️ Security Concepts Demonstrated
+
+* Network Discovery
+* Device Fingerprinting
+* Rogue Device Detection
+* Port Vulnerability Analysis
+* Real-Time Monitoring
+* Basic SOC (Security Operations Center) Design
+
+---
+
+## 🎯 Unique Highlights
+
+🔥 SOC-style dashboard (rare in student projects)<br>
+🔥 Terminal + Web hybrid monitoring<br>
+🔥 Real-time threat detection<br>
+🔥 Automated PDF reporting system<br>
+
+---
+
+## ⚠️ Limitations
+
+* Works only in LAN environment
+* No advanced IDS (Snort/Suricata level)
+* No encrypted communication between agent & server
+* Basic authentication system
+
+---
+
+## 🚀 Future Enhancements
+
+* Intrusion Detection System (IDS)
+* ARP spoofing protection
+* WebSocket real-time updates
+* Role-based authentication
+* Network topology visualization
+* Cloud deployment support
+
+---
+
+## 👨‍💻 Author
+
+**Mohit (ByteBandit-100)**
+
+---
+
+## ⭐ Contribution
+
+Feel free to fork, improve, and submit pull requests!
+
+---
+
+## 📜 License
+
+This project is for educational purposes.
+
+---
+
+## 💡 Final Note
+
+> This project demonstrates how cybersecurity concepts can be implemented in a **real-world mini SOC system**, making it highly suitable for academic and practical learning.
+
+---
