@@ -1,6 +1,8 @@
+import itertools
 import os
 import socket
 import sqlite3
+import sys
 import threading
 import time
 import io
@@ -23,23 +25,18 @@ import logging
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(BASE_DIR, "sccsims.log")
 
-# Create custom logger
 logger = logging.getLogger("sccsims")
 logger.setLevel(logging.INFO)
 
-# File handler (ONLY your logs go to file)
 file_handler = logging.FileHandler(LOG_FILE)
 file_handler.setLevel(logging.INFO)
-
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 file_handler.setFormatter(formatter)
 
-# Keep Flask logs in terminal only
 werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.setLevel(logging.INFO)
 
 logger.addHandler(file_handler)
-
 logger.info("===== SCCSIMS SERVER STARTED =====")
 
 from reportlab.platypus import (
@@ -64,8 +61,15 @@ app.config.update({
 app.secret_key = "secret456"
 
 DATABASE = "sccsims.db"
-last_seen_devices = {}
+# FIX #4: removed unused `last_seen_devices` global that was never read or written
 lock = threading.Lock()
+
+# FIX #2: dedicated lock for analytics_history (background thread writes, HTTP thread reads)
+_hist_lock = threading.Lock()
+
+# FIX #3: dedicated lock for ip_mac_history / mac_ip_history
+#         (background_scanner thread + /detect-rogue HTTP thread both call detect_rogue_logic)
+_detect_lock = threading.Lock()
 
 os.environ["SCCSIMS_API_KEY"] = "secret123"
 API_KEY = os.getenv("SCCSIMS_API_KEY", "fallback_dev_key")
@@ -74,6 +78,16 @@ scan_control = {"stop": False}
 mac_ip_history = {}
 ip_mac_history = {}
 rogue_cache = []
+
+# FIX #6: in-memory cooldown for log_rogue_attack — mirrors the cooldown already in log_rogue()
+#         Prevents a DB write for every rogue device on every 5-10 s scan cycle.
+_rogue_atk_cooldown: dict = {}          # key: (ip, mac, attack_type) → last-logged datetime
+ROGUE_ATK_COOLDOWN_SECONDS = 60
+
+# FIX #8: graph cache — avoid regenerating matplotlib figures on every report request
+_graph_cache: dict = {"paths": None, "ts": None}
+GRAPH_CACHE_TTL = 30                    # seconds before graphs are regenerated
+
 analytics_history = {
     "timestamps":    [],
     "cpu_avg":       [],
@@ -87,14 +101,47 @@ network_cache = {
     "arp":     []
 }
 
-# HELPERS
+# ── ANIMATION ────────────────────────────────────────────────────────────────
+
+stop_animation = False
+
+
+def start_lightweight_animation():
+    def animate():
+        spinner = itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
+
+        # Wait for Flask/Werkzeug to finish printing its startup banner
+        # (debug mode prints ~6 lines; 2.5 s is safe on any hardware)
+        time.sleep(2.5)
+
+        while not stop_animation:
+            try:
+                devices = len(network_cache.get("devices", []))
+                rogues  = len(rogue_cache)
+                spin    = next(spinner)
+                line    = f"\r🛡️  SCCSIMS ACTIVE | Devices: {devices} | Threats: {rogues} {spin}  "
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                time.sleep(0.2)
+            except Exception:
+                pass
+
+    t = threading.Thread(target=animate, daemon=True)
+    t.start()
+    return t
+
+
+# ── HELPERS ──────────────────────────────────────────────────────────────────
+
 def verify_api():
     return request.headers.get("API-KEY") == API_KEY
+
 
 def get_db():
     conn = sqlite3.connect(DATABASE, timeout=10, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
 
 def safe_float(val):
     try:
@@ -102,10 +149,12 @@ def safe_float(val):
     except Exception:
         return 0.0
 
+
 def normalize_mac(mac):
     if not mac:
         return "unknown"
     return mac.lower().replace("-", ":")
+
 
 def fmt_timestamp(ts_str):
     try:
@@ -114,7 +163,9 @@ def fmt_timestamp(ts_str):
     except Exception:
         return ts_str
 
-# DATABASE INIT
+
+# ── DATABASE INIT ─────────────────────────────────────────────────────────────
+
 def init_db():
     conn   = get_db()
     cursor = conn.cursor()
@@ -172,23 +223,17 @@ def init_db():
     """)
 
     cursor.execute("""
-            CREATE TABLE IF NOT EXISTS rogue_history (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                ip          TEXT,
-                mac         TEXT,
-                attack_type TEXT,
-                first_seen  TEXT,
-                prev_seen   TEXT,
-                last_seen   TEXT,
-                count       INTEGER DEFAULT 1
-            )
-        """)
-    # # Migrate existing table if columns are missing (safe to run every time)
-    # for col, default in [("prev_seen", "NULL"), ("count", "1")]:
-    #     try:
-    #         cursor.execute(f"ALTER TABLE rogue_history ADD COLUMN {col} TEXT DEFAULT {default}")
-    #     except Exception:
-    #         pass
+        CREATE TABLE IF NOT EXISTS rogue_history (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip          TEXT,
+            mac         TEXT,
+            attack_type TEXT,
+            first_seen  TEXT,
+            prev_seen   TEXT,
+            last_seen   TEXT,
+            count       INTEGER DEFAULT 1
+        )
+    """)
 
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_mac         ON devices(mac_address)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ip          ON devices(ip_address)")
@@ -204,7 +249,9 @@ def init_db():
     conn.commit()
     conn.close()
 
-# BACKGROUND SCANNER
+
+# ── BACKGROUND SCANNER ────────────────────────────────────────────────────────
+
 def background_scanner():
     global network_cache
 
@@ -228,23 +275,20 @@ def background_scanner():
                     "last_scan": datetime.now()
                 }
 
+            # FIX #5: single DB connection for both analytics queries instead of 4 open/close calls
             try:
                 conn   = get_db()
                 cursor = conn.cursor()
                 cursor.execute("SELECT cpu_usage, ram_usage FROM devices")
                 rows = cursor.fetchall()
+                cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
+                trusted_rows = cursor.fetchall()
                 conn.close()
 
                 cpu_values = [safe_float(r[0]) for r in rows]
                 ram_values = [safe_float(r[1]) for r in rows]
                 avg_cpu = sum(cpu_values) / len(cpu_values) if cpu_values else 0
                 avg_ram = sum(ram_values) / len(ram_values) if ram_values else 0
-
-                conn   = get_db()
-                cursor = conn.cursor()
-                cursor.execute("SELECT ip_address, mac_address FROM trusted_devices")
-                trusted_rows = cursor.fetchall()
-                conn.close()
 
                 trusted_macs = set(r[1] for r in trusted_rows)
                 trusted_ips  = set(r[0] for r in trusted_rows)
@@ -256,17 +300,18 @@ def background_scanner():
                     rogue_cache = rogue_devices.copy()
 
                 timestamp = datetime.now().strftime("%H:%M:%S")
-
                 MAX_POINTS = 20
-                analytics_history["timestamps"].append(timestamp)
-                analytics_history["cpu_avg"].append(round(avg_cpu, 2))
-                analytics_history["ram_avg"].append(round(avg_ram, 2))
-                analytics_history["total_devices"].append(len(all_devices))
-                analytics_history["rogue_count"].append(len(rogue_devices))
 
-                for key in analytics_history:
-                    if len(analytics_history[key]) > MAX_POINTS:
-                        analytics_history[key].pop(0)
+                # FIX #2: analytics_history writes now protected by _hist_lock
+                with _hist_lock:
+                    analytics_history["timestamps"].append(timestamp)
+                    analytics_history["cpu_avg"].append(round(avg_cpu, 2))
+                    analytics_history["ram_avg"].append(round(avg_ram, 2))
+                    analytics_history["total_devices"].append(len(all_devices))
+                    analytics_history["rogue_count"].append(len(rogue_devices))
+                    for key in analytics_history:
+                        if len(analytics_history[key]) > MAX_POINTS:
+                            analytics_history[key].pop(0)
 
             except Exception as e:
                 print("Analytics Error:", e)
@@ -281,6 +326,7 @@ def background_scanner():
         sleep_time = max(5, 10 - elapsed)
         time.sleep(sleep_time)
 
+
 def safe_background():
     while True:
         try:
@@ -289,12 +335,23 @@ def safe_background():
             print("Scanner crashed, restarting in 3s...", e)
             time.sleep(3)
 
-# ROGUE DETECTION
+
+# ── ROGUE DETECTION ───────────────────────────────────────────────────────────
+
 def log_rogue_attack(ip, mac, attack_type):
+    """Write to rogue_history with a 60 s in-memory cooldown per (ip, mac, type)
+    so the DB is not hammered on every 5-10 s scan cycle."""
+    # FIX #6: cooldown guard — identical pattern to log_rogue()
+    key = (ip, mac, attack_type)
+    now = datetime.now()
+    last = _rogue_atk_cooldown.get(key)
+    if last and (now - last).total_seconds() < ROGUE_ATK_COOLDOWN_SECONDS:
+        return
+    _rogue_atk_cooldown[key] = now
+
     try:
         conn   = get_db()
         cursor = conn.cursor()
-        now    = datetime.now().isoformat()
 
         cursor.execute("""
             SELECT id, last_seen, count FROM rogue_history
@@ -309,17 +366,18 @@ def log_rogue_attack(ip, mac, attack_type):
                 UPDATE rogue_history
                 SET prev_seen=?, last_seen=?, count=?
                 WHERE id=?
-            """, (current_last, now, prev_count + 1, row_id))
+            """, (current_last, now.isoformat(), prev_count + 1, row_id))
         else:
             cursor.execute("""
                 INSERT INTO rogue_history (ip, mac, attack_type, first_seen, prev_seen, last_seen, count)
                 VALUES (?, ?, ?, ?, ?, ?, 1)
-            """, (ip, mac, attack_type, now, None, now))
+            """, (ip, mac, attack_type, now.isoformat(), None, now.isoformat()))
 
         conn.commit()
         conn.close()
     except Exception as e:
         print("log_rogue_attack error:", e)
+
 
 def detect_rogue_logic(trusted_macs, trusted_ips):
     current_time = datetime.now()
@@ -343,19 +401,21 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
             status_list.append("Unauthorized Device")
             log_rogue(ip, mac, "Unauthorized")
 
-        if ip in ip_mac_history:
-            old_mac, last_time = ip_mac_history[ip]
-            if old_mac != mac and (current_time - last_time).total_seconds() < 60:
-                status_list.append("MAC Spoofing Detected")
-                log_rogue(ip, mac, "MAC Spoofing")
-        ip_mac_history[ip] = (mac, current_time)
+        # FIX #3: protect ip_mac_history / mac_ip_history with _detect_lock
+        with _detect_lock:
+            if ip in ip_mac_history:
+                old_mac, last_time = ip_mac_history[ip]
+                if old_mac != mac and (current_time - last_time).total_seconds() < 60:
+                    status_list.append("MAC Spoofing Detected")
+                    log_rogue(ip, mac, "MAC Spoofing")
+            ip_mac_history[ip] = (mac, current_time)
 
-        if mac in mac_ip_history:
-            old_ip = mac_ip_history[mac]
-            if old_ip != ip:
-                status_list.append("IP Spoofing Detected")
-                log_rogue(ip, mac, "IP Spoofing")
-        mac_ip_history[mac] = ip
+            if mac in mac_ip_history:
+                old_ip = mac_ip_history[mac]
+                if old_ip != ip:
+                    status_list.append("IP Spoofing Detected")
+                    log_rogue(ip, mac, "IP Spoofing")
+            mac_ip_history[mac] = ip
 
         if ip in ip_seen and ip_seen[ip] != mac:
             status_list.append("Duplicate IP Conflict")
@@ -376,7 +436,9 @@ def detect_rogue_logic(trusted_macs, trusted_ips):
 
     return rogue_devices
 
-# ROUTES — AUTH
+
+# ── ROUTES — AUTH ─────────────────────────────────────────────────────────────
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -401,13 +463,16 @@ def login():
 
     return render_template("login.html")
 
+
 @app.route("/logout")
 def logout():
     logger.info(f"LOGOUT: {session.get('user')}")
     session.clear()
     return redirect("/login")
 
-# ROUTES — DASHBOARD
+
+# ── ROUTES — DASHBOARD ────────────────────────────────────────────────────────
+
 @app.route("/")
 def dashboard():
     if "user" not in session:
@@ -492,7 +557,9 @@ def dashboard():
         trusted_count=trusted_count
     )
 
-# ROUTES — AGENT API
+
+# ── ROUTES — AGENT API ────────────────────────────────────────────────────────
+
 @app.route("/api/device", methods=["POST"])
 def receive_device_data():
     if not verify_api():
@@ -542,6 +609,7 @@ def receive_device_data():
         logger.error(f"Device API error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)})
 
+
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
     conn   = get_db()
@@ -562,7 +630,9 @@ def get_devices():
         "last_seen":   row[8]
     } for row in rows])
 
-# ROUTES — DEVICE MANAGEMENT
+
+# ── ROUTES — DEVICE MANAGEMENT ────────────────────────────────────────────────
+
 @app.route("/approve-device", methods=["POST"])
 def approve_device():
     ip  = request.form.get("ip")
@@ -594,21 +664,25 @@ def approve_device():
         logger.info(f"Error : {e}")
         return jsonify({"status": "error", "message": str(e)})
 
+
 @app.route("/disapprove-device", methods=["POST"])
 def disapprove_device():
     try:
         mac    = request.form.get("mac")
+        ip = request.form.get("ip")
         conn   = get_db()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM trusted_devices WHERE mac_address=?", (mac,))
         conn.commit()
         conn.close()
-        logger.warning(f"DEVICE DISAPPROVED : MAC={mac}")
+        logger.warning(f"DEVICE DISAPPROVED : IP={ip}, MAC={mac}")
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-# ROUTES — LIVE DATA
+
+# ── ROUTES — LIVE DATA ────────────────────────────────────────────────────────
+
 @app.route("/api/live-data")
 def live_data():
     try:
@@ -679,6 +753,7 @@ def live_data():
         return jsonify({"devices": [], "rogue": [], "trusted": [],
                         "total": 0, "online": 0, "offline": 0, "rogue_count": 0})
 
+
 @app.before_request
 def manage_session():
     session.permanent = True
@@ -695,7 +770,9 @@ def manage_session():
             return redirect("/login")
         session["last_active"] = now
 
-# REPORT GENERATION
+
+# ── REPORT GENERATION ─────────────────────────────────────────────────────────
+
 RPT_DARK_BLUE    = HexColor("#1a237e")
 RPT_MED_BLUE     = HexColor("#283593")
 RPT_ACCENT_BLUE  = HexColor("#1565c0")
@@ -733,84 +810,93 @@ def calculate_system_health(total, rogue):
         return "MEDIUM RISK"
     return "LOW RISK"
 
-_rpt_ctx = {}
 
-def _draw_watermark(canvas, doc):
-    pw, ph = doc.pagesize
-    canvas.saveState()
-    canvas.translate(pw / 2, ph / 2)
-    canvas.rotate(45)
-    canvas.setFont("Helvetica-Bold", 80)
-    canvas.setFillGray(0.92)
-    canvas.drawCentredString(0, 0, "SCCSIMS")
-    canvas.restoreState()
+# FIX #7: _rpt_ctx replaced by a local-variable pattern inside generate_report()
+# so concurrent report requests cannot overwrite each other's context.
+# The PDF callbacks receive context via closure over a local `_ctx` dict.
 
-def _draw_page1_header(canvas, doc):
-    pw, ph = doc.pagesize
-    canvas.saveState()
-    canvas.setFillColor(RPT_DARK_BLUE)
-    canvas.rect(0, ph - _HEADER_H, pw, _HEADER_H, stroke=0, fill=1)
-    canvas.setFillColor(HexColor("#ffd600"))
-    canvas.rect(0, ph - _HEADER_H - 3, pw, 3, stroke=0, fill=1)
-    logo_path  = _rpt_ctx.get("logo_path", "")
-    logo_drawn = False
-    if logo_path and os.path.exists(logo_path):
-        try:
-            from reportlab.lib.utils import ImageReader
-            ir = ImageReader(logo_path)
-            lw, lh = 52, 26
-            ly = ph - _HEADER_H + (_HEADER_H - lh) / 2
-            canvas.drawImage(ir, 16, ly, width=lw, height=lh,
-                             preserveAspectRatio=True, mask="auto")
-            logo_drawn = True
-        except Exception:
-            pass
-    tx = 76 if logo_drawn else 16
-    canvas.setFillColor(colors.white)
-    canvas.setFont("Helvetica-Bold", 19)
-    canvas.drawString(tx, ph - _HEADER_H + 40, "SCCSIMS Security Report")
-    canvas.setFont("Helvetica", 8.5)
-    canvas.setFillColor(HexColor("#bbdefb"))
-    canvas.drawString(
-        tx, ph - _HEADER_H + 20,
-        f"Generated: {_rpt_ctx.get('now_str', '')}   |   Operator: {_rpt_ctx.get('operator', 'admin')}"
-    )
-    canvas.restoreState()
+def _make_page_callbacks(ctx: dict):
+    """Return (on_first_page, on_later_pages) closures that capture `ctx` locally."""
 
-def _draw_page_header(canvas, doc):
-    pw, ph = doc.pagesize
-    canvas.saveState()
-    canvas.setFillColor(RPT_DARK_BLUE)
-    canvas.rect(0, ph - 22, pw, 22, stroke=0, fill=1)
-    canvas.setFillColor(colors.white)
-    canvas.setFont("Helvetica-Bold", 8)
-    canvas.drawString(16, ph - 15, "SCCSIMS Security Report")
-    canvas.setFont("Helvetica", 8)
-    canvas.drawRightString(pw - 16, ph - 15, _rpt_ctx.get("now_str", ""))
-    canvas.restoreState()
+    def _draw_watermark(canvas, doc):
+        pw, ph = doc.pagesize
+        canvas.saveState()
+        canvas.translate(pw / 2, ph / 2)
+        canvas.rotate(45)
+        canvas.setFont("Helvetica-Bold", 80)
+        canvas.setFillGray(0.92)
+        canvas.drawCentredString(0, 0, "SCCSIMS")
+        canvas.restoreState()
 
-def _draw_footer(canvas, doc):
-    pw, _ = doc.pagesize
-    canvas.saveState()
-    canvas.setStrokeColor(RPT_MID_GREY)
-    canvas.setLineWidth(0.5)
-    canvas.line(36, 30, pw - 36, 30)
-    canvas.setFont("Helvetica", 7.5)
-    canvas.setFillColor(RPT_GREY)
-    canvas.drawString(36, 14,
-        "SCCSIMS — Smart Campus & Corporate Security Infrastructure Monitoring System")
-    canvas.drawRightString(pw - 36, 14, f"Page {doc.page}")
-    canvas.restoreState()
+    def _draw_page1_header(canvas, doc):
+        pw, ph = doc.pagesize
+        canvas.saveState()
+        canvas.setFillColor(RPT_DARK_BLUE)
+        canvas.rect(0, ph - _HEADER_H, pw, _HEADER_H, stroke=0, fill=1)
+        canvas.setFillColor(HexColor("#ffd600"))
+        canvas.rect(0, ph - _HEADER_H - 3, pw, 3, stroke=0, fill=1)
+        logo_path  = ctx.get("logo_path", "")
+        logo_drawn = False
+        if logo_path and os.path.exists(logo_path):
+            try:
+                from reportlab.lib.utils import ImageReader
+                ir = ImageReader(logo_path)
+                lw, lh = 52, 26
+                ly = ph - _HEADER_H + (_HEADER_H - lh) / 2
+                canvas.drawImage(ir, 16, ly, width=lw, height=lh,
+                                 preserveAspectRatio=True, mask="auto")
+                logo_drawn = True
+            except Exception:
+                pass
+        tx = 76 if logo_drawn else 16
+        canvas.setFillColor(colors.white)
+        canvas.setFont("Helvetica-Bold", 19)
+        canvas.drawString(tx, ph - _HEADER_H + 40, "SCCSIMS Security Report")
+        canvas.setFont("Helvetica", 8.5)
+        canvas.setFillColor(HexColor("#bbdefb"))
+        canvas.drawString(
+            tx, ph - _HEADER_H + 20,
+            f"Generated: {ctx.get('now_str', '')}   |   Operator: {ctx.get('operator', 'admin')}"
+        )
+        canvas.restoreState()
 
-def _on_first_page(canvas, doc):
-    _draw_watermark(canvas, doc)
-    _draw_page1_header(canvas, doc)
-    _draw_footer(canvas, doc)
+    def _draw_page_header(canvas, doc):
+        pw, ph = doc.pagesize
+        canvas.saveState()
+        canvas.setFillColor(RPT_DARK_BLUE)
+        canvas.rect(0, ph - 22, pw, 22, stroke=0, fill=1)
+        canvas.setFillColor(colors.white)
+        canvas.setFont("Helvetica-Bold", 8)
+        canvas.drawString(16, ph - 15, "SCCSIMS Security Report")
+        canvas.setFont("Helvetica", 8)
+        canvas.drawRightString(pw - 16, ph - 15, ctx.get("now_str", ""))
+        canvas.restoreState()
 
-def _on_later_pages(canvas, doc):
-    _draw_watermark(canvas, doc)
-    _draw_page_header(canvas, doc)
-    _draw_footer(canvas, doc)
+    def _draw_footer(canvas, doc):
+        pw, _ = doc.pagesize
+        canvas.saveState()
+        canvas.setStrokeColor(RPT_MID_GREY)
+        canvas.setLineWidth(0.5)
+        canvas.line(36, 30, pw - 36, 30)
+        canvas.setFont("Helvetica", 7.5)
+        canvas.setFillColor(RPT_GREY)
+        canvas.drawString(36, 14,
+            "SCCSIMS — Smart Campus & Corporate Security Infrastructure Monitoring System")
+        canvas.drawRightString(pw - 36, 14, f"Page {doc.page}")
+        canvas.restoreState()
+
+    def on_first_page(canvas, doc):
+        _draw_watermark(canvas, doc)
+        _draw_page1_header(canvas, doc)
+        _draw_footer(canvas, doc)
+
+    def on_later_pages(canvas, doc):
+        _draw_watermark(canvas, doc)
+        _draw_page_header(canvas, doc)
+        _draw_footer(canvas, doc)
+
+    return on_first_page, on_later_pages
+
 
 def _build_styles():
     base = getSampleStyleSheet()
@@ -867,6 +953,7 @@ def _build_styles():
     )
     return st
 
+
 def _tbl_style(header_bg=None):
     if header_bg is None:
         header_bg = RPT_MED_BLUE
@@ -891,6 +978,7 @@ def _tbl_style(header_bg=None):
         ("LINEBELOW",     (0, 0), (-1,  0), 1.5, RPT_DARK_BLUE),
     ])
 
+
 def _section_bar(label, st):
     tbl = Table([[Paragraph(f"  {label}", st["section_heading"])]], colWidths=["100%"])
     tbl.setStyle(TableStyle([
@@ -903,6 +991,7 @@ def _section_bar(label, st):
     ]))
     return tbl
 
+
 def _cell(text, st, key="wrap", color=None):
     val = str(text) if (text is not None and str(text).strip() not in ("", "None")) else "—"
     if color:
@@ -910,6 +999,7 @@ def _cell(text, st, key="wrap", color=None):
     else:
         sty = st[key]
     return Paragraph(val, sty)
+
 
 def _status_pill(status_str, st):
     s = (status_str or "").strip().upper()
@@ -925,13 +1015,27 @@ def _status_pill(status_str, st):
     )
     return Paragraph(s, pill)
 
+
 def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_count=0):
-    timestamps = analytics_history["timestamps"]
-    cpu_data   = analytics_history["cpu_avg"]
-    ram_data   = analytics_history.get("ram_avg", [])
-    rogue_data = analytics_history["rogue_count"]
-    total_data = analytics_history["total_devices"]
-    tmpdir     = tempfile.gettempdir()
+    # FIX #8: cache graph images; only regenerate when data is stale (> GRAPH_CACHE_TTL seconds)
+    now = datetime.now()
+    cached_ts    = _graph_cache.get("ts")
+    cached_paths = _graph_cache.get("paths")
+    if (cached_paths is not None
+            and cached_ts is not None
+            and (now - cached_ts).total_seconds() < GRAPH_CACHE_TTL
+            and all(os.path.exists(p) for p in cached_paths)):
+        return cached_paths
+
+    # FIX #2: read analytics_history under _hist_lock to avoid torn reads
+    with _hist_lock:
+        timestamps = list(analytics_history["timestamps"])
+        cpu_data   = list(analytics_history["cpu_avg"])
+        ram_data   = list(analytics_history.get("ram_avg", []))
+        rogue_data = list(analytics_history["rogue_count"])
+        total_data = list(analytics_history["total_devices"])
+
+    tmpdir = tempfile.gettempdir()
 
     def _ax_style(ax, title, xlabel, ylabel):
         ax.set_title(title, fontsize=10, fontweight="bold", color="#1a237e", pad=8)
@@ -1080,7 +1184,11 @@ def generate_graphs(online_count=0, offline_count=0, rogue_count=0, trusted_coun
     plt.savefig(combined_path, dpi=150, bbox_inches="tight", facecolor="#ffffff")
     plt.close()
 
-    return cpu_path, ram_path, rogue_path, pie_path, combined_path
+    paths = (cpu_path, ram_path, rogue_path, pie_path, combined_path)
+    _graph_cache["paths"] = paths
+    _graph_cache["ts"]    = now
+    return paths
+
 
 @app.route("/generate-report")
 def generate_report():
@@ -1105,9 +1213,13 @@ def generate_report():
     page_w = A4[0] - doc.leftMargin - doc.rightMargin
     elems  = []
 
-    _rpt_ctx["now_str"]   = datetime.now().strftime("%A, %d %B %Y  •  %H:%M:%S")
-    _rpt_ctx["operator"]  = session.get("user", "admin")
-    _rpt_ctx["logo_path"] = "static/logo.png"
+    # FIX #7: local context dict — concurrent report requests are now fully isolated
+    _ctx = {
+        "now_str":   datetime.now().strftime("%A, %d %B %Y  •  %H:%M:%S"),
+        "operator":  session.get("user", "admin"),
+        "logo_path": "static/logo.png",
+    }
+    on_first_page, on_later_pages = _make_page_callbacks(_ctx)
 
     conn   = get_db()
     cursor = conn.cursor()
@@ -1425,7 +1537,7 @@ def generate_report():
         "Right: Trust breakdown (Trusted vs Unauthorized).", height=3.0 * inch))
     elems.extend(_graph_block(combined_path, "Figure 5 — Total devices vs rogue count across the last 20 scan cycles."))
 
-    doc.build(elems, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
+    doc.build(elems, onFirstPage=on_first_page, onLaterPages=on_later_pages)
     buffer.seek(0)
     fname = f"SCCSIMS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return Response(
@@ -1434,10 +1546,16 @@ def generate_report():
         headers={"Content-Disposition": f"attachment; filename={fname}"},
     )
 
-# ROUTES — ANALYTICS & ATTACKER
+
+# ── ROUTES — ANALYTICS & ATTACKER ────────────────────────────────────────────
+
 @app.route("/api/analytics")
 def analytics():
-    return jsonify(analytics_history)
+    # FIX #2: read analytics_history under _hist_lock
+    with _hist_lock:
+        snapshot = {k: list(v) for k, v in analytics_history.items()}
+    return jsonify(snapshot)
+
 
 @app.route("/api/last-attacker")
 def last_attacker():
@@ -1464,14 +1582,18 @@ def last_attacker():
     except Exception as e:
         return jsonify({"ip": None, "message": str(e)})
 
-# ROUTES — NETWORK SCAN
+
+# ── ROUTES — NETWORK SCAN ────────────────────────────────────────────────────
+
 @app.route("/scan-network")
 def scan_network_route():
     return jsonify(scan_network())
 
+
 @app.route("/scan-arp")
 def scan_arp():
     return jsonify(scan_network_arp())
+
 
 @app.route("/detect-rogue")
 def detect_rogue_devices():
@@ -1487,7 +1609,9 @@ def detect_rogue_devices():
     except Exception as e:
         return jsonify({"rogue_devices": [], "error": str(e)})
 
-# ROUTES — PORT SCANNER
+
+# ── ROUTES — PORT SCANNER ────────────────────────────────────────────────────
+
 def scan_ports(ip, ports=None):
     if ports is None:
         ports = [21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 3389]
@@ -1503,6 +1627,7 @@ def scan_ports(ip, ports=None):
             pass
     return open_ports
 
+
 def scan_single_port(ip, port, timeout):
     try:
         sock   = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1512,6 +1637,7 @@ def scan_single_port(ip, port, timeout):
         return port if result == 0 else None
     except Exception:
         return None
+
 
 @app.route("/scan-ports")
 def scan_ports_route():
@@ -1524,6 +1650,7 @@ def scan_ports_route():
         start, end = port_range.split("-")
         ports = list(range(int(start), int(end) + 1))
     return jsonify({"ip": ip, "open_ports": scan_ports(ip, ports)})
+
 
 @app.route("/scan-ports-live")
 def scan_ports_live():
@@ -1564,6 +1691,7 @@ def scan_ports_live():
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
+
 @app.route("/scan-ports-advanced", methods=["POST"])
 def scan_ports_advanced():
     try:
@@ -1596,19 +1724,16 @@ def scan_ports_advanced():
 
 def save_scan_history(ip, ports):
     try:
-        conn = get_db()
+        conn   = get_db()
         cursor = conn.cursor()
 
-        # Normalize ports (handle int OR dict)
         clean_ports = []
         for p in ports:
             if isinstance(p, dict):
                 clean_ports.append(p.get("port"))
             else:
                 clean_ports.append(p)
-
-        clean_ports = [p for p in clean_ports if p is not None]
-
+        clean_ports     = [p for p in clean_ports if p is not None]
         high_risk_ports = [p for p in clean_ports if p in [21, 23, 445, 3389, 4444]]
 
         cursor.execute("""
@@ -1652,7 +1777,7 @@ def log_rogue(ip, mac, attack_type):
                 last_time = datetime.strptime(last_row[0], "%Y-%m-%d %H:%M:%S")
                 if (now - last_time).total_seconds() < ROGUE_LOG_COOLDOWN_SECONDS:
                     conn.close()
-                    return  # Skip — duplicate within cooldown window
+                    return
             except Exception:
                 pass
 
@@ -1743,47 +1868,38 @@ def generate_port_report():
 @app.route("/api/scan-history")
 def scan_history():
     try:
-        conn = get_db()
+        conn   = get_db()
         cursor = conn.cursor()
-
         cursor.execute("""
             SELECT ip, ports, high_risk, time
             FROM scan_history
             ORDER BY id DESC
             LIMIT 50
         """)
-
         rows = cursor.fetchall()
         conn.close()
 
         data = []
-
         for r in rows:
             ports_str = r[1] if r[1] else ""
-
             try:
                 port_list = [p.strip() for p in ports_str.split(",") if p.strip()]
-            except:
+            except Exception:
                 port_list = []
-
             data.append({
-                "ip": r[0],
-                "ports": ports_str,
+                "ip":         r[0],
+                "ports":      ports_str,
                 "port_count": len(port_list),
-                "high_risk": r[2] if r[2] else 0,
-                "time": r[3] if r[3] else "-"
+                "high_risk":  r[2] if r[2] else 0,
+                "time":       r[3] if r[3] else "-"
             })
 
         return jsonify(data)
 
-
     except Exception as e:
         print("\nFULL ERROR TRACE:")
         traceback.print_exc()
-        return jsonify({
-            "error": "Internal server error",
-            "details": str(e)
-        }), 500
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 @app.route("/api/rogue-logs")
 def get_rogue_logs():
@@ -1822,7 +1938,7 @@ def view_logs():
     except Exception as e:
         return f"Error reading logs: {str(e)}"
 
-# STARTUP
+# ── STARTUP ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     try:
         print("""
@@ -1833,10 +1949,17 @@ if __name__ == "__main__":
         init_db()
         scanner_thread = threading.Thread(target=safe_background, daemon=True)
         scanner_thread.start()
+        anim_thread = start_lightweight_animation()
         app.run(host="0.0.0.0", port=5000, debug=True,
                 use_reloader=False, threaded=True)
     except KeyboardInterrupt:
-        print("\n⚠️ CTRL + C detected. Shutting down SCCSIMS...")
+        print("\n⚠️  CTRL + C detected. Shutting down SCCSIMS...")
 
     finally:
-        print("🚫  server stopped.")
+        stop_animation = True
+        time.sleep(0.35)          # let spinner thread see the flag and exit its loop
+
+        # FIX #1: do NOT clear the spinner line — just move to a fresh line so the
+        # last frozen animation frame stays visible, then print the shutdown message.
+        sys.stdout.write("\n✅ SCCSIMS stopped cleanly\n")
+        sys.stdout.flush()
