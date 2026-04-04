@@ -1824,8 +1824,19 @@ def view_logs():
 
 # STARTUP
 if __name__ == "__main__":
-    init_db()
-    scanner_thread = threading.Thread(target=safe_background, daemon=True)
-    scanner_thread.start()
-    app.run(host="0.0.0.0", port=5000, debug=True,
-            use_reloader=False, threaded=True)
+    try:
+        print("""
+        ========================================
+           🛡️ SCCSIMS SERVER STARTING
+        ========================================
+        """)
+        init_db()
+        scanner_thread = threading.Thread(target=safe_background, daemon=True)
+        scanner_thread.start()
+        app.run(host="0.0.0.0", port=5000, debug=True,
+                use_reloader=False, threaded=True)
+    except KeyboardInterrupt:
+        print("\n⚠️ CTRL + C detected. Shutting down SCCSIMS...")
+
+    finally:
+        print("🚫  server stopped.")
